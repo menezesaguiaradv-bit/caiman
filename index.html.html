@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grupo Caiman Agro</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --verde-escuro:#1a3a1a;
+  --verde:#2E7D32;
+  --verde-claro:#E8F5E9;
+  --azul:#1565C0;
+  --azul-claro:#E3F2FD;
+  --laranja:#E65100;
+  --laranja-claro:#FFF3E0;
+  --roxo:#4527A0;
+  --roxo-claro:#EDE7F6;
+  --bg:#F4F5F0;
+  --card:#fff;
+  --border:#E5E7E0;
+  --text:#1a1a1a;
+  --muted:#6B7280;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* ── HEADER ── */
+.header{background:var(--verde-escuro);padding:0 24px;height:60px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:50;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.header img{height:32px}
+.header-title{color:#fff;font-size:15px;font-weight:600;flex:1}
+.header-fazenda{display:flex;align-items:center;gap:6px}
+.fazenda-select{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;padding:5px 10px;border-radius:7px;font-size:13px;font-family:inherit;cursor:pointer}
+.fazenda-select option{background:var(--verde-escuro);color:#fff}
+.btn-nuvem{padding:5px 12px;border-radius:7px;border:1px solid rgba(255,255,255,.3);background:transparent;color:#fff;font-size:12px;cursor:pointer;font-family:inherit}
+.btn-nuvem:hover{background:rgba(255,255,255,.15)}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#9E9E9E;display:inline-block;margin-right:4px}
+.sync-dot.on{background:#4CAF50}
+.sync-dot.err{background:#F44336}
+
+/* ── BREADCRUMB / PAGE HEADER ── */
+.page-header{padding:20px 24px 0;display:flex;align-items:center;gap:10px}
+.back-btn{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:13px;cursor:pointer;border:none;background:none;font-family:inherit;padding:4px 0}
+.back-btn:hover{color:var(--text)}
+.page-title{font-size:20px;font-weight:700;color:var(--text)}
+.page-sub{font-size:13px;color:var(--muted);margin-top:2px}
+
+/* ── MAIN ── */
+.main{padding:20px 24px 40px}
+
+/* ── DASHBOARD ── */
+.dashboard-resumo{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px}
+.resumo-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
+.resumo-card .rc-num{font-size:28px;font-weight:700;margin-bottom:2px}
+.resumo-card .rc-label{font-size:12px;color:var(--muted)}
+.rc-verde{border-left:3px solid var(--verde)}
+.rc-azul{border-left:3px solid var(--azul)}
+.rc-laranja{border-left:3px solid var(--laranja)}
+.rc-roxo{border-left:3px solid var(--roxo)}
+
+.dashboard-modulos{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.modulo-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden}
+.modulo-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.1);border-color:transparent}
+.modulo-card::before{content:"";position:absolute;top:0;left:0;right:0;height:4px}
+.mc-sisbov::before{background:var(--verde)}
+.mc-pastos::before{background:#43A047}
+.mc-conf::before{background:var(--azul)}
+.mc-recria::before{background:var(--laranja)}
+.mc-engorda::before{background:#8D6E63}
+.mc-lotes::before{background:var(--roxo)}
+.modulo-icon{font-size:36px;margin-bottom:14px}
+.modulo-card h3{font-size:16px;font-weight:700;margin-bottom:6px}
+.modulo-card p{font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:16px}
+.modulo-card .mc-stats{display:flex;gap:10px;flex-wrap:wrap}
+.mc-stat{font-size:12px;padding:3px 9px;border-radius:20px;font-weight:500}
+.mc-stat-verde{background:var(--verde-claro);color:var(--verde)}
+.mc-stat-azul{background:var(--azul-claro);color:var(--azul)}
+.mc-stat-laranja{background:var(--laranja-claro);color:var(--laranja)}
+.mc-stat-roxo{background:var(--roxo-claro);color:var(--roxo)}
+.mc-arrow{position:absolute;bottom:20px;right:20px;color:var(--muted);font-size:18px}
+
+/* ── SEÇÕES INTERNAS ── */
+.section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:14px}
+.stitle{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:12px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.field input,.field select{padding:9px 11px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;background:var(--card);color:var(--text);width:100%}
+.field input:focus,.field select:focus{outline:none;border-color:var(--verde);box-shadow:0 0 0 3px rgba(46,125,50,.1)}
+.field input.calc{background:#f9faf9;color:#555;font-weight:500;cursor:default;border-style:dashed}
+.field input.hoje{background:var(--verde-claro);color:var(--verde);font-weight:700;border-color:#a5d6a7}
+.field small{font-size:10px;color:#aaa;margin-top:1px}
+.divider{grid-column:1/-1;border-top:1px dashed var(--border);margin:4px 0}
+
+/* ── METRICS ── */
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.metric{background:var(--bg);border-radius:10px;padding:14px 16px;border:1px solid var(--border)}
+.ml{font-size:11px;color:var(--muted);margin-bottom:4px;line-height:1.4;font-weight:500}
+.mv{font-size:20px;font-weight:700;color:var(--text)}
+.mv.pos{color:var(--verde)}.mv.neg{color:#C62828}
+
+/* ── BUTTONS ── */
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+button{padding:9px 18px;border-radius:8px;border:1px solid var(--border);font-size:13px;cursor:pointer;background:var(--card);color:var(--text);font-family:inherit;font-weight:500}
+.btn-p{background:var(--verde-escuro);color:#fff;border-color:var(--verde-escuro);font-weight:600}
+.btn-p:hover{background:var(--verde)}
+.btn-s{background:var(--azul);color:#fff;border-color:var(--azul)}
+.btn-d{color:#C62828;border-color:#FFCDD2;font-size:12px;padding:5px 10px;background:#fff}
+.btn-sm{padding:5px 12px;font-size:12px}
+
+/* ── ANIMAL TABLE ── */
+.atable{width:100%;border-collapse:collapse;font-size:13px}
+.atable th{background:var(--bg);padding:9px 12px;text-align:left;font-weight:600;font-size:11px;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;text-transform:uppercase;letter-spacing:.3px}
+.atable td{padding:10px 12px;border-bottom:1px solid #F5F5F5;vertical-align:middle}
+.atable tr:last-child td{border-bottom:none}
+.atable tr:hover td{background:#FAFAFA}
+
+/* ── PASTO CARDS ── */
+.pasto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
+.pasto-card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.pasto-card-head{background:var(--verde-escuro);padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+.pasto-card-head h3{color:#fff;font-size:14px;font-weight:600}
+.pasto-card-head span{color:#81c784;font-size:12px}
+.pasto-card-body{padding:12px}
+.animal-pill{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:8px;background:var(--bg);margin-bottom:6px}
+.animal-pill:last-child{margin-bottom:0}
+.pill-id{font-size:12px;font-weight:600}
+.pill-sub{font-size:11px;color:var(--muted);margin-top:1px}
+.mover-btn{padding:4px 9px;font-size:11px;border-radius:6px;border:1px solid var(--azul);color:var(--azul);background:#fff;cursor:pointer;white-space:nowrap}
+.mover-btn:hover{background:var(--azul);color:#fff}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:#fff;border-radius:16px;padding:24px;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal h3{font-size:17px;font-weight:700;margin-bottom:16px}
+.modal-info{background:var(--bg);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;line-height:1.8}
+.modal-btns{display:flex;gap:8px;margin-top:16px}
+.btn-warn{background:var(--laranja);color:#fff;border-color:var(--laranja);font-weight:600}
+
+/* ── HISTÓRICO ── */
+.hist-line{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid #F5F5F5}
+.hist-line:last-child{border-bottom:none}
+.hist-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;margin-top:1px}
+.hist-icon-cad{background:var(--verde-claro)}
+.hist-icon-mov{background:var(--azul-claro)}
+.hist-body{flex:1}
+.hist-title{font-size:13px;font-weight:600;margin-bottom:2px}
+.hist-sub{font-size:12px;color:var(--muted)}
+
+/* ── TAGS ── */
+.tag{font-size:11px;padding:3px 8px;border-radius:20px;font-weight:500;display:inline-block}
+.tag-verde{background:var(--verde-claro);color:var(--verde)}
+.tag-azul{background:var(--azul-claro);color:var(--azul)}
+.tag-laranja{background:var(--laranja-claro);color:var(--laranja)}
+.tag-roxo{background:var(--roxo-claro);color:var(--roxo)}
+.tag-gray{background:#F3F4F6;color:#555}
+.tag-faz{background:var(--roxo-claro);color:var(--roxo)}
+
+/* ── SEARCH ── */
+.search-bar{width:100%;padding:9px 14px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;margin-bottom:14px;background:#fff}
+.search-bar:focus{outline:none;border-color:var(--verde)}
+
+/* ── LOTE CARD ── */
+.lote-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px}
+.lote-card-head{display:flex;justify-content:space-between;align-items:start;margin-bottom:8px}
+.lote-card h3{font-size:14px;font-weight:600;margin-bottom:3px}
+.lote-card p{font-size:12px;color:var(--muted)}
+.lote-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+
+/* ── ALERT ── */
+.alert{padding:12px 16px;border-radius:10px;font-size:13px;margin-bottom:14px;display:none;font-weight:500}
+.alert.show{display:block}
+.alert.ok{background:var(--verde-claro);color:var(--verde);border:1px solid #A5D6A7}
+.alert.err{background:#FFEBEE;color:#C62828;border:1px solid #FFCDD2}
+
+/* ── CONFIG ── */
+.config-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px}
+
+/* ── ADD ANIMAL ROW ── */
+.add-row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:12px}
+.add-row .field{min-width:140px;flex:1}
+
+.empty{text-align:center;padding:48px;color:var(--muted);font-size:14px}
+
+/* páginas ocultas */
+.page{display:none}
+.page.active{display:block}
+
+@media(max-width:600px){
+  .main{padding:14px}
+  .header{padding:0 14px}
+  .page-header{padding:14px 14px 0}
+  .dashboard-modulos{grid-template-columns:1fr}
+}
+
+/* ── ENCERRAR LOTE ── */
+.lote-ativo{border-left:3px solid var(--azul)}
+.lote-encerrado{border-left:3px solid #9E9E9E;opacity:.85}
+.status-badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700;margin-right:6px;vertical-align:middle}
+.status-ativo{background:#E3F2FD;color:var(--azul)}
+.status-enc{background:#F3F4F6;color:#555}
+.btn-enc{background:#C62828;color:#fff;border-color:#C62828;font-weight:600}
+.btn-enc:hover{background:#B71C1C}
+.btn-reab{color:#1565C0;border-color:#BBDEFB;font-size:12px;padding:5px 10px}
+
+/* ── MODAL ENCERRAR ── */
+.modal-enc{background:#fff;border-radius:16px;padding:24px;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto}
+.modal-enc h3{font-size:17px;font-weight:700;margin-bottom:4px}
+.modal-enc .sub{font-size:13px;color:var(--muted);margin-bottom:16px}
+.modal-enc .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.result-box{background:var(--bg);border-radius:10px;padding:14px;margin-top:12px}
+.result-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:13px}
+.result-row:last-child{border-bottom:none;font-weight:700;font-size:14px;padding-top:8px}
+.result-val.pos{color:var(--verde);font-weight:700}
+.result-val.neg{color:#C62828;font-weight:700}
+
+/* ── ABATES DASHBOARD CARD ── */
+.mc-abates::before{background:#5D4037}
+.abate-resumo{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px}
+.abate-resumo-card{background:var(--bg);border-radius:10px;padding:12px 14px;border:1px solid var(--border)}
+.abate-resumo-card .num{font-size:22px;font-weight:700}
+.abate-resumo-card .lab{font-size:11px;color:var(--muted);margin-top:2px}
+.abate-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;border-left:3px solid #C62828}
+.abate-card-head{display:flex;justify-content:space-between;align-items:start;margin-bottom:8px}
+.abate-card h3{font-size:14px;font-weight:600;margin-bottom:3px}
+.abate-card p{font-size:12px;color:var(--muted)}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <img src="data:image/png;base64,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" alt="Caiman Agro">
+  <span class="header-title">Grupo Caiman Agro</span>
+  <div class="header-fazenda">
+    <select class="fazenda-select" id="fazenda-global" onchange="setFazenda()">
+      <option value="todas">Todas as fazendas</option>
+      <option>Caiman</option><option>Maguary</option>
+      <option>Cruz Alta</option><option>Pinheiral</option><option>Furna</option>
+    </select>
+  </div>
+  <button class="btn-nuvem" onclick="abrirConfig()">
+    <span class="sync-dot" id="sync-dot"></span>Nuvem
+  </button>
+</div>
+
+<!-- CONFIG SUPABASE (oculto) -->
+<div id="config-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;align-items:center;justify-content:center;padding:16px">
+  <div class="modal">
+    <h3>☁️ Configuração Supabase</h3>
+    <div class="field" style="margin-bottom:10px"><label>URL do projeto</label><input id="sb-url" placeholder="https://xxxx.supabase.co" oninput="salvarConfig()"></div>
+    <div class="field" style="margin-bottom:10px"><label>Chave anon</label><input id="sb-key" placeholder="eyJhbGc..." oninput="salvarConfig()"></div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
+      <button onclick="testarConexao()" class="btn-s">Testar conexão</button>
+      <button onclick="sincronizar()" class="btn-p">↑↓ Sincronizar</button>
+      <button onclick="fecharConfig()">Fechar</button>
+    </div>
+    <div id="teste-result" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
+  </div>
+</div>
+
+<!-- PAGES -->
+<div id="page-dashboard" class="page active">
+  <div class="page-header"><div class="page-title">Dashboard</div></div>
+  <div class="main">
+    <div class="dashboard-resumo">
+      <div class="resumo-card rc-verde"><div class="rc-num" id="dash-animais">0</div><div class="rc-label">Animais identificados</div></div>
+      <div class="resumo-card rc-azul"><div class="rc-num" id="dash-conf">0</div><div class="rc-label">Em confinamento</div></div>
+      <div class="resumo-card rc-laranja"><div class="rc-num" id="dash-recria">0</div><div class="rc-label">Em recria / engorda</div></div>
+            <div class="resumo-card" style="border-left:3px solid #C62828"><div class="rc-num" id="dash-abates">0</div><div class="rc-label">Lotes encerrados</div></div>
+      <div class="resumo-card rc-roxo"><div class="rc-num" id="dash-pastos">0</div><div class="rc-label">Pastos ocupados</div></div>
+    </div>
+
+    <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:12px">🐄 Identificação Animal</div>
+    <div class="dashboard-modulos" style="margin-bottom:24px">
+      <div class="modulo-card mc-sisbov" onclick="irPara('sisbov')">
+        <div class="modulo-icon">🏷️</div>
+        <h3>SISBOV / ID Eletrônica</h3>
+        <p>Cadastre e gerencie a identificação oficial de cada animal com SISBOV e brinco eletrônico.</p>
+        <div class="mc-stats"><span class="mc-stat mc-stat-verde" id="ms-animais">0 animais</span></div>
+        <span class="mc-arrow">→</span>
+      </div>
+      <div class="modulo-card mc-pastos" onclick="irPara('pastos')">
+        <div class="modulo-icon">🌿</div>
+        <h3>Pastos</h3>
+        <p>Visualize todos os animais por pasto e movimente entre fazendas com histórico completo.</p>
+        <div class="mc-stats"><span class="mc-stat mc-stat-verde" id="ms-pastos">0 pastos</span></div>
+        <span class="mc-arrow">→</span>
+      </div>
+    </div>
+
+    <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:12px">📊 Operações</div>
+    <div class="dashboard-modulos">
+      <div class="modulo-card mc-conf" onclick="irPara('conf')">
+        <div class="modulo-icon">🐂</div>
+        <h3>Confinamento</h3>
+        <p>Gerencie lotes em confinamento com análise completa de desempenho e resultado financeiro.</p>
+        <div class="mc-stats"><span class="mc-stat mc-stat-azul" id="ms-conf">0 lotes</span></div>
+        <span class="mc-arrow">→</span>
+      </div>
+      <div class="modulo-card mc-recria" onclick="irPara('recria')">
+        <div class="modulo-icon">🌱</div>
+        <h3>Recria / Engorda a Pasto</h3>
+        <p>Controle lotes de recria e engorda a pasto por fazenda e responsável.</p>
+        <div class="mc-stats">
+          <span class="mc-stat mc-stat-laranja" id="ms-recria">0 recria</span>
+          <span class="mc-stat" style="background:#EFEBE9;color:#5D4037" id="ms-engorda">0 engorda</span>
+        </div>
+        <span class="mc-arrow">→</span>
+      </div>
+      
+      <div class="modulo-card mc-abates" onclick="irPara('abates')">
+        <div class="modulo-icon">📖</div>
+        <h3>Histórico de Abates</h3>
+        <p>Base de dados de todos os lotes encerrados com resultado financeiro consolidado.</p>
+        <div class="mc-stats"><span class="mc-stat" style="background:#FFEBEE;color:#C62828" id="ms-abates">0 lotes</span><span class="mc-stat mc-stat-verde" id="ms-abates-res">R$ 0</span></div>
+        <span class="mc-arrow">→</span>
+      </div>
+      <div class="modulo-card mc-lotes" onclick="irPara('lotes')">
+        <div class="modulo-icon">📋</div>
+        <h3>Todos os lotes</h3>
+        <p>Visão consolidada de todos os lotes salvos, com filtro por fazenda e tipo.</p>
+        <div class="mc-stats"><span class="mc-stat mc-stat-roxo" id="ms-lotes">0 lotes</span></div>
+        <span class="mc-arrow">→</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE SISBOV -->
+<div id="page-sisbov" class="page">
+  <div class="page-header">
+    <button class="back-btn" onclick="irPara('dashboard')">← Dashboard</button>
+  </div>
+  <div class="main">
+    <div class="page-title" style="margin-bottom:4px">🏷️ SISBOV / ID Eletrônica</div>
+    <div class="page-sub" style="margin-bottom:20px">Cadastro e gestão de identificação animal</div>
+    <div id="alert-sisbov" class="alert"></div>
+    <div class="section">
+      <div class="stitle">Cadastrar novo animal <button class="btn-p btn-sm" onclick="salvarAnimal()">+ Cadastrar</button></div>
+      <div class="grid">
+        <div class="field"><label>SISBOV</label><input id="s-sisbov" placeholder="076.1234.5678.9012"></div>
+        <div class="field"><label>ID Eletrônica (chip/brinco)</label><input id="s-eletro" placeholder="982000123456789"></div>
+        <div class="field"><label>Fazenda</label>
+          <select id="s-fazenda"><option>Caiman</option><option>Maguary</option><option>Cruz Alta</option><option>Pinheiral</option><option>Furna</option></select>
+        </div>
+        <div class="field"><label>Pasto atual</label><input id="s-pasto" placeholder="Ex: 3A, Curral B"></div>
+        <div class="field"><label>Sexo</label><select id="s-sexo"><option value="M">♂ Macho</option><option value="F">♀ Fêmea</option></select></div>
+        <div class="field"><label>Categoria</label>
+          <select id="s-cat"><option>Confinamento</option><option>Recria</option><option>Engorda a Pasto</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="stitle">
+        Animais cadastrados <span id="total-animais" style="font-weight:400;font-size:12px"></span>
+        <button class="btn-s btn-sm" onclick="document.getElementById('import-area').style.display=document.getElementById('import-area').style.display==='none'?'block':'none'">📥 Importar planilha</button>
+      </div>
+
+      <!-- ÁREA DE IMPORTAÇÃO -->
+      <div id="import-area" style="display:none;background:#F0F4FF;border:1.5px dashed #1565C0;border-radius:10px;padding:16px;margin-bottom:14px">
+        <div style="font-size:13px;font-weight:600;color:#1565C0;margin-bottom:8px">📥 Importar animais via planilha (.xlsx ou .csv)</div>
+        <div style="font-size:12px;color:#555;margin-bottom:10px;line-height:1.7">
+          A planilha deve seguir o modelo:<br>
+          <strong>Coluna A:</strong> SISBOV &nbsp;|&nbsp;
+          <strong>Coluna B:</strong> ID Eletrônica &nbsp;|&nbsp;
+          <strong>Coluna C:</strong> Peso (kg) &nbsp;|&nbsp;
+          <strong>Coluna D:</strong> Data de Entrada &nbsp;|&nbsp;
+          <strong>Coluna E:</strong> Data de Saída<br>
+          <span style="color:#888">A primeira linha pode ser cabeçalho — será ignorada automaticamente.</span>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <div class="field" style="flex:1;min-width:200px">
+            <label>Fazenda dos animais importados</label>
+            <select id="import-fazenda">
+              <option>Caiman</option><option>Maguary</option><option>Cruz Alta</option><option>Pinheiral</option><option>Furna</option>
+            </select>
+          </div>
+          <div class="field" style="flex:1;min-width:200px">
+            <label>Pasto padrão (se não informado)</label>
+            <input id="import-pasto" placeholder="Ex: 3A">
+          </div>
+          <div class="field" style="flex:1;min-width:200px">
+            <label>Categoria padrão</label>
+            <select id="import-cat">
+              <option>Confinamento</option><option>Recria</option><option>Engorda a Pasto</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;background:#1565C0;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600">
+            📂 Selecionar arquivo
+            <input type="file" id="import-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarPlanilha(this)">
+          </label>
+          <button onclick="baixarModelo()" style="font-size:12px;color:#1565C0;border-color:#1565C0;padding:7px 14px">⬇ Baixar modelo .csv</button>
+          <span id="import-status" style="font-size:12px;color:#555"></span>
+        </div>
+        <div id="import-preview" style="display:none;margin-top:12px">
+          <div style="font-size:12px;font-weight:600;color:#333;margin-bottom:6px" id="import-preview-title"></div>
+          <div style="overflow-x:auto">
+            <table class="atable" id="import-preview-table">
+              <thead><tr><th>SISBOV</th><th>ID Eletrônica</th><th>Peso (kg)</th><th>Data Entrada</th><th>Data Saída</th><th>Status</th></tr></thead>
+              <tbody id="import-preview-tbody"></tbody>
+            </table>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:8px">
+            <button class="btn-p" onclick="confirmarImportacao()" id="btn-confirmar-import">✅ Confirmar importação</button>
+            <button onclick="cancelarImportacao()">Cancelar</button>
+          </div>
+        </div>
+      </div>
+
+      <input class="search-bar" id="search-animal" placeholder="🔍 Buscar por SISBOV, ID eletrônica ou pasto..." oninput="renderAnimais()">
+      <div style="overflow-x:auto">
+        <table class="atable">
+          <thead><tr><th>SISBOV</th><th>ID Eletrônica</th><th>Fazenda</th><th>Pasto</th><th>Sexo</th><th>Categoria</th><th>Movim.</th><th></th></tr></thead>
+          <tbody id="sisbov-tbody"></tbody>
+        </table>
+      </div>
+      <div id="sisbov-empty" class="empty">Nenhum animal cadastrado ainda.</div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE PASTOS -->
+<div id="page-pastos" class="page">
+  <div class="page-header"><button class="back-btn" onclick="irPara('dashboard')">← Dashboard</button></div>
+  <div class="main">
+    <div class="page-title" style="margin-bottom:4px">🌿 Pastos</div>
+    <div class="page-sub" style="margin-bottom:20px">Animais por pasto e movimentações</div>
+    <div id="alert-pastos" class="alert"></div>
+    <div id="pastos-grid" class="pasto-grid"></div>
+    <div id="pastos-empty" class="empty" style="display:none">Nenhum animal nos pastos.</div>
+  </div>
+</div>
+
+<!-- PAGE CONFINAMENTO -->
+<div id="page-conf" class="page">
+  <div class="page-header"><button class="back-btn" onclick="irPara('dashboard')">← Dashboard</button></div>
+  <div class="main">
+    <div class="page-title" style="margin-bottom:4px">🐂 Confinamento</div>
+    <div class="page-sub" style="margin-bottom:20px">Cadastro e análise de lotes em confinamento</div>
+    <div id="alert-conf" class="alert"></div>
+    <div class="section">
+      <div class="stitle">Identificação do lote</div>
+      <div class="grid">
+        <div class="field"><label>Fazenda</label><select id="c-fazenda"><option>Caiman</option><option>Maguary</option><option>Cruz Alta</option><option>Pinheiral</option><option>Furna</option></select></div>
+        <div class="field"><label>Pasto / Curral</label><input id="c-pasto" placeholder="Ex: 12, 14C" oninput="calcConf()"></div>
+        <div class="field"><label>Produtor / Responsável</label><input id="c-produtor" placeholder="Ex: AM, RCA"></div>
+        <div class="field"><label>Quantidade de animais</label><input id="c-qtd" type="number" placeholder="0"></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="stitle">Entrada</div>
+      <div class="grid">
+        <div class="field"><label>Data de entrada</label><input id="c-dte" type="date" oninput="calcConf()"></div>
+        <div class="field"><label>Peso de entrada (kg)</label><input id="c-pesoe" type="number" placeholder="0" step="0.01" oninput="calcConf()"></div>
+        <div class="field"><label>GMD projetado (kg/dia)</label><input id="c-gmdp" type="number" value="1.2" step="0.01" oninput="calcConf()"></div>
+        <div class="field"><label>Preço compra (R$/kg)</label><input id="c-precoc" type="number" placeholder="0.00" step="0.01" oninput="calcConf()"></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="stitle">Projeção e saída</div>
+      <div class="grid">
+        <div class="field"><label>Data de saída</label><input id="c-dts" type="date" oninput="calcConf()"><small>Vazio = TODAY()</small></div>
+        <div class="field"><label>Dias de cocho</label><input id="c-dias" class="calc" readonly></div>
+        <div class="field"><label>Peso projetado hoje (kg)</label><input id="c-projhoje" class="hoje" readonly><small>diasHoje × GMD + entrada</small></div>
+        <div class="field"><label>Peso projetado saída (kg)</label><input id="c-projsaida" class="calc" readonly></div>
+        <!-- Peso saída, rendimento, @ e GMD são preenchidos no encerramento do lote -->
+        <input type="hidden" id="c-pesos" value="0">
+        <input type="hidden" id="c-rend" value="56">
+        <input type="hidden" id="c-at" value="0">
+        <input type="hidden" id="c-gmds" value="0">
+      </div>
+    </div>
+    <div class="section">
+      <div class="stitle">Custos por animal</div>
+      <div class="grid">
+        <div class="field"><label>Custo de nutrição (R$)</label><input id="c-nutri" type="number" placeholder="0.00" step="0.01" oninput="calcConf()"></div>
+        <div class="field"><label>Custo operacional (R$)</label><input id="c-op" type="number" placeholder="0.00" step="0.01" oninput="calcConf()"></div>
+        <div class="field"><label>Op. automático?</label><select id="c-opauto" onchange="calcConf()"><option value="0">Não — manual</option><option value="1">Sim — (78352,27/2500)/30×dias</option></select></div>
+        <div class="field"><label>Custo compra (R$)</label><input id="c-compra" class="calc" readonly><small>12,2 × peso entrada</small></div>
+        <div class="field"><label>Custo total boi (R$)</label><input id="c-tot" class="calc" readonly></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="stitle">Receita</div>
+      <div class="grid">
+        <div class="field"><label>Preço de venda (R$/@)</label><input id="c-precov" type="number" placeholder="320" step="0.01" oninput="calcConf()"></div>
+        <div class="field"><label>Receita de venda (R$)</label><input id="c-recv" class="calc" readonly></div>
+        <div class="field"><label>PROAP / Precoce (R$/animal)</label><input id="c-proap" type="number" placeholder="0.00" step="0.01" oninput="calcConf()"></div>
+        <div class="field"><label>Hedge NDF (R$/animal)</label><input id="c-hedge" type="number" placeholder="0.00" step="0.01" oninput="calcConf()"></div>
+        <div class="field"><label>Receita total (R$/animal)</label><input id="c-rectot" class="calc" readonly></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="stitle">Resultado</div>
+      <div class="metrics">
+        <div class="metric"><div class="ml">Resultado (R$/animal)</div><div class="mv" id="c-mres">—</div></div>
+        <div class="metric"><div class="ml">Margem do período</div><div class="mv" id="c-mper">—</div></div>
+        <div class="metric"><div class="ml">Margem mensal</div><div class="mv" id="c-mmes">—</div></div>
+        <div class="metric"><div class="ml">Margem anualizada</div><div class="mv" id="c-mano">—</div></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-p" onclick="salvarConf()">Salvar lote</button>
+        <button onclick="limparConf()">Limpar</button>
+      </div>
+    </div>
+
+    <div class="section" style="margin-top:14px">
+      <div class="stitle">Lotes ativos de confinamento</div>
+      <div id="lista-conf-ativos"></div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE RECRIA + ENGORDA -->
+<div id="page-recria" class="page">
+  <div class="page-header"><button class="back-btn" onclick="irPara('dashboard')">← Dashboard</button></div>
+  <div class="main">
+    <div class="page-title" style="margin-bottom:4px">🌱 Recria / Engorda a Pasto</div>
+    <div class="page-sub" style="margin-bottom:16px">Gerencie lotes de recria e engorda por fazenda</div>
+    <div id="alert-recria" class="alert"></div>
+    <div id="alert-engorda" class="alert"></div>
+
+    <!-- Sub-tabs internos -->
+    <div style="display:flex;gap:6px;margin-bottom:14px">
+      <button id="subtab-recria-btn" class="tab active" onclick="showSubtab('recria')">🌱 Recria</button>
+      <button id="subtab-engorda-btn" class="tab" onclick="showSubtab('engorda')">🐄 Engorda a Pasto</button>
+    </div>
+
+    <!-- RECRIA -->
+    <div id="subtab-recria">
+      <div class="section">
+        <div class="stitle">Cadastrar lote de recria</div>
+        <div class="grid">
+          <div class="field"><label>Fazenda</label><select id="rr-fazenda"><option>Caiman</option><option>Maguary</option><option>Cruz Alta</option><option>Pinheiral</option><option>Furna</option></select></div>
+          <div class="field"><label>Pasto</label><input id="rr-pasto" placeholder="Ex: 5C, 3B"></div>
+          <div class="field"><label>Quantidade de animais</label><input id="rr-qtd" type="number" placeholder="0"></div>
+          <div class="field"><label>Peso médio entrada (kg)</label><input id="rr-peso" type="number" placeholder="0" step="0.1"></div>
+          <div class="field"><label>Data de entrada</label><input id="rr-dte" type="date"></div>
+          <div class="field"><label>Responsável</label><input id="rr-resp" placeholder="Nome"></div>
+          <div class="field"><label>Raça</label><input id="rr-raca" placeholder="Ex: Nelore, Cruzado"></div>
+          <div class="field"><label>Observações</label><input id="rr-obs" placeholder="Opcional"></div>
+        </div>
+        <div class="btn-row"><button class="btn-p" onclick="salvarRecria('Recria')">Salvar lote</button><button onclick="limparRecria('rr')">Limpar</button></div>
+      </div>
+      <div class="section">
+        <div class="stitle">Lotes de recria salvos</div>
+        <div id="lista-recria"></div>
+      </div>
+    </div>
+
+    <!-- ENGORDA -->
+    <div id="subtab-engorda" style="display:none">
+      <div class="section">
+        <div class="stitle">Cadastrar lote de engorda a pasto</div>
+        <div class="grid">
+          <div class="field"><label>Fazenda</label><select id="eg-fazenda"><option>Caiman</option><option>Maguary</option><option>Cruz Alta</option><option>Pinheiral</option><option>Furna</option></select></div>
+          <div class="field"><label>Pasto</label><input id="eg-pasto" placeholder="Ex: 7A, 2C"></div>
+          <div class="field"><label>Quantidade de animais</label><input id="eg-qtd" type="number" placeholder="0"></div>
+          <div class="field"><label>Peso médio entrada (kg)</label><input id="eg-peso" type="number" placeholder="0" step="0.1"></div>
+          <div class="field"><label>Data de entrada</label><input id="eg-dte" type="date"></div>
+          <div class="field"><label>Responsável</label><input id="eg-resp" placeholder="Nome"></div>
+          <div class="field"><label>Raça</label><input id="eg-raca" placeholder="Ex: Nelore, Cruzado"></div>
+          <div class="field"><label>Observações</label><input id="eg-obs" placeholder="Opcional"></div>
+        </div>
+        <div class="btn-row"><button class="btn-p" onclick="salvarRecria('Engorda a Pasto','eg')">Salvar lote</button><button onclick="limparRecria('eg')">Limpar</button></div>
+      </div>
+      <div class="section">
+        <div class="stitle">Lotes de engorda salvos</div>
+        <div id="lista-engorda"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- PAGE ENGORDA (redirect) -->
+<div id="page-engorda" class="page" style="display:none"></div>
+
+<!-- PAGE LOTES -->
+<div id="page-lotes" class="page">
+  <div class="page-header"><button class="back-btn" onclick="irPara('dashboard')">← Dashboard</button></div>
+  <div class="main">
+    <div class="page-title" style="margin-bottom:4px">📋 Todos os lotes</div>
+    <div class="page-sub" style="margin-bottom:20px">Visão consolidada</div>
+    <div class="section">
+      <div class="stitle">Lotes — <span id="filtro-label">todas as fazendas</span></div>
+      <div id="lista-lotes"></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- PAGE ABATES -->
+<div id="page-abates" class="page">
+  <div class="page-header"><button class="back-btn" onclick="irPara('dashboard')">← Dashboard</button></div>
+  <div class="main">
+    <div class="page-title" style="margin-bottom:4px">📖 Histórico de Abates</div>
+    <div class="page-sub" style="margin-bottom:20px">Lotes encerrados e resultados consolidados</div>
+    <div class="abate-resumo">
+      <div class="abate-resumo-card"><div class="num" id="ab-total-lotes">0</div><div class="lab">Lotes abatidos</div></div>
+      <div class="abate-resumo-card"><div class="num" id="ab-total-animais">0</div><div class="lab">Animais abatidos</div></div>
+      <div class="abate-resumo-card"><div class="num" id="ab-resultado" style="color:var(--verde)">R$ 0</div><div class="lab">Resultado total</div></div>
+      <div class="abate-resumo-card"><div class="num" id="ab-margem">—</div><div class="lab">Margem média</div></div>
+      <div class="abate-resumo-card"><div class="num" id="ab-arroba">0</div><div class="lab">Arrobas vendidas</div></div>
+    </div>
+    <div id="lista-abates"></div>
+  </div>
+</div>
+
+<!-- MODAL ENCERRAR LOTE -->
+<div class="modal-overlay" id="modal-enc" style="display:none">
+  <div class="modal-enc">
+    <h3>🔴 Encerrar lote</h3>
+    <p class="sub" id="enc-lote-info">Pasto — / Fazenda —</p>
+
+    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Dados finais de saída</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div class="field"><label>Data de abate</label><input id="enc-data" type="date"></div>
+      <div class="field"><label>Peso abatido (@) <span style="font-weight:400;color:#aaa;font-size:10px">— peso real na balança do frigorífico</span></label><input id="enc-at-manual" type="number" placeholder="Ex: 16.5" step="0.01" oninput="calcEncerramento()"></div>
+      <div class="field"><label>Preço de venda (R$/@)</label><input id="enc-preco-v" type="number" placeholder="320" step="0.01" oninput="calcEncerramento()"></div>
+      <div class="field"><label>PROAP / Precoce (R$/animal)</label><input id="enc-proap" type="number" placeholder="0" step="0.01" oninput="calcEncerramento()"></div>
+      <div class="field"><label>Hedge NDF (R$/animal)</label><input id="enc-hedge" type="number" placeholder="0" step="0.01" oninput="calcEncerramento()"></div>
+    </div>
+    <!-- campos ocultos para manter compatibilidade com calcEncerramento -->
+    <input type="hidden" id="enc-peso-s" value="0">
+    <input type="hidden" id="enc-rend" value="0">
+
+    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Resultado final</div>
+    <div class="result-box">
+      <div class="result-row"><span>Receita de venda (R$)</span><span id="enc-recv">—</span></div>
+      <div class="result-row"><span>Receita total (R$/animal)</span><span id="enc-rectot">—</span></div>
+      <div class="result-row"><span>Custo total (R$/animal)</span><span id="enc-ctot">—</span></div>
+      <div class="result-row"><span>Resultado (R$/animal)</span><span id="enc-res" class="result-val">—</span></div>
+      <div class="result-row"><span>Margem do período</span><span id="enc-mper" class="result-val">—</span></div>
+      <div class="result-row"><span>Margem mensal</span><span id="enc-mmes" class="result-val">—</span></div>
+      <div class="result-row"><span>Margem anualizada</span><span id="enc-mano" class="result-val">—</span></div>
+    </div>
+
+    <div class="modal-btns" style="margin-top:16px">
+      <button class="btn-enc" onclick="confirmarEncerramento()">🔴 Confirmar encerramento</button>
+      <button onclick="document.getElementById('modal-enc').style.display='none';loteParaEncerrar=null">Cancelar</button>
+    </div>
+  </div>
+</div>
+<!-- MODAL MOVER -->
+<div class="modal-overlay" id="modal-mover" style="display:none">
+  <div class="modal">
+    <h3>↔ Mover animal</h3>
+    <div class="modal-info" id="modal-animal-info"></div>
+    <div class="field" style="margin-bottom:10px"><label>Fazenda destino</label><select id="mov-fazenda"><option>Caiman</option><option>Maguary</option><option>Cruz Alta</option><option>Pinheiral</option><option>Furna</option></select></div>
+    <div class="field" style="margin-bottom:10px"><label>Pasto destino</label><input id="mov-pasto" placeholder="Ex: 7B, Curral 3"></div>
+    <div class="field" style="margin-bottom:10px"><label>Data da movimentação</label><input id="mov-data" type="date"></div>
+    <div class="field"><label>Motivo (opcional)</label><input id="mov-motivo" placeholder="Ex: Manejo, Pesagem"></div>
+    <div class="modal-btns">
+      <button class="btn-warn" onclick="confirmarMover()">Confirmar</button>
+      <button onclick="document.getElementById('modal-mover').style.display='none'">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL HISTÓRICO -->
+<div class="modal-overlay" id="modal-hist" style="display:none">
+  <div class="modal">
+    <h3>📋 Histórico</h3>
+    <div id="modal-hist-content"></div>
+    <div class="modal-btns"><button onclick="document.getElementById('modal-hist').style.display='none'">Fechar</button></div>
+  </div>
+</div>
+
+<script>
+// ── SUPABASE ──
+let SB_URL=localStorage.getItem("sb_url")||"";
+let SB_KEY=localStorage.getItem("sb_key")||"";
+function salvarConfig(){SB_URL=document.getElementById("sb-url").value.trim();SB_KEY=document.getElementById("sb-key").value.trim();localStorage.setItem("sb_url",SB_URL);localStorage.setItem("sb_key",SB_KEY);atualizarDot()}
+function atualizarDot(){const d=document.getElementById("sync-dot");d.className="sync-dot"+(SB_URL&&SB_KEY?" on":"")}
+function abrirConfig(){const o=document.getElementById("config-overlay");o.style.display="flex"}
+function fecharConfig(){document.getElementById("config-overlay").style.display="none"}
+async function testarConexao(){
+  const r=document.getElementById("teste-result");r.textContent="Testando...";
+  try{const res=await fetch(SB_URL+"/rest/v1/lotes?limit=1",{headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY}});
+  r.textContent=res.ok?"✅ Conexão OK!":"❌ Erro "+res.status;}catch(e){r.textContent="❌ "+e.message}
+}
+async function sincronizar(){
+  if(!SB_URL||!SB_KEY){return}
+  const r=document.getElementById("teste-result");r.textContent="Sincronizando...";
+  try{
+    for(const l of getLotes()) await fetch(SB_URL+"/rest/v1/lotes",{method:"POST",headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":"application/json","Prefer":"resolution=merge-duplicates"},body:JSON.stringify({id:String(l.id),dados:JSON.stringify(l)})});
+    for(const a of getAnimais()) await fetch(SB_URL+"/rest/v1/animais",{method:"POST",headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":"application/json","Prefer":"resolution=merge-duplicates"},body:JSON.stringify({id:String(a.id),dados:JSON.stringify(a)})});
+    const ra=await fetch(SB_URL+"/rest/v1/animais?select=*",{headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY}});
+    if(ra.ok){const rem=await ra.json();const ids=new Set(getAnimais().map(a=>String(a.id)));const novos=rem.map(x=>JSON.parse(x.dados)).filter(a=>!ids.has(String(a.id)));if(novos.length)setAnimais([...getAnimais(),...novos]);}
+    r.textContent="✅ Sincronizado!";atualizarDashboard();renderAnimais();renderPastos();
+  }catch(e){r.textContent="❌ "+e.message}
+}
+
+// ── STATE ──
+let fazendaAtiva="todas";
+let animalParaMover=null;
+let paginaAtual="dashboard";
+
+// ── STORAGE ──
+function getAnimais(){try{return JSON.parse(localStorage.getItem("caiman_animais_v1")||"[]")}catch{return[]}}
+function setAnimais(l){localStorage.setItem("caiman_animais_v1",JSON.stringify(l))}
+function getLotes(){try{return JSON.parse(localStorage.getItem("caiman_lotes_v3")||"[]")}catch{return[]}}
+function setLotes(l){localStorage.setItem("caiman_lotes_v3",JSON.stringify(l))}
+
+// ── NAVEGAÇÃO ──
+function irPara(pagina){
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.getElementById("page-"+pagina).classList.add("active");
+  paginaAtual=pagina;
+  window.scrollTo(0,0);
+  if(pagina==="dashboard") atualizarDashboard();
+  if(pagina==="sisbov") renderAnimais();
+  if(pagina==="pastos") renderPastos();
+  if(pagina==="lotes") renderLotes();
+  if(pagina==="abates"){renderAbates();}
+  if(pagina==="conf") renderLotesConf();
+  if(pagina==="recria"){renderLotesTipo("Recria","lista-recria");renderLotesTipo("Engorda a Pasto","lista-engorda");}
+  if(pagina==="engorda"){irPara("recria");showSubtab("engorda");return;}
+}
+
+function setFazenda(){
+  fazendaAtiva=document.getElementById("fazenda-global").value;
+  document.getElementById("filtro-label").textContent=fazendaAtiva==="todas"?"todas as fazendas":fazendaAtiva;
+  atualizarDashboard();
+  if(paginaAtual==="sisbov") renderAnimais();
+  if(paginaAtual==="pastos") renderPastos();
+  if(paginaAtual==="lotes") renderLotes();
+  if(paginaAtual==="recria") renderLotesTipo("Recria","lista-recria");
+  if(paginaAtual==="engorda") renderLotesTipo("Engorda a Pasto","lista-engorda");
+}
+
+// ── DASHBOARD ──
+function atualizarDashboard(){
+  let animais=getAnimais();
+  let lotes=getLotes();
+  if(fazendaAtiva!=="todas"){animais=animais.filter(a=>a.fazenda===fazendaAtiva);lotes=lotes.filter(l=>l.fazenda===fazendaAtiva)}
+  const pastos=new Set(animais.map(a=>a.fazenda+"|"+a.pasto)).size;
+  const nConf=lotes.filter(l=>l.tipo==="Confinamento").reduce((s,l)=>s+(l.qtd||0),0);
+  const nRec=lotes.filter(l=>l.tipo!=="Confinamento").reduce((s,l)=>s+(l.qtd||0),0);
+  document.getElementById("dash-animais").textContent=animais.length;
+  document.getElementById("dash-conf").textContent=nConf;
+  document.getElementById("dash-recria").textContent=nRec;
+  document.getElementById("dash-pastos").textContent=pastos;
+  document.getElementById("ms-animais").textContent=animais.length+" animais";
+  document.getElementById("ms-pastos").textContent=pastos+" pasto(s)";
+  document.getElementById("ms-conf").textContent=lotes.filter(l=>l.tipo==="Confinamento").length+" lotes";
+  document.getElementById("ms-recria").textContent=lotes.filter(l=>l.tipo==="Recria").length+" lotes";
+  document.getElementById("ms-engorda").textContent=lotes.filter(l=>l.tipo==="Engorda a Pasto").length+" lotes";
+  document.getElementById("ms-lotes").textContent=lotes.length+" lotes";
+  // abates
+  const abates=getAbates();
+  const fab=fazendaAtiva==="todas"?abates:abates.filter(a=>a.fazenda===fazendaAtiva);
+  const dashAb=document.getElementById("dash-abates");if(dashAb)dashAb.textContent=fab.length;
+  const msAb=document.getElementById("ms-abates");if(msAb)msAb.textContent=fab.length+" lote(s)";
+  const totalResAb=fab.reduce((s,a)=>s+((a.res||0)*(a.qtd||1)),0);
+  const msAbRes=document.getElementById("ms-abates-res");if(msAbRes)msAbRes.textContent=brl(totalResAb);
+}
+
+// ── UTILS ──
+function vn(id){return parseFloat(document.getElementById(id).value)||0}
+function vs(id){return document.getElementById(id).value||""}
+function sc(id,val){const e=document.getElementById(id);e.value=val||"";e.className="calc"}
+function todayStr(){return new Date().toISOString().split("T")[0]}
+function diasEntre(a,b){if(!a||!b)return 0;return Math.max(0,Math.round((new Date(b+"T00:00:00")-new Date(a+"T00:00:00"))/86400000))}
+function brl(n){return "R$ "+n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}
+function pct(n){return (n*100).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+"%"}
+function fmtData(d){if(!d)return"—";const[y,m,dia]=d.split("-");return dia+"/"+m+"/"+y}
+function alerta(pagId,msg,tipo){const a=document.getElementById("alert-"+pagId);a.textContent=msg;a.className="alert "+tipo+" show";setTimeout(()=>a.className="alert",4000)}
+
+// ── SISBOV ──
+function salvarAnimal(){
+  const sisbov=vs("s-sisbov"),eletro=vs("s-eletro");
+  if(!sisbov&&!eletro){alerta("sisbov","Informe SISBOV ou ID Eletrônica.","err");return}
+  const animais=getAnimais();
+  if(sisbov&&animais.find(a=>a.sisbov===sisbov)){alerta("sisbov","SISBOV já cadastrado.","err");return}
+  const fazenda=vs("s-fazenda"),pasto=vs("s-pasto");
+  const novo={id:Date.now(),sisbov,eletro,fazenda,pasto,sexo:vs("s-sexo"),cat:vs("s-cat"),
+    historico:[{data:todayStr(),de:"—",para:fazenda+" / Pasto "+pasto,motivo:"Cadastro inicial"}]};
+  animais.push(novo);setAnimais(animais);
+  alerta("sisbov","Animal cadastrado!","ok");
+  ["s-sisbov","s-eletro","s-pasto"].forEach(id=>document.getElementById(id).value="");
+  renderAnimais();atualizarDashboard();
+}
+
+function renderAnimais(){
+  const busca=(vs("search-animal")||"").toLowerCase();
+  let animais=getAnimais();
+  if(fazendaAtiva!=="todas") animais=animais.filter(a=>a.fazenda===fazendaAtiva);
+  if(busca) animais=animais.filter(a=>(a.sisbov||"").toLowerCase().includes(busca)||(a.eletro||"").toLowerCase().includes(busca)||(a.pasto||"").toLowerCase().includes(busca));
+  document.getElementById("total-animais").textContent=animais.length+" animal(is)";
+  const tbody=document.getElementById("sisbov-tbody"),empty=document.getElementById("sisbov-empty");
+  if(!animais.length){tbody.innerHTML="";empty.style.display="block";return}
+  empty.style.display="none";
+  tbody.innerHTML=animais.map(a=>`<tr>
+    <td><strong>${a.sisbov||"—"}</strong></td>
+    <td style="color:#555">${a.eletro||"—"}</td>
+    <td><span class="tag tag-faz">${a.fazenda||"—"}</span></td>
+    <td><span class="tag tag-verde">🌿 ${a.pasto||"—"}</span></td>
+    <td>${a.sexo==="M"?"♂":"♀"}</td>
+    <td><span class="tag tag-gray">${a.cat||"—"}</span></td>
+    <td><button class="btn-sm" onclick="verHistorico(${a.id})" style="color:var(--azul);border-color:var(--azul);font-size:11px">📋 ${(a.historico||[]).length}</button></td>
+    <td style="display:flex;gap:5px">
+      <button class="mover-btn" onclick="abrirMover(${a.id})">↔ Mover</button>
+      <button class="btn-d" onclick="excluirAnimal(${a.id})">✕</button>
+    </td></tr>`).join("");
+}
+
+function excluirAnimal(id){if(!confirm("Excluir?"))return;setAnimais(getAnimais().filter(a=>a.id!==id));renderAnimais();renderPastos();atualizarDashboard()}
+
+// ── PASTOS ──
+function renderPastos(){
+  let animais=getAnimais();
+  if(fazendaAtiva!=="todas") animais=animais.filter(a=>a.fazenda===fazendaAtiva);
+  const grupos={};
+  animais.forEach(a=>{const k=(a.fazenda||"?")+"|"+(a.pasto||"Sem pasto");if(!grupos[k])grupos[k]={fazenda:a.fazenda,pasto:a.pasto,animais:[]};grupos[k].animais.push(a)});
+  const grid=document.getElementById("pastos-grid"),empty=document.getElementById("pastos-empty");
+  const keys=Object.keys(grupos);
+  if(!keys.length){grid.innerHTML="";empty.style.display="block";return}
+  empty.style.display="none";
+  grid.innerHTML=keys.map(k=>{
+    const g=grupos[k];
+    return `<div class="pasto-card">
+      <div class="pasto-card-head"><h3>🌿 Pasto ${g.pasto||"—"}</h3><span><span class="tag tag-faz" style="font-size:10px">${g.fazenda}</span> ${g.animais.length} animal(is)</span></div>
+      <div class="pasto-card-body">${g.animais.map(a=>`
+        <div class="animal-pill">
+          <div><div class="pill-id">${a.sisbov||a.eletro||"Sem ID"}</div><div class="pill-sub">${a.eletro&&a.sisbov?a.eletro:""} ${a.sexo==="M"?"♂":"♀"} · ${a.cat||""}</div></div>
+          <button class="mover-btn" onclick="abrirMover(${a.id})">↔ Mover</button>
+        </div>`).join("")}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// ── MOVER ──
+function abrirMover(id){
+  const a=getAnimais().find(x=>x.id===id);if(!a)return;
+  animalParaMover=id;
+  document.getElementById("modal-animal-info").innerHTML=`<b>SISBOV:</b> ${a.sisbov||"—"}<br><b>ID Eletrônica:</b> ${a.eletro||"—"}<br><b>Local atual:</b> ${a.fazenda} / Pasto ${a.pasto||"—"}`;
+  document.getElementById("mov-fazenda").value=a.fazenda||"Caiman";
+  document.getElementById("mov-pasto").value="";
+  document.getElementById("mov-data").value=todayStr();
+  document.getElementById("mov-motivo").value="";
+  document.getElementById("modal-mover").style.display="flex";
+}
+function confirmarMover(){
+  if(!animalParaMover)return;
+  const novoPasto=vs("mov-pasto");if(!novoPasto){return}
+  const animais=getAnimais(),idx=animais.findIndex(a=>a.id===animalParaMover);if(idx===-1)return;
+  const a=animais[idx],novaFaz=vs("mov-fazenda"),data=vs("mov-data")||todayStr();
+  if(!a.historico)a.historico=[];
+  a.historico.push({data,de:a.fazenda+" / Pasto "+(a.pasto||"—"),para:novaFaz+" / Pasto "+novoPasto,motivo:vs("mov-motivo")||"Movimentação"});
+  a.fazenda=novaFaz;a.pasto=novoPasto;animais[idx]=a;setAnimais(animais);
+  document.getElementById("modal-mover").style.display="none";animalParaMover=null;
+  renderAnimais();renderPastos();
+  alerta(paginaAtual==="pastos"?"pastos":"sisbov","Animal movido para Pasto "+novoPasto+"!","ok");
+}
+function verHistorico(id){
+  const a=getAnimais().find(x=>x.id===id);if(!a)return;
+  const hist=a.historico||[];
+  document.getElementById("modal-hist-content").innerHTML=`<div style="font-size:13px;margin-bottom:12px"><b>SISBOV:</b> ${a.sisbov||"—"} | <b>ID:</b> ${a.eletro||"—"}</div>`+
+    (hist.length?hist.slice().reverse().map(h=>`<div class="hist-line"><div class="hist-icon hist-icon-mov">↔</div><div class="hist-body"><div class="hist-title">${fmtData(h.data)} — ${h.motivo||"Movimentação"}</div><div class="hist-sub">De: ${h.de||"—"} → ${h.para||"—"}</div></div></div>`).join(""):"<div class='empty' style='padding:20px'>Sem histórico.</div>");
+  document.getElementById("modal-hist").style.display="flex";
+}
+
+// ── CALC CONFINAMENTO ──
+function calcConf(){
+  const dtE=vs("c-dte"),dtSI=vs("c-dts"),today=todayStr(),dtS=dtSI||today;
+  const dias=diasEntre(dtE,dtS),diasHoje=diasEntre(dtE,today);
+  sc("c-dias",dias||"");
+  const pesoE=vn("c-pesoe"),gmdP=vn("c-gmdp")||1.2;
+  const ph=document.getElementById("c-projhoje");ph.value=(diasHoje&&pesoE)?+(pesoE+gmdP*diasHoje).toFixed(2):"";ph.className="hoje";
+  const ps=(dias&&pesoE)?+(pesoE+gmdP*dias).toFixed(2):"";sc("c-projsaida",ps);
+  // peso saída, rendimento, @ e GMD só são usados no encerramento
+  const cCompra=pesoE?+(12.2*pesoE).toFixed(2):0;sc("c-compra",cCompra||"");
+  const autoOp=vs("c-opauto")==="1";let cOp=0;const opEl=document.getElementById("c-op");
+  if(autoOp){cOp=dias?+((78352.27/2500)/30*dias).toFixed(2):0;opEl.value=cOp||"";opEl.readOnly=true;opEl.className="calc";}
+  else{opEl.readOnly=false;opEl.className="";cOp=vn("c-op");}
+  const cTot=+(cCompra+vn("c-nutri")+cOp).toFixed(2);sc("c-tot",cTot||"");
+  // Receita e resultado são calculados no encerramento, não no cadastro
+  sc("c-recv",""); sc("c-rectot","");
+  ["c-mres","c-mper","c-mmes","c-mano"].forEach(id=>{
+    const e=document.getElementById(id);
+    if(e){e.textContent="—";e.className="mv"}
+  });
+}
+
+// ── SALVAR CONF ──
+function salvarConf(){
+  const pasto=vs("c-pasto");if(!pasto){alerta("conf","Informe o pasto.","err");return}
+  const lotes=getLotes();
+  lotes.push({id:Date.now(),tipo:"Confinamento",fazenda:vs("c-fazenda"),pasto,produtor:vs("c-produtor"),qtd:vn("c-qtd"),
+    dtE:vs("c-dte"),dtS:vs("c-dts")||"TODAY()",dias:parseInt(document.getElementById("c-dias").value)||0,
+    pesoE:vn("c-pesoe"),gmdP:vn("c-gmdp"),projHoje:parseFloat(document.getElementById("c-projhoje").value)||0,
+    projSaida:parseFloat(document.getElementById("c-projsaida").value)||0,pesoS:vn("c-pesos"),rend:vn("c-rend"),
+    at:parseFloat(document.getElementById("c-at").value)||0,gmdS:parseFloat(document.getElementById("c-gmds").value)||0,
+    cCompra:parseFloat(document.getElementById("c-compra").value)||0,cNutri:vn("c-nutri"),cOp:vn("c-op"),
+    cTot:parseFloat(document.getElementById("c-tot").value)||0,precoV:vn("c-precov"),proap:vn("c-proap"),hedge:vn("c-hedge"),
+    recV:parseFloat(document.getElementById("c-recv").value)||0,recTot:parseFloat(document.getElementById("c-rectot").value)||0,
+    mRes:document.getElementById("c-mres").textContent,mPer:document.getElementById("c-mper").textContent,
+    mMes:document.getElementById("c-mmes").textContent,mAno:document.getElementById("c-mano").textContent});
+  setLotes(lotes);alerta("conf","Lote salvo!","ok");setTimeout(()=>{limparConf();renderLotesConf();},300);atualizarDashboard();
+}
+
+function salvarRecria(tipo,prefix){
+  prefix=prefix||(tipo==="Recria"?"rr":"eg");
+  const pasto=vs(prefix+"-pasto");if(!pasto){alerta(tipo==="Recria"?"recria":"engorda","Informe o pasto.","err");return}
+  const lotes=getLotes();
+  lotes.push({id:Date.now(),tipo,fazenda:vs(prefix+"-fazenda"),pasto,qtd:vn(prefix+"-qtd"),
+    peso:vn(prefix+"-peso"),dtE:vs(prefix+"-dte"),resp:vs(prefix+"-resp"),raca:vs(prefix+"-raca"),obs:vs(prefix+"-obs")});
+  setLotes(lotes);alerta(tipo==="Recria"?"recria":"engorda","Lote salvo!","ok");
+  setTimeout(()=>limparRecria(prefix),300);atualizarDashboard();
+  renderLotesTipo(tipo,tipo==="Recria"?"lista-recria":"lista-engorda");
+}
+
+function renderLotesTipo(tipo,elId){
+  let lotes=getLotes().filter(l=>l.tipo===tipo);
+  if(fazendaAtiva!=="todas") lotes=lotes.filter(l=>l.fazenda===fazendaAtiva);
+  const el=document.getElementById(elId);
+  if(!lotes.length){el.innerHTML="<div class='empty'>Nenhum lote de "+tipo+" cadastrado.</div>";return}
+  el.innerHTML=lotes.slice().reverse().map(l=>`
+    <div class="lote-card">
+      <div class="lote-card-head">
+        <div><h3><span class="tag tag-faz">${l.fazenda}</span> &nbsp;Pasto ${l.pasto}${l.resp?" — "+l.resp:""}</h3>
+        <p>${l.qtd?l.qtd+" animais":""} ${l.dtE?" · "+fmtData(l.dtE):""}</p></div>
+        <button class="btn-d" onclick="excluirLote(${l.id})">Excluir</button>
+      </div>
+      <div class="lote-tags">
+        ${l.peso?`<span class="tag tag-verde">${l.peso} kg</span>`:""}
+        ${l.raca?`<span class="tag tag-gray">${l.raca}</span>`:""}
+        ${l.obs?`<span class="tag tag-gray">${l.obs}</span>`:""}
+      </div>
+    </div>`).join("");
+}
+
+function renderLotes(){
+  let lotes=getLotes();
+  if(fazendaAtiva!=="todas") lotes=lotes.filter(l=>l.fazenda===fazendaAtiva);
+  const el=document.getElementById("lista-lotes");
+  if(!lotes.length){el.innerHTML="<div class='empty'>Nenhum lote cadastrado.</div>";return}
+  const cores={Confinamento:"tag-azul",Recria:"tag-laranja","Engorda a Pasto":"tag-gray"};
+  el.innerHTML=lotes.slice().reverse().map(l=>`
+    <div class="lote-card">
+      <div class="lote-card-head">
+        <div><h3><span class="tag ${cores[l.tipo]||"tag-gray"}">${l.tipo}</span> <span class="tag tag-faz">${l.fazenda}</span> &nbsp;Pasto ${l.pasto}${l.produtor?" — "+l.produtor:l.resp?" — "+l.resp:""}</h3>
+        <p>${l.qtd?l.qtd+" animais · ":""} ${l.dtE||""} ${l.dtS&&l.dtS!=="TODAY()"?" → "+l.dtS:""} ${l.dias?" ("+l.dias+" dias)":""}</p></div>
+        <button class="btn-d" onclick="excluirLote(${l.id})">Excluir</button>
+      </div>
+      <div class="lote-tags">
+        ${l.pesoE?`<span class="tag tag-gray">Entrada: ${l.pesoE} kg</span>`:""}
+        ${l.projHoje?`<span class="tag tag-verde">Hoje: ${l.projHoje} kg</span>`:""}
+        ${l.at?`<span class="tag tag-gray">Abate: ${l.at} @</span>`:""}
+        ${l.cTot?`<span class="tag tag-laranja">Custo: R$ ${Number(l.cTot).toFixed(2).replace(".",",")}</span>`:""}
+        ${l.mRes&&l.mRes!=="—"?`<span class="tag ${l.mRes.includes("-")?"" :"tag-verde"}">${l.mRes}</span>`:""}
+        ${l.mAno&&l.mAno!=="—"?`<span class="tag ${l.mAno.includes("-")?"":"tag-verde"}">Anual: ${l.mAno}</span>`:""}
+        ${l.peso?`<span class="tag tag-verde">${l.peso} kg</span>`:""}
+        ${l.raca?`<span class="tag tag-gray">${l.raca}</span>`:""}
+      </div>
+    </div>`).join("");
+}
+
+function excluirLote(id){
+  if(!confirm("Excluir?"))return;
+  setLotes(getLotes().filter(l=>l.id!==id));
+  atualizarDashboard();
+  renderLotesConf();
+  renderLotesTipo("Recria","lista-recria");
+  renderLotesTipo("Engorda a Pasto","lista-engorda");
+  renderLotes();
+}
+
+function limparConf(){
+  ["c-pasto","c-produtor","c-qtd","c-dte","c-pesoe","c-precoc","c-dts","c-pesos","c-rend","c-nutri","c-op","c-precov","c-proap","c-hedge"].forEach(id=>{const e=document.getElementById(id);if(e)e.value=""});
+  document.getElementById("c-gmdp").value="1.2";document.getElementById("c-rend").value="56";
+  ["c-dias","c-projhoje","c-projsaida","c-compra","c-tot"].forEach(id=>{const e=document.getElementById(id);if(e){e.value="";e.className="calc"}});
+  ["c-mres","c-mper","c-mmes","c-mano"].forEach(id=>{const e=document.getElementById(id);e.textContent="—";e.className="mv"});
+}
+function limparRecria(p){["pasto","qtd","peso","dte","resp","raca","obs"].forEach(f=>{const e=document.getElementById(p+"-"+f);if(e)e.value=""})}
+
+
+// ── ESTADO ENCERRAMENTO ──
+let loteParaEncerrar = null;
+
+// ── STORAGE ABATES ──
+function getAbates(){try{return JSON.parse(localStorage.getItem("caiman_abates_v1")||"[]")}catch{return[]}}
+function setAbates(l){localStorage.setItem("caiman_abates_v1",JSON.stringify(l))}
+
+// ── ABRIR MODAL ENCERRAR ──
+function abrirEncerrar(id){
+  const lotes = getLotes();
+  const l = lotes.find(x=>x.id===id);
+  if(!l) return;
+  loteParaEncerrar = id;
+  document.getElementById("enc-lote-info").textContent = "Pasto "+l.pasto+" — "+l.fazenda+(l.produtor?" — "+l.produtor:"")+(l.qtd?" · "+l.qtd+" animais":"");
+  document.getElementById("enc-data").value = todayStr();
+  document.getElementById("enc-at-manual").value = "";
+  document.getElementById("enc-preco-v").value = l.precoV||"";
+  document.getElementById("enc-proap").value = l.proap||"";
+  document.getElementById("enc-hedge").value = l.hedge||"";
+  calcEncerramento();
+  document.getElementById("modal-enc").style.display = "flex";
+}
+
+function calcEncerramento(){
+  const lotes = getLotes();
+  const l = loteParaEncerrar ? lotes.find(x=>x.id===loteParaEncerrar) : null;
+  if(!l) return;
+
+  const at     = parseFloat(document.getElementById("enc-at-manual").value)||0;
+  const precoV = parseFloat(document.getElementById("enc-preco-v").value)||0;
+  const proap  = parseFloat(document.getElementById("enc-proap").value)||0;
+  const hedge  = parseFloat(document.getElementById("enc-hedge").value)||0;
+  const dias   = l.dias||0;
+  const pesoE  = l.pesoE||0;
+  const gmdS   = 0; // GMD real não calculado sem peso de saída
+  const recV   = at&&precoV ? +(at*precoV).toFixed(2) : 0;
+  const recTot = +(recV+proap+hedge).toFixed(2);
+  const cTot   = l.cTot||0;
+  const res    = +(recTot-cTot).toFixed(2);
+  const mPer   = recV>0 ? res/recV : 0;
+  const mMes   = (recV>0&&dias>0) ? Math.pow(res/recV+1,30.44/dias)-1 : 0;
+  const mAno   = (recV>0&&dias>0) ? Math.pow(res/recV+1,365/dias)-1 : 0;
+
+  document.getElementById("enc-recv").textContent  = recV ? brl(recV) : "—";
+  document.getElementById("enc-rectot").textContent= recTot ? brl(recTot) : "—";
+  document.getElementById("enc-ctot").textContent  = cTot ? brl(cTot) : "—";
+
+  const resEl  = document.getElementById("enc-res");
+  const mperEl = document.getElementById("enc-mper");
+  const mmesEl = document.getElementById("enc-mmes");
+  const manoEl = document.getElementById("enc-mano");
+
+  if(recTot||cTot){
+    resEl.textContent  = brl(res);  resEl.className  = "result-val"+(res>=0?" pos":" neg");
+    mperEl.textContent = pct(mPer); mperEl.className = "result-val"+(mPer>=0?" pos":" neg");
+    mmesEl.textContent = pct(mMes); mmesEl.className = "result-val"+(mMes>=0?" pos":" neg");
+    manoEl.textContent = pct(mAno); manoEl.className = "result-val"+(mAno>=0?" pos":" neg");
+  } else {
+    [resEl,mperEl,mmesEl,manoEl].forEach(e=>{e.textContent="—";e.className="result-val"});
+  }
+}
+
+function confirmarEncerramento(){
+  if(!loteParaEncerrar) return;
+  const lotes = getLotes();
+  const idx   = lotes.findIndex(l=>l.id===loteParaEncerrar);
+  if(idx===-1) return;
+  const l = lotes[idx];
+
+  const at     = parseFloat(document.getElementById("enc-at-manual").value)||0;
+  const precoV = parseFloat(document.getElementById("enc-preco-v").value)||0;
+  const proap  = parseFloat(document.getElementById("enc-proap").value)||0;
+  const hedge  = parseFloat(document.getElementById("enc-hedge").value)||0;
+  const dataAbate = document.getElementById("enc-data").value || todayStr();
+  const dias  = l.dias||0;
+  const pesoE = l.pesoE||0;
+  const gmdS  = 0;
+  const pesoS = 0;
+  const rend  = 0;
+  const recV  = at&&precoV ? +(at*precoV).toFixed(2) : 0;
+  const recTot= +(recV+proap+hedge).toFixed(2);
+  const cTot  = l.cTot||0;
+  const res   = +(recTot-cTot).toFixed(2);
+  const mPer  = recV>0 ? res/recV : 0;
+  const mMes  = (recV>0&&dias>0) ? Math.pow(res/recV+1,30.44/dias)-1 : 0;
+  const mAno  = (recV>0&&dias>0) ? Math.pow(res/recV+1,365/dias)-1 : 0;
+
+  // Salvar no histórico de abates
+  const abates = getAbates();
+  abates.push({
+    id: Date.now(),
+    loteId: l.id,
+    fazenda: l.fazenda, pasto: l.pasto,
+    produtor: l.produtor||"", qtd: l.qtd||0,
+    dataEntrada: l.dtE, dataSaida: dataAbate,
+    dias, pesoE, pesoS, rend, gmdP: l.gmdP||0, gmdS,
+    at, precoV, proap, hedge,
+    cCompra: l.cCompra||0, cNutri: l.cNutri||0, cOp: l.cOp||0, cTot,
+    recV, recTot,
+    res, mPer, mMes, mAno,
+    encerradoEm: todayStr()
+  });
+  setAbates(abates);
+
+  // Remover lote ativo
+  lotes.splice(idx,1);
+  setLotes(lotes);
+
+  document.getElementById("modal-enc").style.display = "none";
+  loteParaEncerrar = null;
+  atualizarDashboard();
+  renderLotesConf();
+  alerta("conf","Lote encerrado e registrado no Histórico de Abates!","ok");
+}
+
+// ── RENDER LOTES CONFINAMENTO ATIVOS ──
+function renderLotesConf(){
+  let lotes = getLotes().filter(l=>l.tipo==="Confinamento");
+  if(fazendaAtiva!=="todas") lotes = lotes.filter(l=>l.fazenda===fazendaAtiva);
+  const el = document.getElementById("lista-conf-ativos");
+  if(!lotes.length){el.innerHTML="<div class='empty'>Nenhum lote ativo. Cadastre um acima.</div>";return}
+  el.innerHTML = lotes.slice().reverse().map(l=>`
+    <div class="lote-card lote-ativo">
+      <div class="lote-card-head">
+        <div>
+          <h3><span class="status-badge status-ativo">● ATIVO</span><span class="tag tag-faz">${l.fazenda}</span>&nbsp;Pasto ${l.pasto}${l.produtor?" — "+l.produtor:""}</h3>
+          <p>${l.qtd?l.qtd+" animais · ":""} Entrada: ${fmtData(l.dtE)} ${l.dias?" · "+l.dias+" dias":""}</p>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button class="btn-enc btn-sm" onclick="abrirEncerrar(${l.id})">🔴 Encerrar lote</button>
+          <button class="btn-d" onclick="excluirLote(${l.id})">✕</button>
+        </div>
+      </div>
+      <div class="lote-tags">
+        ${l.pesoE?`<span class="tag tag-gray">Entrada: ${l.pesoE} kg</span>`:""}
+        ${l.projHoje?`<span class="tag tag-verde">Hoje: ${l.projHoje} kg</span>`:""}
+        ${l.cTot?`<span class="tag tag-laranja">Custo: R$ ${Number(l.cTot).toFixed(2).replace(".",",")}</span>`:""}
+        ${l.mAno&&l.mAno!=="—"?`<span class="tag ${l.mAno.includes("-")?"":"tag-verde"}">Anual projetado: ${l.mAno}</span>`:""}
+      </div>
+    </div>`).join("");
+}
+
+// ── RENDER ABATES ──
+function renderAbates(){
+  let abates = getAbates();
+  if(fazendaAtiva!=="todas") abates = abates.filter(a=>a.fazenda===fazendaAtiva);
+  const el = document.getElementById("lista-abates");
+
+  // Resumo
+  const totalLotes   = abates.length;
+  const totalAnimais = abates.reduce((s,a)=>s+(a.qtd||0),0);
+  const totalRes     = abates.reduce((s,a)=>s+((a.res||0)*(a.qtd||1)),0);
+  const totalAT      = abates.reduce((s,a)=>s+((a.at||0)*(a.qtd||1)),0);
+  const margens      = abates.filter(a=>a.mAno).map(a=>a.mAno*100);
+  const mediaM       = margens.length ? margens.reduce((s,v)=>s+v,0)/margens.length : 0;
+
+  document.getElementById("ab-total-lotes").textContent   = totalLotes;
+  document.getElementById("ab-total-animais").textContent = totalAnimais;
+  document.getElementById("ab-resultado").textContent     = brl(totalRes);
+  document.getElementById("ab-resultado").style.color     = totalRes>=0?"var(--verde)":"#C62828";
+  document.getElementById("ab-margem").textContent        = margens.length ? mediaM.toFixed(2)+"% a.a." : "—";
+  document.getElementById("ab-arroba").textContent        = totalAT.toFixed(1)+" @";
+
+  // Dashboard cards
+  const msEl = document.getElementById("ms-abates");
+  if(msEl) msEl.textContent = totalLotes+" lote(s)";
+  const msRes = document.getElementById("ms-abates-res");
+  if(msRes) msRes.textContent = brl(totalRes);
+  const dashEl = document.getElementById("dash-abates");
+  if(dashEl) dashEl.textContent = totalLotes;
+
+  if(!abates.length){el.innerHTML="<div class='empty'>Nenhum lote encerrado ainda.</div>";return}
+
+  el.innerHTML = abates.slice().reverse().map(a=>`
+    <div class="abate-card">
+      <div class="abate-card-head">
+        <div>
+          <h3>📖 <span class="tag tag-faz">${a.fazenda}</span>&nbsp;Pasto ${a.pasto}${a.produtor?" — "+a.produtor:""}</h3>
+          <p>${a.qtd?a.qtd+" animais · ":""}Entrada: ${fmtData(a.dataEntrada)} → Abate: ${fmtData(a.dataSaida)} (${a.dias} dias)</p>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          <span style="font-size:15px;font-weight:700;color:${a.res>=0?"var(--verde)":"#C62828"}">${brl(a.res)}<span style="font-size:11px;font-weight:400;color:var(--muted)">/animal</span></span>
+          <span style="font-size:11px;color:var(--muted)">Encerrado em ${fmtData(a.encerradoEm)}</span>
+        </div>
+      </div>
+      <div class="lote-tags">
+        <span class="tag tag-gray">Entrada: ${a.pesoE} kg</span>
+        <span class="tag tag-gray">Saída: ${a.pesoS} kg</span>
+        <span class="tag tag-gray">GMD: ${a.gmdS} kg/dia</span>
+        <span class="tag tag-gray">Abate: ${a.at} @</span>
+        <span class="tag tag-laranja">Custo: ${brl(a.cTot)}</span>
+        <span class="tag tag-verde">Receita: ${brl(a.recTot)}</span>
+        <span class="tag ${a.mPer>=0?"tag-verde":""}">Margem: ${pct(a.mPer)}</span>
+        <span class="tag ${a.mAno>=0?"tag-verde":""}">Anual: ${pct(a.mAno)}</span>
+      </div>
+    </div>`).join("");
+}
+
+
+function showSubtab(t){
+  document.getElementById("subtab-recria").style.display = t==="recria"?"block":"none";
+  document.getElementById("subtab-engorda").style.display = t==="engorda"?"block":"none";
+  document.getElementById("subtab-recria-btn").classList.toggle("active", t==="recria");
+  document.getElementById("subtab-engorda-btn").classList.toggle("active", t==="engorda");
+  if(t==="recria") renderLotesTipo("Recria","lista-recria");
+  if(t==="engorda") renderLotesTipo("Engorda a Pasto","lista-engorda");
+}
+
+
+// ── IMPORTAÇÃO DE PLANILHA ──
+let dadosParaImportar = [];
+
+function importarPlanilha(input){
+  const file = input.files[0];
+  if(!file) return;
+  const status = document.getElementById("import-status");
+  status.textContent = "Lendo arquivo...";
+  dadosParaImportar = [];
+
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  if(ext === 'csv'){
+    const reader = new FileReader();
+    reader.onload = function(e){
+      const text = e.target.result;
+      const linhas = text.split(/\r?\n/).filter(l=>l.trim());
+      processarLinhas(linhas.map(l=>l.split(/[,;\t]/)));
+    };
+    reader.readAsText(file, 'UTF-8');
+  } else {
+    const reader = new FileReader();
+    reader.onload = function(e){
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type:'array', cellDates:true});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, dateNF:'yyyy-mm-dd'});
+      processarLinhas(rows);
+    };
+    reader.readAsArrayBuffer(file);
+  }
+  // limpar input para permitir reimportar mesmo arquivo
+  input.value = "";
+}
+
+function processarLinhas(rows){
+  const animaisExistentes = getAnimais();
+  const sisBovSet = new Set(animaisExistentes.map(a=>a.sisbov).filter(Boolean));
+  const eletroSet = new Set(animaisExistentes.map(a=>a.eletro).filter(Boolean));
+  const fazenda   = document.getElementById("import-fazenda").value;
+  const pastoPad  = document.getElementById("import-pasto").value||"";
+  const cat       = document.getElementById("import-cat").value;
+
+  dadosParaImportar = [];
+  let ignorados = 0;
+
+  rows.forEach((row, i) => {
+    // Ignorar linha de cabeçalho (se primeira célula não parecer um código)
+    if(i===0){
+      const first = String(row[0]||"").toLowerCase();
+      if(first.includes("sisbov")||first.includes("id")||first.includes("código")||first.includes("numero")) return;
+    }
+    const sisbov = String(row[0]||"").trim();
+    const eletro = String(row[1]||"").trim();
+    // Só pula se não tiver nenhuma identificação
+    if(!sisbov && !eletro){ ignorados++; return; }
+    // Todos os outros campos são opcionais — importa mesmo vazio
+
+    const peso    = String(row[2]||"").trim();
+    const dtE     = formatarData(String(row[3]||"").trim());
+    const dtS     = formatarData(String(row[4]||"").trim());
+
+    let status = "✅ OK";
+    let duplicado = false;
+    if(sisbov && sisBovSet.has(sisbov)){ status = "⚠ SISBOV já existe"; duplicado = true; }
+    else if(eletro && eletroSet.has(eletro)){ status = "⚠ ID já existe"; duplicado = true; }
+
+    // Duplicado não bloqueia — apenas avisa. Usuário decide na confirmação.
+    dadosParaImportar.push({ sisbov, eletro, peso, dtE, dtS, fazenda, pasto:pastoPad, cat, status, duplicado });
+  });
+
+  const tbody = document.getElementById("import-preview-tbody");
+  const ok    = dadosParaImportar.filter(d=>!d.duplicado).length;
+  const dup   = dadosParaImportar.filter(d=>d.duplicado).length;
+
+  document.getElementById("import-preview-title").textContent =
+    dadosParaImportar.length+" animal(is) encontrado(s) · "+ok+" novos · "+(dup?" "+dup+" já cadastrado(s) (serão importados assim mesmo)":"");
+
+  tbody.innerHTML = dadosParaImportar.map(d=>`
+    <tr style="${d.duplicado?'background:#FFFDE7':''}">
+      <td>${d.sisbov||"—"}</td>
+      <td>${d.eletro||"—"}</td>
+      <td>${d.peso||"—"}</td>
+      <td>${d.dtE||"—"}</td>
+      <td>${d.dtS||"—"}</td>
+      <td style="font-size:11px;white-space:nowrap">${d.status}</td>
+    </tr>`).join("");
+
+  document.getElementById("import-preview").style.display = "block";
+  document.getElementById("import-status").textContent = "";
+  document.getElementById("btn-confirmar-import").textContent = "✅ Importar "+dadosParaImportar.length+" animal(is)";
+}
+
+function formatarData(d){
+  if(!d) return "";
+  // Tenta detectar formatos comuns: dd/mm/yyyy ou yyyy-mm-dd
+  if(/^\d{2}\/\d{2}\/\d{4}$/.test(d)){
+    const [dia,mes,ano] = d.split("/");
+    return ano+"-"+mes+"-"+dia;
+  }
+  if(/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+  return d;
+}
+
+function confirmarImportacao(){
+  const animais = getAnimais();
+  const sisBovSet = new Set(animais.map(a=>a.sisbov).filter(Boolean));
+  const eletroSet = new Set(animais.map(a=>a.eletro).filter(Boolean));
+  let importados = 0;
+
+  dadosParaImportar.forEach(d=>{
+    // Importa todos — duplicados ficam com aviso mas não são bloqueados
+    animais.push({
+      id: Date.now() + Math.random(),
+      sisbov: d.sisbov, eletro: d.eletro,
+      fazenda: d.fazenda, pasto: d.pasto,
+      sexo: "M", cat: d.cat,
+      peso: d.peso, dtE: d.dtE, dtS: d.dtS,
+      historico:[{
+        data: todayStr(),
+        de: "—",
+        para: d.fazenda+" / Pasto "+d.pasto,
+        motivo: "Importação de planilha"
+      }]
+    });
+    importados++;
+  });
+
+  setAnimais(animais);
+  cancelarImportacao();
+  renderAnimais();
+  atualizarDashboard();
+  alerta("sisbov", importados+" animal(is) importado(s) com sucesso!", "ok");
+}
+
+function cancelarImportacao(){
+  dadosParaImportar = [];
+  document.getElementById("import-preview").style.display = "none";
+  document.getElementById("import-preview-tbody").innerHTML = "";
+  document.getElementById("import-preview-title").textContent = "";
+  document.getElementById("import-area").style.display = "none";
+}
+
+function baixarModelo(){
+  // Criar workbook com colunas separadas
+  const wb = XLSX.utils.book_new();
+  const dados = [
+    ["SISBOV",            "ID Eletronica",    "Peso (kg)", "Data Entrada", "Data Saida"],
+    ["076.1234.5678.9012","982000123456789",  320,         "14/05/2026",   "30/09/2026"],
+    ["076.9876.5432.1098","982000987654321",  310,         "14/05/2026",   ""],
+    ["076.1111.2222.3333","982000111122223",  290,         "01/05/2026",   ""]
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(dados);
+
+  // Largura das colunas
+  ws["!cols"] = [
+    {wch: 22}, // SISBOV
+    {wch: 20}, // ID Eletronica
+    {wch: 12}, // Peso
+    {wch: 14}, // Data Entrada
+    {wch: 14}  // Data Saida
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, "Animais");
+  XLSX.writeFile(wb, "modelo_importacao_caiman.xlsx");
+}
+
+// INIT
+if(SB_URL)document.getElementById("sb-url").value=SB_URL;
+if(SB_KEY)document.getElementById("sb-key").value=SB_KEY;
+atualizarDot();
+atualizarDashboard();
+</script>
+</body>
+</html>
