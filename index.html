@@ -131,7 +131,7 @@ button{padding:9px 18px;border-radius:8px;border:1px solid var(--bd);font-size:1
 <input type="checkbox" id="manter-logado" style="width:16px;height:16px;accent-color:#1a3a1a;cursor:pointer">
 <label for="manter-logado" style="font-size:13px;color:#555;cursor:pointer">Continuar logado por 30 dias</label>
 </div>
-<button onclick="fazerLogin()" style="width:100%;padding:13px;background:#1a3a1a;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">Entrar</button>
+<button type="button" id="btn-login" style="width:100%;padding:13px;background:#1a3a1a;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">Entrar</button>
 <div style="text-align:center;font-size:11px;color:#bbb;margin-top:20px">Grupo Caiman Agro © 2026</div>
 </div></div>
 
@@ -2069,6 +2069,13 @@ if("serviceWorker" in navigator){
     regs.forEach(r=>r.unregister());
   });
 }
+// Login via event listener
+document.addEventListener('DOMContentLoaded', function(){
+  const btnLogin = document.getElementById('btn-login');
+  if(btnLogin) btnLogin.addEventListener('click', fazerLogin);
+  const passField = document.getElementById('login-pass');
+  if(passField) passField.addEventListener('keydown', function(e){ if(e.key==='Enter') fazerLogin(); });
+});
 verificarLogin();
 // Recalcular ao carregar se já houver data
 setTimeout(()=>{const dte=document.getElementById("c-dte");if(dte&&dte.value)calcConf();},100);
