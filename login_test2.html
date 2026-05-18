@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>Caiman Agro - Login</title>
+</head>
+<body style="background:#1a3a1a;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;font-family:sans-serif">
+<div style="background:#fff;border-radius:16px;padding:32px;width:100%;max-width:360px">
+  <h2 style="color:#1a3a1a;margin-bottom:20px;text-align:center">Caiman Agro</h2>
+  <input id="u" placeholder="Usuário" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:15px;margin-bottom:12px;box-sizing:border-box"><br>
+  <input id="p" type="password" placeholder="Senha" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:15px;margin-bottom:12px;box-sizing:border-box"><br>
+  <button onclick="login()" style="width:100%;padding:12px;background:#1a3a1a;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer">Entrar</button>
+  <div id="err" style="color:red;margin-top:10px;display:none;text-align:center">Usuário ou senha incorretos</div>
+  <div id="ok" style="color:green;margin-top:10px;display:none;text-align:center;font-weight:700">✅ Login funcionando!</div>
+</div>
+<script>
+function login(){
+  const u=document.getElementById('u').value.trim().toLowerCase();
+  const p=document.getElementById('p').value;
+  const senhas={"guilherme":"Contador10@","henrique":"Contador10@","admin":"123","silvinha":"123","caiman":"Contador10@"};
+  if(senhas[u]&&senhas[u]===p){
+    document.getElementById('ok').style.display='block';
+    document.getElementById('err').style.display='none';
+    alert('Login OK! Usuário: '+u);
+  } else {
+    document.getElementById('err').style.display='block';
+    document.getElementById('ok').style.display='none';
+  }
+}
+document.getElementById('p').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
+</script>
+</body>
+</html>
