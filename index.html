@@ -379,19 +379,51 @@ button{padding:9px 18px;border-radius:8px;border:1px solid var(--bd);font-size:1
   <div><div class="ptitle">Importar dados</div><div class="psub-h">Importe planilhas Excel para o app</div></div>
 </div>
 <div id="alert-importar" class="alert"></div>
+
 <div class="sec">
-  <div class="stitle">📥 Importar planilha Excel</div>
-  <p style="font-size:13px;color:var(--mt);margin-bottom:16px;line-height:1.7">Selecione uma planilha Excel com os dados dos lotes. O arquivo deve seguir o mesmo formato da planilha original.</p>
+  <div class="stitle">Passo 1 — Tipo de importação</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">
+    <div id="tipo-conf" onclick="selTipo('conf')" style="padding:14px;border-radius:12px;border:2px solid #1a3a1a;background:#e8f5e9;cursor:pointer;text-align:center">
+      <div style="font-size:28px;margin-bottom:6px">🐂</div>
+      <div style="font-size:13px;font-weight:700;color:#1a3a1a">Confinamento</div>
+      <div style="font-size:10px;color:#555;margin-top:2px">Lotes ativos e encerrados</div>
+    </div>
+    <div id="tipo-recria" onclick="selTipo('recria')" style="padding:14px;border-radius:12px;border:2px solid var(--bd);background:var(--card);cursor:pointer;text-align:center">
+      <div style="font-size:28px;margin-bottom:6px">🐂🌿</div>
+      <div style="font-size:13px;font-weight:700">Recria / Engorda</div>
+      <div style="font-size:10px;color:#555;margin-top:2px">Lotes a pasto</div>
+    </div>
+    <div id="tipo-sisbov" onclick="selTipo('sisbov')" style="padding:14px;border-radius:12px;border:2px solid var(--bd);background:var(--card);cursor:pointer;text-align:center">
+      <div style="font-size:28px;margin-bottom:6px">🏷️</div>
+      <div style="font-size:13px;font-weight:700">SISBOV</div>
+      <div style="font-size:10px;color:#555;margin-top:2px">Animais identificados</div>
+    </div>
+  </div>
+  <div class="field">
+    <label>Fazenda</label>
+    <select id="import-fazenda-sel">
+      <option>Caiman</option><option>Maguary</option><option>Cruz Alta</option>
+      <option>Pinheiral</option><option>Furna</option><option>Santa Helena</option>
+    </select>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="stitle">Passo 2 — Selecione o arquivo Excel</div>
+  <p style="font-size:13px;color:var(--mt);margin-bottom:14px;line-height:1.7" id="import-instrucoes">
+    Planilha de Confinamento: Pasto, Quantidade, Peso Entrada, Data Entrada, Produtor, Data Saída, Dias, Peso Projetado, Peso @, Peso Saída, GMD Saída, Rendimento, GMD, Preço Kg, Nutrição, Operacional, Custo Total, Receita, PROAP, Hedge, Receita Total, Resultado, Margem Período, Margem Mensal, Margem Anualizada
+  </p>
   <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;background:var(--az);color:#fff;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600">
-      📂 Selecionar arquivo
+      📂 Selecionar arquivo .xlsx
       <input type="file" id="import-excel-file" accept=".xlsx,.xls" style="display:none" onchange="importarExcel(this)">
     </label>
+    <button onclick="baixarModeloTipo()" style="color:var(--az);border-color:var(--az);padding:9px 16px;font-size:13px">⬇ Baixar modelo</button>
   </div>
   <div id="import-excel-preview" style="display:none">
     <div style="font-size:13px;font-weight:600;margin-bottom:8px" id="import-excel-title"></div>
     <div style="overflow-x:auto;margin-bottom:12px">
-      <table class="atable"><thead><tr><th>Pasto</th><th>Qtd</th><th>Peso E.</th><th>Dt. Entrada</th><th>Dt. Saída</th><th>Resultado</th><th>Tipo</th></tr></thead>
+      <table class="atable"><thead id="import-excel-head"></thead>
       <tbody id="import-excel-tbody"></tbody></table>
     </div>
     <div style="display:flex;gap:8px">
@@ -1366,6 +1398,37 @@ function cancelarImportacao(){
   document.getElementById("import-status").textContent="";
 }
 let dadosImportExcel = [];
+let tipoImport = 'conf';
+
+function selTipo(t){
+  tipoImport = t;
+  ['conf','recria','sisbov'].forEach(id=>{
+    const el = document.getElementById('tipo-'+id);
+    if(el){
+      el.style.border = id===t ? '2px solid #1a3a1a' : '2px solid var(--bd)';
+      el.style.background = id===t ? '#e8f5e9' : 'var(--card)';
+    }
+  });
+  const instr = document.getElementById('import-instrucoes');
+  if(instr){
+    if(t==='conf') instr.textContent='Planilha de Confinamento: Pasto, Quantidade, Peso Entrada, Data Entrada, Produtor, Data Saída, Dias, Peso Projetado, Peso @, Peso Saída, GMD Saída, Rendimento, GMD, Preço Kg, Nutrição, Operacional, Custo Total, Receita, PROAP, Hedge, Receita Total, Resultado, Margem Período, Margem Mensal, Margem Anualizada';
+    if(t==='recria') instr.textContent='Planilha de Recria/Engorda: Tipo (Recria/Engorda a Pasto), Pasto, Quantidade, Peso Médio Entrada, Data Entrada, Raça, Observações';
+    if(t==='sisbov') instr.textContent='Planilha SISBOV: SISBOV, ID Eletrônica, Peso, Data Entrada, Pasto, Sexo (M/F), Categoria';
+  }
+}
+
+function baixarModeloTipo(){
+  if(tipoImport==='conf'){
+    const data=[['Pasto','Quantidade','Peso Entrada','Data de Entrada','Produtor','Data de Saída','Dias de cocho','Peso Projetado','Peso Abatido em @','Peso de Saída','GMD SAÍDA','RENDIMENTO %','GMD PROJETADO','Preço de Compra Boi Magro','Custo de Nutrição','Custos Operacional/Animal','Custo Total Boi','Receita de Venda','PROAP/PRECOCE','HEDGE NDF','RECEITA TOTAL','Resultado Final','Margem de Lucro (Período)','Margem Mensal','Margem Anualizada'],['12',150,428,'2025-10-11','AM','2026-05-18',219,690.8,25.79,816.85,1.78,'','1.2',5221.6,'',228.79,5450.39,8252.76,'','','' ,'','','','']];
+    const ws=XLSX.utils.aoa_to_sheet(data);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Confinamento');XLSX.writeFile(wb,'modelo_confinamento.xlsx');
+  } else if(tipoImport==='recria'){
+    const data=[['Tipo','Pasto','Quantidade','Peso Médio Entrada (kg)','Data Entrada','Raça','Observações'],['Recria','5C',100,280,'2026-01-15','Nelore',''],['Engorda a Pasto','7A',80,320,'2026-02-01','Nelore','']];
+    const ws=XLSX.utils.aoa_to_sheet(data);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Recria');XLSX.writeFile(wb,'modelo_recria.xlsx');
+  } else {
+    const data=[['SISBOV','ID Eletrônica','Peso (kg)','Data Entrada','Pasto','Sexo (M/F)','Categoria'],['076.1234.5678.9001','982000123456789',280,'2026-01-15','3A','M','Recria']];
+    const ws=XLSX.utils.aoa_to_sheet(data);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'SISBOV');XLSX.writeFile(wb,'modelo_sisbov.xlsx');
+  }
+}
 
 function importarExcel(input){
   const file = input.files[0]; if(!file) return;
@@ -1376,10 +1439,46 @@ function importarExcel(input){
       const wb = XLSX.read(data, {type:'array'});
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-      processarImportExcel(rows);
+      if(tipoImport==='conf') processarImportExcel(rows);
+      else if(tipoImport==='recria') processarImportRecria(rows);
+      else if(tipoImport==='sisbov') processarImportSisbov(rows);
     }catch(err){alerta("importar","Erro ao ler arquivo: "+err.message,"err");}
   };
   reader.readAsArrayBuffer(file);
+}
+
+function processarImportRecria(rows){
+  if(!rows.length) return;
+  dadosImportExcel = [];
+  let inicio = typeof rows[0][0]==='string'&&isNaN(rows[0][0])?1:0;
+  for(let i=inicio;i<rows.length;i++){
+    const r=rows[i];
+    const tipo=String(r[0]||'').trim();
+    if(!tipo) continue;
+    dadosImportExcel.push({row:r,tipo:tipo,pasto:String(r[1]||''),qtd:parseInt(r[2])||0,peso:parseFloat(r[3])||0,dtE:formatarData(r[4]),raca:String(r[5]||''),obs:String(r[6]||''),_tipo:'recria'});
+  }
+  const head=document.getElementById('import-excel-head');
+  if(head) head.innerHTML='<tr><th>Tipo</th><th>Pasto</th><th>Qtd</th><th>Peso Entrada</th><th>Data Entrada</th><th>Raça</th></tr>';
+  document.getElementById('import-excel-title').textContent=dadosImportExcel.length+' lotes encontrados';
+  document.getElementById('import-excel-tbody').innerHTML=dadosImportExcel.map(d=>`<tr><td><span class="tag tl">${d.tipo}</span></td><td>${d.pasto}</td><td>${d.qtd}</td><td>${d.peso} kg</td><td>${fmtData(d.dtE)}</td><td>${d.raca}</td></tr>`).join('');
+  document.getElementById('import-excel-preview').style.display='block';
+}
+
+function processarImportSisbov(rows){
+  if(!rows.length) return;
+  dadosImportExcel = [];
+  let inicio = typeof rows[0][0]==='string'&&isNaN(rows[0][0])?1:0;
+  for(let i=inicio;i<rows.length;i++){
+    const r=rows[i];
+    const sisbov=String(r[0]||'').trim(),eletro=String(r[1]||'').trim();
+    if(!sisbov&&!eletro) continue;
+    dadosImportExcel.push({row:r,sisbov,eletro,peso:parseFloat(r[2])||0,dtE:formatarData(r[3]),pasto:String(r[4]||''),sexo:String(r[5]||'M'),cat:String(r[6]||'Confinamento'),_tipo:'sisbov'});
+  }
+  const head=document.getElementById('import-excel-head');
+  if(head) head.innerHTML='<tr><th>SISBOV</th><th>ID Eletrônica</th><th>Peso</th><th>Data Entrada</th><th>Pasto</th><th>Sexo</th><th>Categoria</th></tr>';
+  document.getElementById('import-excel-title').textContent=dadosImportExcel.length+' animais encontrados';
+  document.getElementById('import-excel-tbody').innerHTML=dadosImportExcel.map(d=>`<tr><td>${d.sisbov||'—'}</td><td>${d.eletro||'—'}</td><td>${d.peso} kg</td><td>${fmtData(d.dtE)}</td><td>${d.pasto}</td><td>${d.sexo==='M'?'♂':'♀'}</td><td>${d.cat}</td></tr>`).join('');
+  document.getElementById('import-excel-preview').style.display='block';
 }
 
 function processarImportExcel(rows){
@@ -1423,6 +1522,32 @@ function processarImportExcel(rows){
 }
 
 function confirmarImportExcel(){
+  if(dadosImportExcel.length && dadosImportExcel[0]._tipo==='recria'){
+    const fazenda=vs('import-fazenda-sel');
+    const lotes=getLotes();
+    dadosImportExcel.forEach((d,i)=>{
+      lotes.push({id:Date.now()+i,tipo:d.tipo||'Recria',fazenda,pasto:d.pasto,qtd:d.qtd,peso:d.peso,dtE:d.dtE,raca:d.raca,obs:d.obs});
+    });
+    setLotes(lotes);atualizarDashboard();
+    alerta('importar','✅ '+dadosImportExcel.length+' lotes importados!','ok');
+    document.getElementById('import-excel-preview').style.display='none';
+    document.getElementById('import-excel-file').value='';dadosImportExcel=[];
+    return;
+  }
+  if(dadosImportExcel.length && dadosImportExcel[0]._tipo==='sisbov'){
+    const fazenda=vs('import-fazenda-sel');
+    const animais=getAnimais();
+    dadosImportExcel.forEach((d,i)=>{
+      animais.push({id:Date.now()+i,sisbov:d.sisbov,eletro:d.eletro,fazenda,pasto:d.pasto,sexo:d.sexo,cat:d.cat,peso:d.peso,dtE:d.dtE,historico:[{data:todayStr(),de:'—',para:fazenda+' / Pasto '+d.pasto,motivo:'Importação'}]});
+    });
+    setAnimais(animais);atualizarDashboard();
+    alerta('importar','✅ '+dadosImportExcel.length+' animais importados!','ok');
+    document.getElementById('import-excel-preview').style.display='none';
+    document.getElementById('import-excel-file').value='';dadosImportExcel=[];
+    return;
+  }
+  // Confinamento
+  if(!dadosImportExcel.length) return;
   if(!dadosImportExcel.length) return;
   const today = new Date().toISOString().split('T')[0];
   const lotesExist = getLotes();
