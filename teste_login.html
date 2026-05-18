@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Teste Login Caiman</title></head>
+<body style="font-family:sans-serif;padding:20px;background:#1a3a1a;color:#fff">
+<h2>Teste de Login</h2>
+<input id="u" placeholder="usuário" style="padding:8px;margin:5px;display:block;width:200px"><br>
+<input id="p" type="password" placeholder="senha" style="padding:8px;margin:5px;display:block;width:200px"><br>
+<button onclick="testar()" style="padding:8px 16px;background:#fff;color:#1a3a1a;border:none;cursor:pointer;font-weight:bold">Testar</button>
+<div id="res" style="margin-top:20px;font-size:18px"></div>
+<script>
+function testar(){
+  const u=document.getElementById('u').value.trim().toLowerCase();
+  const p=document.getElementById('p').value;
+  const senhas={
+    "guilherme":"Contador10@","henrique":"Contador10@",
+    "admin":"123","silvinha":"123",
+    "caiman":"Contador10@","roberto":"Contador10@"
+  };
+  const res=document.getElementById('res');
+  if(senhas[u]&&senhas[u]===p){
+    res.style.color='#4CAF50';
+    res.textContent='✅ Login OK! Usuário: '+u;
+  } else {
+    res.style.color='#F44336';
+    res.textContent='❌ Login falhou. u='+u+' p='+p;
+  }
+}
+</script>
+</body>
+</html>
