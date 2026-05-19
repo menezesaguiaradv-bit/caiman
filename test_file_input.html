@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="padding:20px;font-family:sans-serif">
+<h3>Teste seletor de arquivo</h3>
+
+<!-- Método 1: label for -->
+<p><b>Método 1 - label for:</b></p>
+<label for="f1" style="display:inline-block;background:#1565C0;color:#fff;padding:10px 18px;border-radius:8px;cursor:pointer">📂 Selecionar arquivo</label>
+<input type="file" id="f1" accept=".xlsx,.xls" style="display:none" onchange="alert('Método 1 funcionou! Arquivo: '+this.files[0].name)">
+
+<br><br>
+
+<!-- Método 2: input visível simples -->
+<p><b>Método 2 - input direto:</b></p>
+<input type="file" accept=".xlsx,.xls" onchange="alert('Método 2 funcionou! Arquivo: '+this.files[0].name)" style="padding:8px;border:1px solid #ddd;border-radius:8px">
+
+</body>
+</html>
