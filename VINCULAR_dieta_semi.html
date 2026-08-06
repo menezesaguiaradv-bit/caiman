@@ -1,0 +1,60 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vincular Dieta — Caiman Agro</title>
+<style>
+body{background:#F7F4EC;font-family:-apple-system,'Segoe UI',Roboto,sans-serif;margin:0;padding:24px;color:#12291B}
+.card{background:#FFFEFA;border:1px solid #E3DCC8;border-radius:14px;padding:24px;max-width:480px;margin:40px auto;text-align:center}
+h1{font-size:18px;color:#12291B;margin:0 0 6px 0}
+p{font-size:13.5px;color:#666;line-height:1.5}
+button{background:#1E5631;color:#fff;border:none;padding:16px 28px;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;width:100%;margin-top:14px}
+button:disabled{background:#9ab39f}
+#log{margin-top:16px;font-size:13.5px;text-align:left;white-space:pre-wrap;line-height:1.6}
+.ok{color:#1E5631;font-weight:600}.err{color:#C62828;font-weight:600}
+</style></head><body>
+<div class="card">
+<h1>🐂 Vincular Ração 1,8% aos lotes do Semi</h1>
+<p>Este botão procura a dieta "RAÇÃO 1,8%" e vincula aos lotes <b>3C</b> e <b>5C</b> do Semi-Confinamento, direto no servidor. Depois é só abrir o app e dar <b>Sync → Baixar dados</b>.</p>
+<button id="btn" onclick="executar()">VINCULAR DIETA AGORA</button>
+<div id="log"></div>
+</div>
+<script>
+const SB="https://qrsabbvkztfsxoxvaiwm.supabase.co", KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFyc2FiYnZrenRmc3hveHZhaXdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NDgzODAsImV4cCI6MjA5NDMyNDM4MH0.qUlcuhhcH7QPF3Ro142lXaid_yHwmBykAbCzMgxMITA";
+const H={"apikey":KEY,"Authorization":"Bearer "+KEY,"Content-Type":"application/json"};
+const log=(t,c)=>{document.getElementById("log").innerHTML+='<div class="'+(c||"")+'">'+t+"</div>";};
+async function executar(){
+  const btn=document.getElementById("btn");btn.disabled=true;document.getElementById("log").innerHTML="";
+  try{
+    // 1) achar a dieta na dados_v2 (caiman_dietas)
+    log("1/3 Buscando dietas...");
+    const rd=await fetch(SB+"/rest/v1/dados_v2?id=like.*caiman_dietas*&select=id,dados",{headers:H});
+    const linhas=await rd.json();
+    if(!linhas.length)throw "Nenhum registro de dietas encontrado.";
+    let dietaId=null,dietaNome=null;
+    for(const ln of linhas){
+      const arr=typeof ln.dados==="string"?JSON.parse(ln.dados):ln.dados;
+      const d=(arr||[]).find(x=>/1[,.]?8|TRANS/i.test(x.nome||""));
+      if(d){dietaId=d.id;dietaNome=d.nome;break;}
+    }
+    if(!dietaId)throw "Ração 1,8% não encontrada — importe a dieta pela aba Semi antes.";
+    log("Dieta achada: <b>"+dietaNome+"</b>","ok");
+    // 2) buscar lotes 3C/5C do semi
+    log("2/3 Buscando lotes do Semi...");
+    const rl=await fetch(SB+"/rest/v1/lotes_v2?select=id,dados",{headers:H});
+    const lotes=await rl.json();
+    let n=0;
+    for(const rec of lotes){
+      const l=typeof rec.dados==="string"?JSON.parse(rec.dados):rec.dados;
+      if(!l)continue;
+      if(l.tipo==="Semi-Confinamento"&&/3\s*C|5\s*C/i.test(String(l.pasto||""))&&!l.vendido){
+        l.dietaId=dietaId;
+        const up=await fetch(SB+"/rest/v1/lotes_v2?id=eq."+rec.id,{method:"PATCH",headers:H,body:JSON.stringify({dados:l})});
+        if(up.ok){n++;log("Vinculado: Pasto "+l.pasto+" ("+(l.qtd||"?")+" cab)","ok");}
+        else log("Falhou no pasto "+l.pasto+" (HTTP "+up.status+")","err");
+      }
+    }
+    if(!n)throw "Nenhum lote 3C/5C ativo do Semi encontrado.";
+    log("3/3 <b>Pronto! "+n+" lote(s) vinculado(s).</b>","ok");
+    log("Agora abra o app e toque em <b>Sync → Baixar dados</b> (para o celular receber o vínculo). A linha verde aparece no gráfico.","ok");
+  }catch(e){log("Erro: "+e,"err");btn.disabled=false;}
+}
+</script></body></html>
