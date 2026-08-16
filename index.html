@@ -1292,7 +1292,7 @@ Compartilhar</button></div>
   <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
     <div class="field" style="flex:1;min-width:200px"><label>Nome da nova dieta</label><input id="imp-dieta-nome" placeholder="Ex: Dieta Importada"></div>
     <label style="background:var(--az);color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;height:38px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> Selecionar arquivo .xlsx<input type="file" id="imp-dieta-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarDieta(this)"></label>
-    <button onclick="baixarModeloDieta()" style="background:#fff;color:var(--v);border:1px solid var(--v);padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;height:38px">Modelo .xlsx</button>
+    <button onclick="irPara('msbagaco')" style="background:#fff;color:var(--v);border:1px solid var(--v);padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;height:38px;margin-right:8px">MS do bagaço</button><button onclick="baixarModeloDieta()" style="background:#fff;color:var(--v);border:1px solid var(--v);padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;height:38px">Modelo .xlsx</button>
   </div>
   <div id="imp-dieta-status" style="margin-top:10px;font-size:13px"></div>
 </div>
@@ -3683,6 +3683,240 @@ function custoMSporTeor(teorBagaco){
   return +(c1 + (c2-c1)*(t1-teorBagaco)/(t1-t2)).toFixed(4);
 }
 
+/* ================= MEDIÇÃO DE MS DO BAGAÇO =================
+   Cada medição é gravada no historico do ingrediente (cfg.msMedicoes) com a data,
+   e a precedencia do app ja faz o resto: o lancamento de um dia usa o teor medido
+   mais recente ATE aquele dia. Assim o passado nao e reescrito. */
+
+function _ingBagaco(){
+  const ings=getIngredientes();
+  return ings.find(function(i){
+    const n=String(i.nome||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+    return n.indexOf("bagaco")>=0;
+  })||null;
+}
+
+function calcMsBagaco(){
+  const u=vn("msb-umido")||0, s=vn("msb-seco")||0, t=vn("msb-tara");
+  const tara=(t>0||t===0)?t:511;
+  const amostra=u-tara, seco=s-tara;
+  const el=document.getElementById("msb-pct"), hint=document.getElementById("msb-hint");
+  if(amostra<=0||seco<0||seco>amostra){
+    if(el)el.value="—";
+    if(hint)hint.textContent=amostra<=0?"amostra: —":"confira os pesos: o seco não pode passar do úmido";
+    return 0;
+  }
+  const pct=seco/amostra*100;
+  if(el)el.value=pct.toFixed(1).replace(".",",")+"%";
+  if(hint)hint.textContent="amostra: "+amostra.toFixed(1).replace(".",",")+" g · perdeu "+
+    (amostra-seco).toFixed(1).replace(".",",")+" g de água";
+  return pct;
+}
+
+function limparMsBagaco(){
+  ["msb-umido","msb-seco","msb-obs"].forEach(function(id){
+    const e=document.getElementById(id); if(e)e.value="";
+  });
+  const d=document.getElementById("msb-data"); if(d)d.value=todayStr();
+  calcMsBagaco();
+}
+
+function salvarMsBagaco(){
+  const ing=_ingBagaco();
+  if(!ing){alert("Não encontrei o bagaço no cadastro de ingredientes.");return;}
+  const data=vs("msb-data")||todayStr();
+  const pct=calcMsBagaco();
+  if(!(pct>0&&pct<=100)){alert("Confira os pesos: o teor calculado não é válido.");return;}
+  const u=vn("msb-umido")||0, s=vn("msb-seco")||0, t=vn("msb-tara");
+  const tara=(t>0||t===0)?t:511;
+
+  const cfg=getProgTrato();
+  if(!cfg.msMedicoes)cfg.msMedicoes={};
+  const k=String(ing.id);
+  if(!cfg.msMedicoes[k])cfg.msMedicoes[k]=[];
+  // uma medicao por data: relancar o mesmo dia apenas atualiza
+  cfg.msMedicoes[k]=cfg.msMedicoes[k].filter(function(m){return m.data!==data;});
+  cfg.msMedicoes[k].push({data:data,pct:+pct.toFixed(2),umido:u,seco:s,tara:tara,
+                          obs:vs("msb-obs")||"",origem:"air fryer"});
+  cfg.msMedicoes[k].sort(function(a,b){return a.data.localeCompare(b.data);});
+  setProgTrato(cfg);
+  try{marcarPendente();}catch(e){}
+  limparMsBagaco();
+  renderMsBagaco();
+  try{alerta("dieta","Medição de "+fmtData(data)+" salva: "+pct.toFixed(1).replace(".",",")+"% de MS","ok");}catch(e){}
+}
+
+function excluirMsBagaco(data){
+  if(!confirm("Excluir a medição de "+fmtData(data)+"?"))return;
+  const ing=_ingBagaco(); if(!ing)return;
+  const cfg=getProgTrato();
+  const k=String(ing.id);
+  if(cfg.msMedicoes&&cfg.msMedicoes[k])
+    cfg.msMedicoes[k]=cfg.msMedicoes[k].filter(function(m){return m.data!==data;});
+  setProgTrato(cfg);
+  try{marcarPendente();}catch(e){}
+  renderMsBagaco();
+}
+
+/* serie de medicoes, mais recente por ultimo */
+function _serieMsBagaco(){
+  const ing=_ingBagaco(); if(!ing)return {ing:null,lista:[]};
+  const cfg=getProgTrato();
+  const l=((cfg.msMedicoes||{})[String(ing.id)]||[]).slice()
+          .sort(function(a,b){return a.data.localeCompare(b.data);});
+  return {ing:ing,lista:l};
+}
+
+function renderMsBagaco(){
+  const S=_serieMsBagaco();
+  const tb=document.getElementById("msb-tbody"), vazio=document.getElementById("msb-empty");
+  const kp=document.getElementById("msb-kpis"), gr=document.getElementById("msb-grafico");
+  const f=function(v,c){return (v||0).toLocaleString("pt-BR",{minimumFractionDigits:c==null?1:c,maximumFractionDigits:c==null?1:c});};
+
+  if(!S.lista.length){
+    if(tb)tb.innerHTML="";
+    if(vazio)vazio.style.display="block";
+    if(kp)kp.innerHTML="";
+    if(gr)gr.innerHTML='<div class="empty" style="display:block">Sem medições para desenhar a curva.</div>';
+    return;
+  }
+  if(vazio)vazio.style.display="none";
+
+  const v=S.lista.map(function(m){return m.pct;});
+  const med=v.reduce(function(a,b){return a+b;},0)/v.length;
+  const min=Math.min.apply(null,v), max=Math.max.apply(null,v);
+  const ult=S.lista[S.lista.length-1];
+  // desvio padrao: mostra se o bagaço e estavel ou oscila muito
+  const dp=Math.sqrt(v.reduce(function(a,b){return a+(b-med)*(b-med);},0)/v.length);
+  // media dos ultimos 7 lancamentos
+  const u7=v.slice(-7); const m7=u7.reduce(function(a,b){return a+b;},0)/u7.length;
+  const cad=S.ing?((parseFloat(S.ing.pctms)||0)*100):0;
+
+  if(kp){
+    kp.innerHTML=
+      '<div class="dcard" style="border:1px solid var(--bd);border-left:3px solid var(--v)"><div class="dnum" style="color:var(--v);font-size:19px">'+f(ult.pct)+'%</div><div class="dlab">Última — '+fmtData(ult.data)+'</div></div>'+
+      '<div class="dcard" style="border:1px solid var(--bd);border-left:3px solid var(--dou)"><div class="dnum" style="font-size:19px">'+f(m7)+'%</div><div class="dlab">Média dos últimos 7</div></div>'+
+      '<div class="dcard" style="border:1px solid #e0e0e0"><div class="dnum" style="font-size:19px">'+f(med)+'%</div><div class="dlab">Média de '+v.length+' medições</div></div>'+
+      '<div class="dcard" style="border:1px solid #e0e0e0"><div class="dnum" style="font-size:19px">'+f(min)+'% a '+f(max)+'%</div><div class="dlab">Mínimo e máximo</div></div>'+
+      '<div class="dcard" style="border:1px solid #e0e0e0"><div class="dnum" style="font-size:19px">±'+f(dp)+'</div><div class="dlab">Desvio padrão</div></div>'+
+      (cad>0?'<div class="dcard" style="border:1px solid #e0e0e0"><div class="dnum" style="font-size:19px">'+f(cad)+'%</div><div class="dlab">Valor do cadastro</div></div>':"");
+  }
+
+  // ---- tabela ----
+  if(tb)tb.innerHTML=S.lista.slice().reverse().map(function(m,i){
+    const tara=(m.tara!=null?m.tara:511);
+    const am=(m.umido||0)-tara;
+    const d=m.pct-med;
+    const cor=Math.abs(d)<=dp?"#6b6b64":(d>0?"var(--v)":"#C62828");
+    return '<tr style="background:'+(i%2?"#F7F4EC":"#fff")+';border-bottom:1px solid #EFEAD9">'+
+      '<td style="padding:7px 10px;font-weight:600">'+fmtData(m.data)+'</td>'+
+      '<td style="padding:7px 10px;text-align:right;color:#6b6b64">'+(m.umido?f(m.umido)+" g":"—")+'</td>'+
+      '<td style="padding:7px 10px;text-align:right;color:#6b6b64">'+(m.seco?f(m.seco)+" g":"—")+'</td>'+
+      '<td style="padding:7px 10px;text-align:right;color:#9a9a94">'+(am>0?f(am)+" g":"—")+'</td>'+
+      '<td style="padding:7px 10px;text-align:right;font-weight:700;color:var(--v)">'+f(m.pct)+'%</td>'+
+      '<td style="padding:7px 10px;text-align:right;color:'+cor+'">'+(d>0?"+":"")+f(d)+'</td>'+
+      '<td style="padding:7px 10px;font-size:12px;color:#6b6b64">'+(m.obs||"")+'</td>'+
+      '<td style="padding:7px 10px;text-align:right"><button onclick="excluirMsBagaco(\''+m.data+'\')" style="background:#fff;border:1px solid #E0B4B4;color:#C62828;padding:3px 9px;border-radius:6px;font-size:11px;cursor:pointer">×</button></td>'+
+    '</tr>';
+  }).join("");
+
+  // ---- grafico ----
+  if(!gr)return;
+  const w=880,h=300,padL=54,padR=20,padT=18,padB=52;
+  const vmin=Math.max(0,Math.floor((min-4)/5)*5), vmax=Math.ceil((max+4)/5)*5;
+  const n=v.length;
+  const px=function(i){return n<2?padL:(padL+(w-padL-padR)*i/(n-1));};
+  const py=function(x){return h-padB-((x-vmin)/(vmax-vmin||1))*(h-padT-padB);};
+
+  let grid="",eixo="";
+  for(let i=0;i<=5;i++){
+    const val=vmin+(vmax-vmin)*i/5, y=py(val);
+    grid+='<line x1="'+padL+'" y1="'+y+'" x2="'+(w-padR)+'" y2="'+y+'" stroke="#EFEAD9" stroke-width="0.8"/>';
+    eixo+='<text x="'+(padL-7)+'" y="'+(y+3.5)+'" text-anchor="end" font-size="10" fill="#9a9a94">'+val.toFixed(0)+'%</text>';
+  }
+  // faixa de dispersao (media +/- desvio)
+  const faixa='<rect x="'+padL+'" y="'+py(med+dp)+'" width="'+(w-padL-padR)+'" height="'+Math.max(0,py(med-dp)-py(med+dp))+'" fill="#1E5631" opacity="0.07"/>';
+  const linhaMed='<line x1="'+padL+'" y1="'+py(med)+'" x2="'+(w-padR)+'" y2="'+py(med)+'" stroke="#1E5631" stroke-width="1" stroke-dasharray="5 4" opacity="0.6"/>'+
+    '<text x="'+(w-padR-4)+'" y="'+(py(med)-5)+'" text-anchor="end" font-size="9.5" fill="#1E5631">média '+f(med)+'%</text>';
+  // linha do cadastro, para comparar
+  const linhaCad=(cad>=vmin&&cad<=vmax)?('<line x1="'+padL+'" y1="'+py(cad)+'" x2="'+(w-padR)+'" y2="'+py(cad)+'" stroke="#B9942F" stroke-width="1" stroke-dasharray="2 3"/>'+
+    '<text x="'+(padL+4)+'" y="'+(py(cad)-5)+'" font-size="9.5" fill="#8A6D1B">cadastro '+f(cad)+'%</text>'):"";
+
+  const lin=v.map(function(x,i){return (i?"L":"M")+px(i)+","+py(x);}).join(" ");
+  // media movel de 7
+  const mm=v.map(function(_,i){
+    const j=Math.max(0,i-6), sl=v.slice(j,i+1);
+    return sl.reduce(function(a,b){return a+b;},0)/sl.length;
+  });
+  const linMM=mm.map(function(x,i){return (i?"L":"M")+px(i)+","+py(x);}).join(" ");
+
+  const pts=v.map(function(x,i){
+    return '<circle cx="'+px(i)+'" cy="'+py(x)+'" r="3" fill="var(--dou)"><title>'+fmtData(S.lista[i].data)+": "+f(x)+"%"+(S.lista[i].obs?" — "+S.lista[i].obs:"")+'</title></circle>';
+  }).join("");
+
+  let rot="";
+  const passo=Math.max(1,Math.ceil(n/12));
+  S.lista.forEach(function(m,i){
+    if(i%passo===0||i===n-1){
+      const p=m.data.split("-"), x=px(i), y=h-padB+14;
+      rot+='<text x="'+x+'" y="'+y+'" transform="rotate(-45 '+x+' '+y+')" text-anchor="end" font-size="9" fill="#9a9a94">'+p[2]+"/"+p[1]+'</text>';
+    }
+  });
+
+  gr.innerHTML=
+    '<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:10px;font-size:12px">'+
+      '<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:22px;height:3px;background:var(--dou);display:inline-block;border-radius:2px"></span>Medição do dia</span>'+
+      '<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:22px;height:3px;background:var(--v);display:inline-block;border-radius:2px"></span>Média móvel de 7</span>'+
+      '<span style="color:#9a9a94">faixa sombreada = média ± desvio padrão</span>'+
+    '</div>'+
+    '<svg viewBox="0 0 '+w+' '+h+'" style="width:100%;height:auto;max-height:320px">'+
+      grid+faixa+eixo+rot+linhaCad+linhaMed+
+      '<path d="'+lin+'" fill="none" stroke="var(--dou)" stroke-width="1.6" opacity="0.85"/>'+
+      '<path d="'+linMM+'" fill="none" stroke="var(--v)" stroke-width="2.4"/>'+
+      pts+
+      '<text x="14" y="'+(h/2)+'" transform="rotate(-90 14 '+(h/2)+')" text-anchor="middle" font-size="11" fill="#6b6b64">% de matéria seca</text>'+
+    '</svg>';
+}
+
+/* PDF do histórico */
+function exportarMsBagacoPdf(){
+  if(typeof window.jspdf==="undefined"){alert("Biblioteca de PDF não carregada. Recarregue a página.");return;}
+  const S=_serieMsBagaco();
+  if(!S.lista.length){alert("Nenhuma medição para exportar.");return;}
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:"mm",format:"a4"});
+  const f=function(v,c){return (v||0).toLocaleString("pt-BR",{minimumFractionDigits:c==null?1:c,maximumFractionDigits:c==null?1:c});};
+  const v=S.lista.map(function(m){return m.pct;});
+  const med=v.reduce(function(a,b){return a+b;},0)/v.length;
+  const dp=Math.sqrt(v.reduce(function(a,b){return a+(b-med)*(b-med);},0)/v.length);
+
+  let y=_pdfCabecalho(doc,"Matéria seca do bagaço");
+  doc.setFontSize(9.5); doc.setTextColor(120,120,115); doc.setFont("helvetica","normal");
+  doc.text(v.length+" medições  ·  média "+f(med)+"%  ·  desvio ±"+f(dp),105,y,{align:"center"});
+  y+=12;
+  y=_pdfSecao(doc,y,"Histórico de medições");
+  doc.setFontSize(7.5); doc.setTextColor(120,120,115); doc.setFont("helvetica","bold");
+  doc.text("DATA",23,y); doc.text("ÚMIDO",78,y,{align:"right"});
+  doc.text("SECO",108,y,{align:"right"}); doc.text("AMOSTRA",138,y,{align:"right"});
+  doc.text("% MS",162,y,{align:"right"}); doc.text("OBSERVAÇÃO",168,y);
+  y+=2; doc.setDrawColor(227,220,200); doc.setLineWidth(0.3); doc.line(23,y,187,y); y+=5;
+  S.lista.slice().reverse().forEach(function(m){
+    if(y>272){doc.addPage();y=20;}
+    const tara=(m.tara!=null?m.tara:511), am=(m.umido||0)-tara;
+    doc.setFontSize(8.5); doc.setFont("helvetica","normal"); doc.setTextColor(40,40,40);
+    doc.text(fmtData(m.data),23,y);
+    doc.text(m.umido?f(m.umido)+" g":"-",78,y,{align:"right"});
+    doc.text(m.seco?f(m.seco)+" g":"-",108,y,{align:"right"});
+    doc.text(am>0?f(am)+" g":"-",138,y,{align:"right"});
+    doc.setFont("helvetica","bold"); doc.setTextColor(30,86,49);
+    doc.text(f(m.pct)+"%",162,y,{align:"right"});
+    doc.setFont("helvetica","normal"); doc.setTextColor(110,110,105); doc.setFontSize(7.5);
+    doc.text(String(m.obs||"").substring(0,28),168,y);
+    y+=4; doc.setDrawColor(238,238,238); doc.line(23,y,187,y); y+=4;
+  });
+  doc.save("MS_Bagaco_"+todayStr()+".pdf");
+}
+
 function irPara(p){
   // bloqueio de permissão: usuário restrito só acessa abas liberadas
   if(typeof podeVerAba==="function"&&!podeVerAba(p)){
@@ -3694,6 +3928,7 @@ function irPara(p){
   paginaAtual=p; window.scrollTo(0,0);
   if(p==="dashboard") atualizarDashboard();
   if(p==="sisbov"){_r(renderAnimais,"renderAnimais");_r(renderAnimaisEncerrados,"renderAnimaisEncerrados");_r(renderAnimaisMortos,"renderAnimaisMortos");}
+  if(p==="msbagaco"){const d=document.getElementById("msb-data");if(d&&!d.value)d.value=todayStr();_r(renderMsBagaco,"renderMsBagaco");try{calcMsBagaco();}catch(e){}}
   if(p==="dieta"){_r(renderIngredientes,"renderIngredientes");
   if(p==="dieta"){const w=document.getElementById("pct-linhas");if(w&&!w.children.length){addLinhaPct();addLinhaPct();}}_r(renderDietas,"renderDietas");_r(renderComprasInsumo,"renderComprasInsumo");const cd=document.getElementById("compra-data");if(cd&&!cd.value)cd.value=todayStr();}
   if(p==="projecao"){carregarConfigCiclo();_r(renderReceitasExtras,"renderReceitasExtras");_r(renderCustosExtras,"renderCustosExtras");atualizarProjecao();_r(renderHistoricoCiclos,"renderHistoricoCiclos");}
@@ -16617,7 +16852,64 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.08.14-esp4</div>
+<div style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.08.15-msb1</div>
+<!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
+<div id="page-msbagaco" class="page">
+<div class="main">
+  <div class="ptitle">Matéria seca do bagaço</div>
+  <div style="font-size:12.5px;color:var(--mt);margin:6px 0 16px;line-height:1.6">
+    O bagaço de cana varia de carga para carga, e é o ingrediente que mais mexe na matéria seca da dieta.
+    Cada medição vale <b>a partir da data em que foi feita</b> — os lançamentos anteriores ficam com o teor
+    que valia neles, e o histórico não é reescrito.
+  </div>
+
+  <div class="sec">
+    <div class="stitle">Nova medição</div>
+    <div class="grid">
+      <div class="field"><label>Data</label><input id="msb-data" type="date"></div>
+      <div class="field"><label>Peso úmido (g)</label><input id="msb-umido" type="number" step="0.1" placeholder="ex: 611,0" oninput="calcMsBagaco()"><small>com o recipiente</small></div>
+      <div class="field"><label>Peso seco (g)</label><input id="msb-seco" type="number" step="0.1" placeholder="ex: 571,0" oninput="calcMsBagaco()"><small>com o recipiente</small></div>
+      <div class="field"><label>Tara do recipiente (g)</label><input id="msb-tara" type="number" step="0.1" value="511" oninput="calcMsBagaco()"><small>descontada dos dois pesos</small></div>
+      <div class="field"><label>Teor de matéria seca</label><input id="msb-pct" readonly style="background:#f5f5f5;font-weight:700;color:var(--v);font-size:16px"><small id="msb-hint">amostra: —</small></div>
+      <div class="field" style="grid-column:1/-1"><label>Observação</label><input id="msb-obs" placeholder="chuva, pilha nova, fornecedor diferente..."></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-p" onclick="salvarMsBagaco()">Salvar medição</button>
+      <button onclick="limparMsBagaco()">Limpar</button>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="stitle">Evolução do teor</div>
+    <div id="msb-kpis" class="dash" style="margin-bottom:12px"></div>
+    <div id="msb-grafico" style="background:#fff;padding:16px;border-radius:8px;border:1px solid #e0e0e0;min-height:240px"></div>
+  </div>
+
+  <div class="sec">
+    <div class="stitle" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <span>Histórico</span>
+      <button onclick="exportarMsBagacoPdf()" style="background:#fff;border:1px solid var(--v);color:var(--v);padding:7px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">Exportar PDF</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="background:var(--vd);color:#fff">
+          <th style="text-align:left;padding:8px 10px">DATA</th>
+          <th style="text-align:right;padding:8px 10px">ÚMIDO</th>
+          <th style="text-align:right;padding:8px 10px">SECO</th>
+          <th style="text-align:right;padding:8px 10px">AMOSTRA</th>
+          <th style="text-align:right;padding:8px 10px">% MS</th>
+          <th style="text-align:right;padding:8px 10px">VS. MÉDIA</th>
+          <th style="text-align:left;padding:8px 10px">OBS.</th>
+          <th style="padding:8px 10px"></th>
+        </tr></thead>
+        <tbody id="msb-tbody"></tbody>
+      </table>
+    </div>
+    <div id="msb-empty" class="empty" style="display:none">Nenhuma medição lançada ainda.</div>
+  </div>
+</div>
+</div>
+
 </body>
 
 
