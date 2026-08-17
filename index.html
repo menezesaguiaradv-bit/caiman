@@ -801,18 +801,18 @@ Compartilhar</button></div>
 <div class="field"><label>Data de entrada</label><input id="eg-dte" type="date"></div>
 
 <div class="field"><label>Raça</label><select id="eg-raca" onchange="calcProjAbate()"><option value="Nelore">Nelore</option><option value="Cruzado">Cruzado</option><option value="Outro">Outro</option></select></div>
-<div class="field"><label>Sexo</label><select id="eg-sexo" onchange="calcProjAbate()"><option value="Machos">Machos (castrados)</option><option value="Inteiros">Inteiros</option><option value="Femeas">Fêmeas</option></select></div>
-<div class="field"><label>Idade (meses)</label><input id="eg-idade" type="number" step="1" placeholder="Ex: 20" oninput="calcProjAbate()"></div>
-<div class="field"><label>Meta de consumo — % do peso vivo (MS)</label><input id="eg-metapv" type="number" step="0.01" value="2.20" oninput="calcProjAbate()"><small>Igual à coluna AJUSTE CONSUMO do ROTEIRO: programado = PV × meta% × ajuste ÷ %MS da dieta</small></div>
-<div class="field"><label>Acabamento (% gordura)</label><input id="eg-acab" type="number" step="0.01" value="27" oninput="calcProjAbate()"><small>27% = padrão da planilha</small></div>
-<div class="field"><label>Peso previsto de abate (kg)</label><input id="eg-pesoabate" type="number" step="0.1" oninput="calcProjAbate(true)" style="font-weight:700;color:var(--v)"><small id="eg-peso-hint">Preenchido pelo modelo do zootecnista — pode editar se precisar corrigir</small></div>
+<div class="field" data-so-conf><label>Sexo</label><select id="eg-sexo" onchange="calcProjAbate()"><option value="Machos">Machos (castrados)</option><option value="Inteiros">Inteiros</option><option value="Femeas">Fêmeas</option></select></div>
+<div class="field" data-so-conf><label>Idade (meses)</label><input id="eg-idade" type="number" step="1" placeholder="Ex: 20" oninput="calcProjAbate()"></div>
+<div class="field" data-so-conf><label>Meta de consumo — % do peso vivo (MS)</label><input id="eg-metapv" type="number" step="0.01" value="2.20" oninput="calcProjAbate()"><small>Igual à coluna AJUSTE CONSUMO do ROTEIRO: programado = PV × meta% × ajuste ÷ %MS da dieta</small></div>
+<div class="field" data-so-conf><label>Acabamento (% gordura)</label><input id="eg-acab" type="number" step="0.01" value="27" oninput="calcProjAbate()"><small>27% = padrão da planilha</small></div>
+<div class="field" data-so-conf><label>Peso previsto de abate (kg)</label><input id="eg-pesoabate" type="number" step="0.1" oninput="calcProjAbate(true)" style="font-weight:700;color:var(--v)"><small id="eg-peso-hint">Preenchido pelo modelo do zootecnista — pode editar se precisar corrigir</small></div>
 <div class="field"><label>Valor do boi (R$/cabeça)</label><input id="eg-valorboi" type="number" placeholder="0.00" step="0.01" oninput="calcRkgRecria('eg');calcProjAbate()"></div>
 <div class="field"><label>R$/kg (calculado)</label><input id="eg-rkg" class="calc" readonly placeholder="—"><small>Valor do boi ÷ peso de entrada</small></div>
 <div class="field"><label>Comissão — total (R$)</label><input id="eg-comissao" type="number" placeholder="0.00" step="0.01"><small>Dividida pela quantidade</small></div>
 <div class="field"><label>Frete — total (R$)</label><input id="eg-frete" type="number" placeholder="0.00" step="0.01"><small>Dividido pela quantidade</small></div>
 <div class="field"><label>Observações</label><input id="eg-obs" placeholder="Opcional"></div>
 </div>
-<div id="eg-proj" style="margin-top:12px"></div>
+<div id="eg-proj" data-so-conf style="margin-top:12px"></div>
 <div class="btn-row"><button class="btn-p" onclick="salvarRecria('Engorda a Pasto','eg')">Salvar</button><button onclick="limparR('eg')">Limpar</button></div>
 </div>
 <div class="sec"><div class="stitle" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
@@ -1059,12 +1059,12 @@ Compartilhar</button></div>
 <div class="field"><label>Data de entrada</label><input id="el-dte" type="date" onchange="calcAbateEdit()"></div>
 <div class="field"><label>Peso de entrada (kg)</label><input id="el-pesoe" type="number" step="0.01" oninput="calcCustoBoiEdit();calcAbateEdit()"></div>
 <div class="field"><label>GMD projetado (kg/dia)</label><input id="el-gmdp" type="number" step="0.01" oninput="calcAbateEdit()"></div>
-<div class="field"><label>Sexo</label><select id="el-sexo" onchange="calcAbateEdit()"><option value="Machos">Machos (castrados)</option><option value="Inteiros">Inteiros</option><option value="Femeas">Fêmeas</option></select></div>
-<div class="field"><label>Raça</label><select id="el-raca" onchange="calcAbateEdit()"><option value="Nelore">Nelore</option><option value="Cruzado">Cruzado</option><option value="Outro">Outro</option></select></div>
-<div class="field"><label>Idade (meses)</label><input id="el-idade" type="number" step="1" oninput="calcAbateEdit()"></div>
-<div class="field"><label>Acabamento (% gordura)</label><input id="el-acab" type="number" step="0.01" oninput="calcAbateEdit()"></div>
-<div class="field"><label>Peso previsto de abate (kg)</label><input id="el-pesoabate" type="number" step="0.1" oninput="calcAbateEdit(true)" style="font-weight:700;color:var(--v)"><small id="el-peso-hint">Em branco, usa o modelo do zootecnista</small></div>
-<div class="field"><label>Data prevista de abate</label><input id="el-dtabate" readonly style="background:#f5f5f5;font-weight:700;color:var(--v)"><small id="el-abate-info"></small></div>
+<div class="field" data-so-conf><label>Sexo</label><select id="el-sexo" onchange="calcAbateEdit()"><option value="Machos">Machos (castrados)</option><option value="Inteiros">Inteiros</option><option value="Femeas">Fêmeas</option></select></div>
+<div class="field" data-so-conf><label>Raça</label><select id="el-raca" onchange="calcAbateEdit()"><option value="Nelore">Nelore</option><option value="Cruzado">Cruzado</option><option value="Outro">Outro</option></select></div>
+<div class="field" data-so-conf><label>Idade (meses)</label><input id="el-idade" type="number" step="1" oninput="calcAbateEdit()"></div>
+<div class="field" data-so-conf><label>Acabamento (% gordura)</label><input id="el-acab" type="number" step="0.01" oninput="calcAbateEdit()"></div>
+<div class="field" data-so-conf><label>Peso previsto de abate (kg)</label><input id="el-pesoabate" type="number" step="0.1" oninput="calcAbateEdit(true)" style="font-weight:700;color:var(--v)"><small id="el-peso-hint">Em branco, usa o modelo do zootecnista</small></div>
+<div class="field" data-so-conf><label>Data prevista de abate</label><input id="el-dtabate" readonly style="background:#f5f5f5;font-weight:700;color:var(--v)"><small id="el-abate-info"></small></div>
 <div class="field"><label>Preço kg do boi (R$)</label><input id="el-precoc" type="number" step="0.01" oninput="calcCustoBoiEdit()"></div>
 <div class="field"><label>Custo do boi por cabeça (R$)</label><input id="el-custo-boi-calc" readonly style="background:#f5f5f5"><small>Preço kg × Peso entrada</small></div>
 <div class="field"><label>Comissão — total (R$)</label><input id="el-comissao" type="number" step="0.01"></div>
@@ -4540,9 +4540,24 @@ function _opBackLabels(){
     b.textContent=(tipoOperacao==="Semi-Confinamento")?"SEMI-CONFINAMENTO":"CONFINAMENTO";
   });
   // no escopo Semi, as secoes de rampa/planilha do confinamento ficam ocultas
+  /* O semi e outro processo: pasto com suplemento, sem fases, sem rampa, sem
+     energia metabolizavel e sem projecao de abate por modelo. Tudo que e
+     exclusivo do confinamento sai da tela — nao basta zerar o numero, o campo
+     nao pode nem aparecer para nao induzir a leitura errada. */
   const _semiOn=(tipoOperacao==="Semi-Confinamento");
-  ["sec-roteiro-trato","sec-fases-dieta","sec-carregamento","virada-avisos"].forEach(function(id){
+  const SO_CONF=["sec-roteiro-trato","sec-fases-dieta","sec-carregamento","virada-avisos",
+                 "sec-energia","sec-ms-dia","sec-prog-semanal","sec-consumo-medio-conf",
+                 "cal-leg-troca"];
+  SO_CONF.forEach(function(id){
     const e=document.getElementById(id); if(e)e.style.display=_semiOn?"none":"";
+  });
+  // secoes exclusivas do semi
+  ["sec-consumo-medio-semi"].forEach(function(id){
+    const e=document.getElementById(id); if(e)e.style.display=_semiOn?"":"none";
+  });
+  // campos do cadastro de lote que so fazem sentido no confinamento
+  document.querySelectorAll("[data-so-conf]").forEach(function(e){
+    e.style.display=_semiOn?"none":"";
   });
 }
 function gmdPorTipo(tipo){
@@ -4771,6 +4786,8 @@ function blocoCustoLote(lote){
      existir (lote antigo), calcula na hora. */
   let linhaAbate='';
   try{
+    // previsao de abate pelo modelo zootecnico: so confinamento
+    if(!_ehCocho(l.tipo)||_norm(l.tipo)!==_norm("Confinamento"))throw 0;
     // lote cadastrado antes dos campos zootecnicos: assume o padrao do projeto
     // (nelore castrado, 24 meses, acabamento 27%) para nao ficar sem previsao
     const _lz=Object.assign({},l,{
@@ -9505,7 +9522,10 @@ function renderCalendarioTrato(){
      das fases), nao de lancamento. Assim o calendario mostra a virada antes de
      ela acontecer, que e quando adianta programar no Saicon. */
   const trocas={};
+  /* Trocas de dieta so existem no confinamento: o semi nao tem fases nem rampa.
+     No semi o calendario mostra apenas os dias com lancamento. */
   try{
+    if(_norm(tipoOperacao)!==_norm("Confinamento"))throw 0;
     const _cfg=getProgTrato(), _dts=getDietas();
     const _nomeD=function(fk){
       const id=_cfg.dietaFase&&_cfg.dietaFase[fk];
@@ -9513,7 +9533,9 @@ function renderCalendarioTrato(){
       const d=_dts.find(function(x){return String(x.id)===String(id);});
       return d?d.nome:null;
     };
-    getLotes().filter(function(l){return _ehCocho(l.tipo)&&l.dtE&&(l.qtd||0)>0&&!l.vendido;}).forEach(function(l){
+    getLotes().filter(function(l){
+      return _norm(l.tipo)===_norm(tipoOperacao)&&l.dtE&&(l.qtd||0)>0&&!l.vendido;
+    }).forEach(function(l){
       const F=_cfg.fases||{};
       const marcos=[
         {k:"ad2",d:(F.ad1||0)},
@@ -9672,7 +9694,7 @@ function _dadosTratosDia(data){
   });
   const lotes=getLotes(), dietas=getDietas(), cfg=getProgTrato();
   let ings=[]; try{ings=getIngredientes();}catch(e){}
-  const ENER=(tipoOperacao==="Confinamento");
+  const ENER=(_norm(tipoOperacao)===_norm("Confinamento"));
   const _n=function(t){const n=parseInt(String(t.numTrato==null?"":t.numTrato).replace(/\D/g,""));return isFinite(n)&&n>0?n:99;};
 
   const porLote={};
@@ -9699,8 +9721,9 @@ function _dadosTratosDia(data){
     totKg+=g.kg; totMS+=g.ms; totCab+=cab; totMcal+=mcal; totAlvo+=alvo; totPV+=pv*cab;
     let fase="";
     try{
+      // fase e conceito do confinamento; no semi so o tempo de suplementacao
       if(ENER&&lote.dtE){const fx=faseNoDia(diasEntre(lote.dtE,data),cfg);fase=fx.label+" - dia "+fx.dia;}
-      else if(lote.dtE)fase="dia "+(diasEntre(lote.dtE,data)+1)+" de cocho";
+      else if(lote.dtE)fase="dia "+(diasEntre(lote.dtE,data)+1)+" de suplementação";
     }catch(e){}
     /* % do peso vivo: MS por cabeca dividida pelo peso projetado do dia — e o
        "CONS % PV ATUAL" do ROTEIRO da planilha (coluna O). A meta do lote
@@ -9951,7 +9974,7 @@ function exportarTratosDiaPdf(data){
   // ---- resumo por curral: fecha o relatorio com o consumo de cada um ----
   if(dados.cards.length>1){
     if(y>215){doc.addPage();y=20;}
-    y=_pdfSecao(doc,y,"Resumo por curral");
+    y=_pdfSecao(doc,y,(ENER?"Resumo por curral":"Resumo por pasto"));
     // cabecalho da tabela
     doc.setFontSize(7.5); doc.setTextColor(120,120,115); doc.setFont("helvetica","bold");
     doc.text("CURRAL",23,y); doc.text("CAB.",83,y,{align:"right"});
@@ -10329,7 +10352,7 @@ function renderDiaTrato(){
 
   const filtroLote=parseInt(vs("tr-graf-lote"))||null;
   const cfg=getProgTrato(), dietas=getDietas(), ings=getIngredientes(), lotes=getLotes();
-  const _ENER=(tipoOperacao==="Confinamento");   // energia so no confinamento
+  const _ENER=(_norm(tipoOperacao)===_norm("Confinamento"));   // energia so no confinamento
 
   // ---- lancado no dia (rateia o acumulado pelos dias que ele cobre) ----
   const lanc={};   // loteId -> {kg, kgms}
@@ -10388,7 +10411,7 @@ function renderDiaTrato(){
   const totCabT=linhas.reduce(function(s,r){return s+r.cab;},0);
   let tab='<table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px">'+
     '<tr style="background:var(--vd,#0B3D22);color:#fff">'+
-      '<th style="text-align:left;padding:7px 10px">CURRAL / PASTO</th>'+
+      '<th style="text-align:left;padding:7px 10px">'+(ENER?"CURRAL":"PASTO")+'</th>'+
       '<th style="text-align:right;padding:7px 10px">CAB.</th>'+
       '<th style="text-align:right;padding:7px 10px">LANÇADO</th>'+
       '<th style="text-align:right;padding:7px 10px">PROGRAMADO</th>'+
@@ -17236,7 +17259,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.08.15-pt3</div>
+<div style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.08.15-iso3</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
