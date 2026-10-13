@@ -5467,6 +5467,225 @@ function mediaPastoIndividual(pasto){
   };
 }
 
+// ===== Animais identificados (SISBOV + chip) dentro de um lote =====
+// O lote (confinamento, semi ou recria) e o grupo; o animal identificado e o individuo.
+// Casa pelo pasto/curral e pela fazenda; nome da fazenda e normalizado porque o lote
+// pode estar como "Confinamento Pinheiral" e o animal como "Pinheiral".
+function _fazCore(f){
+  return _normIng(f).replace(/\b(fazenda|faz\.?|confinamento|semi-?confinamento)\b/g,"").replace(/\s+/g," ").trim();
+}
+function _escAL(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+function _soDig(s){return String(s||"").replace(/\D/g,"");}
+function animaisDoLote(fazenda,pasto){
+  var p=String(pasto||"").trim().toUpperCase();
+  if(!p)return [];
+  var fc=_fazCore(fazenda);
+  return getAnimais().filter(function(a){
+    if(a.morto||a.encerrado)return false;
+    if(String(a.pasto||"").trim().toUpperCase()!==p)return false;
+    var af=_fazCore(a.fazenda);
+    // fazenda vazia de um dos lados nao bloqueia; senao uma tem que conter a outra
+    return !fc||!af||af===fc||af.indexOf(fc)>=0||fc.indexOf(af)>=0;
+  });
+}
+function pesoHojeAnimal(a){
+  // Ultima pesagem (ou peso de entrada) e projecao ate hoje pelo GMD individual.
+  var pes=getPesagensSisbov().filter(function(p){return p.animalId===a.id&&p.peso>0&&p.data;});
+  pes.sort(function(x,y){return x.data<y.data?-1:(x.data>y.data?1:0);});
+  var ult=pes.length?pes[pes.length-1]:null;
+  var ultPeso=ult?ult.peso:(+a.peso||null), ultData=ult?ult.data:(a.dtE||null);
+  var g=gmdAnimalIndividual(a.id), gu=gmdUltimoPeriodo(a.id);
+  var hoje=ultPeso, projetado=false;
+  if(ultPeso&&ultData&&g&&g.gmd>0){
+    var d=diasEntre(ultData,todayStr());
+    if(d>0){hoje=+(ultPeso+g.gmd*d).toFixed(0);projetado=true;}
+  }
+  return {ultPeso:ultPeso,ultData:ultData,hoje:hoje,projetado:projetado,
+    gmd:g?g.gmd:null,gmdRec:gu?gu.gmd:null,nPes:pes.length};
+}
+function _resumoAnimais(lista){
+  var r={n:lista.length,comPeso:0,pesoMedio:null,gmdMedio:null,comGmd:0,min:null,max:null,abaixo:0};
+  var sp=0,sg=0;
+  lista.forEach(function(x){
+    if(x.ph.hoje){sp+=x.ph.hoje;r.comPeso++;r.min=r.min==null?x.ph.hoje:Math.min(r.min,x.ph.hoje);r.max=r.max==null?x.ph.hoje:Math.max(r.max,x.ph.hoje);}
+    if(x.ph.gmd!=null){sg+=x.ph.gmd;r.comGmd++;}
+  });
+  if(r.comPeso)r.pesoMedio=+(sp/r.comPeso).toFixed(0);
+  if(r.comGmd)r.gmdMedio=+(sg/r.comGmd).toFixed(3);
+  // animais abaixo de 90% da media do lote: candidatos a apartar
+  if(r.pesoMedio)lista.forEach(function(x){if(x.ph.hoje&&x.ph.hoje<r.pesoMedio*0.9)r.abaixo++;});
+  return r;
+}
+function _tagIndividualLote(l){
+  var an=animaisDoLote(l.fazenda,l.pasto);
+  if(!an.length)return "";
+  var r=_resumoAnimais(an.map(function(a){return {a:a,ph:pesoHojeAnimal(a)};}));
+  var f=encodeURIComponent(l.fazenda||"").replace(/'/g,"%27"), p=encodeURIComponent(l.pasto||"").replace(/'/g,"%27");
+  return '<button type="button" class="tag" onclick="event.stopPropagation();abrirAnimaisLote(\''+f+'\',\''+p+'\')" style="background:#E8F5E9;color:#1B5E20;border:1px solid #66BB6A;cursor:pointer;font-weight:600">'+
+    r.n+(r.n===1?' identificado':' identificados')+
+    (r.pesoMedio?' · média hoje '+r.pesoMedio+' kg':'')+
+    (r.gmdMedio!=null?' · GMD '+r.gmdMedio.toFixed(3):'')+' ›</button>';
+}
+
+var _animaisLoteAtual=null, _animaisLoteOrdem="sisbov";
+function abrirAnimaisLote(fEnc,pEnc){
+  _animaisLoteAtual={fazenda:decodeURIComponent(fEnc||""),pasto:decodeURIComponent(pEnc||"")};
+  var m=document.getElementById("modal-animais-lote");
+  if(!m){
+    m=document.createElement("div");
+    m.id="modal-animais-lote";m.className="modal-overlay";
+    m.style.cssText="display:none;z-index:300";
+    m.onclick=function(e){if(e.target===m)fecharAnimaisLote();};
+    document.body.appendChild(m);
+  }
+  m.innerHTML='<div class="modal" style="max-width:820px;width:96%;max-height:92vh;overflow:auto"><div id="al-corpo"></div></div>';
+  m.style.display="flex";
+  renderAnimaisLote();
+  setTimeout(function(){var i=document.getElementById("al-busca");if(i)i.focus();},50);
+}
+function fecharAnimaisLote(){
+  var m=document.getElementById("modal-animais-lote");if(m)m.style.display="none";
+  _animaisLoteAtual=null;
+}
+function _refrescarAnimaisLote(){
+  var m=document.getElementById("modal-animais-lote");
+  if(_animaisLoteAtual&&m&&m.style.display!=="none")renderAnimaisLote();
+}
+// os modais de pesar/mover/historico abrem por cima da lista
+function _acimaLote(id){var e=document.getElementById(id);if(e)e.style.zIndex=(_animaisLoteAtual?"400":"");}
+function alPesar(id){abrirPesagemSisbov(id);_acimaLote("modal-pesagem-sisbov");}
+function alMover(id){abrirMover(id);_acimaLote("modal-mover");}
+function alHist(id){verHist(id);_acimaLote("modal-hist");}
+function alOrdenar(v){_animaisLoteOrdem=v;renderAnimaisLote();}
+
+function renderAnimaisLote(){
+  var c=document.getElementById("al-corpo");
+  if(!c||!_animaisLoteAtual)return;
+  var L=_animaisLoteAtual;
+  var lista=animaisDoLote(L.fazenda,L.pasto).map(function(a){return {a:a,ph:pesoHojeAnimal(a)};});
+  var r=_resumoAnimais(lista);
+  var o=_animaisLoteOrdem;
+  lista.sort(function(x,y){
+    if(o==="peso")return (y.ph.hoje||0)-(x.ph.hoje||0);
+    if(o==="pesoAsc")return (x.ph.hoje||0)-(y.ph.hoje||0);
+    if(o==="gmd")return (y.ph.gmd==null?-99:y.ph.gmd)-(x.ph.gmd==null?-99:x.ph.gmd);
+    return String(x.a.sisbov||"").localeCompare(String(y.a.sisbov||""));
+  });
+  function card(t,v,sub){return '<div style="flex:1;min-width:110px;background:#F1F8E9;border:1px solid #C5E1A5;border-radius:8px;padding:8px 10px"><div style="font-size:10px;color:#555">'+t+'</div><div style="font-size:16px;font-weight:700;color:var(--vd)">'+v+'</div>'+(sub?'<div style="font-size:10px;color:#777">'+sub+'</div>':'')+'</div>';}
+  function corG(g){return g==null?"#999":(g>=1?"var(--v)":(g>0?"#F57F17":"#C62828"));}
+  var linhas=lista.map(function(x){
+    var a=x.a,ph=x.ph;
+    var baixo=r.pesoMedio&&ph.hoje&&ph.hoje<r.pesoMedio*0.9;
+    return '<tr style="border-bottom:1px solid #EEE'+(baixo?';background:#FFF8E1':'')+'">'+
+      '<td style="padding:6px 4px;font-weight:600">'+_escAL(a.sisbov||"—")+'</td>'+
+      '<td style="padding:6px 4px;color:#666">'+_escAL(a.eletro||"—")+'</td>'+
+      '<td style="padding:6px 4px;text-align:right">'+(ph.ultPeso?ph.ultPeso.toFixed(0)+' kg<div style="font-size:10px;color:#999">'+fmtData(ph.ultData)+'</div>':'—')+'</td>'+
+      '<td style="padding:6px 4px;text-align:right;font-weight:700">'+(ph.hoje?ph.hoje.toFixed(0)+' kg'+(ph.projetado?'<span title="projetado pelo GMD individual" style="color:#999">*</span>':''):'—')+(baixo?'<div style="font-size:10px;color:#E65100">abaixo da média</div>':'')+'</td>'+
+      '<td style="padding:6px 4px;text-align:right;color:'+corG(ph.gmd)+'">'+(ph.gmd!=null?ph.gmd.toFixed(3):'—')+'</td>'+
+      '<td style="padding:6px 4px;text-align:right;color:'+corG(ph.gmdRec)+'">'+(ph.gmdRec!=null?ph.gmdRec.toFixed(3):'—')+'</td>'+
+      '<td style="padding:6px 4px;text-align:center">'+ph.nPes+'</td>'+
+      '<td style="padding:6px 4px;white-space:nowrap;text-align:right">'+
+        '<button class="mbtn" onclick="alPesar('+a.id+')" title="Pesar" style="font-size:11px">⚖️</button> '+
+        '<button class="mbtn" onclick="alMover('+a.id+')" title="Mover" style="font-size:11px">↔</button> '+
+        '<button class="mbtn" onclick="alHist('+a.id+')" title="Histórico" style="font-size:11px">🕘</button></td></tr>';
+  }).join("");
+  c.innerHTML=
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px">'+
+      '<div><div style="font-size:16px;font-weight:700">Animais identificados</div><div style="font-size:12px;color:var(--mt)">'+_escAL(L.fazenda||"—")+' · '+_escAL(L.pasto||"—")+'</div></div>'+
+      '<button onclick="fecharAnimaisLote()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#666">✕</button></div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'+
+      card("Identificados",r.n,r.comPeso+" com peso")+
+      card("Peso médio hoje",r.pesoMedio?r.pesoMedio+" kg":"—",r.min!=null?"de "+r.min.toFixed(0)+" a "+r.max.toFixed(0)+" kg":"")+
+      card("GMD médio",r.gmdMedio!=null?r.gmdMedio.toFixed(3):"—",r.comGmd+" com 2+ pesagens")+
+      card("Abaixo de 90% da média",r.abaixo,"candidatos a apartar")+
+    '</div>'+
+    '<div style="background:#E3F2FD;border:1px solid #90CAF9;border-radius:8px;padding:10px;margin-bottom:12px">'+
+      '<div style="font-size:12px;font-weight:700;margin-bottom:6px">Pesagem rápida no curral</div>'+
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end">'+
+        '<div style="flex:2;min-width:150px"><label style="font-size:10px;color:#555">SISBOV ou chip (leitor ou digitado)</label><input id="al-busca" inputmode="numeric" autocomplete="off" style="width:100%" onkeydown="if(event.key===\'Enter\'){event.preventDefault();var p=document.getElementById(\'al-peso\');if(p)p.focus();}"></div>'+
+        '<div style="flex:1;min-width:80px"><label style="font-size:10px;color:#555">Peso (kg)</label><input id="al-peso" type="number" inputmode="decimal" style="width:100%" onkeydown="if(event.key===\'Enter\'){event.preventDefault();salvarPesagemRapidaLote();}"></div>'+
+        '<div style="flex:1;min-width:120px"><label style="font-size:10px;color:#555">Data</label><input id="al-data" type="date" value="'+todayStr()+'" style="width:100%"></div>'+
+        '<button class="btn-p" onclick="salvarPesagemRapidaLote()" style="padding:8px 14px">Gravar</button>'+
+      '</div><div id="al-msg" style="font-size:12px;margin-top:6px;min-height:16px"></div></div>'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">'+
+      '<select onchange="alOrdenar(this.value)" style="font-size:12px;padding:4px">'+
+        [["sisbov","Ordenar por SISBOV"],["peso","Mais pesados primeiro"],["pesoAsc","Mais leves primeiro"],["gmd","Maior GMD primeiro"]].map(function(op){return '<option value="'+op[0]+'"'+(o===op[0]?' selected':'')+'>'+op[1]+'</option>';}).join("")+
+      '</select>'+
+      '<button onclick="exportarAnimaisLote()" style="font-size:12px;padding:5px 10px;border:1px solid #A5D6A7;background:#E8F5E9;color:var(--v);border-radius:7px;cursor:pointer;font-weight:600">Exportar Excel</button></div>'+
+    (lista.length?
+      '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#FAFAFA;text-align:left">'+
+      '<th style="padding:6px 4px">SISBOV</th><th style="padding:6px 4px">Chip</th><th style="padding:6px 4px;text-align:right">Última pesagem</th><th style="padding:6px 4px;text-align:right">Peso hoje</th><th style="padding:6px 4px;text-align:right">GMD geral</th><th style="padding:6px 4px;text-align:right">GMD recente</th><th style="padding:6px 4px;text-align:center">Pes.</th><th></th></tr></thead><tbody>'+
+      linhas+'</tbody></table></div><div style="font-size:10px;color:#999;margin-top:6px">* peso de hoje projetado pela última pesagem + GMD individual do animal. Linha amarela: abaixo de 90% da média do lote.</div>'
+      :'<div class="empty" style="padding:20px">Nenhum animal identificado neste lote. Pese pelo SISBOV ou chip acima, ou importe a planilha de apartação na tela SISBOV.</div>');
+}
+
+function _acharAnimalPorCodigo(cod){
+  var d=_soDig(cod), t=String(cod||"").trim().toUpperCase();
+  if(!d&&!t)return null;
+  var todos=getAnimais().filter(function(a){return !a.morto&&!a.encerrado;});
+  // 1) codigo inteiro (SISBOV com ou sem pontos, ou chip)
+  var ach=todos.filter(function(a){
+    var s=_soDig(a.sisbov), e=_soDig(a.eletro);
+    return (d&&(s===d||e===d))||(t&&(String(a.sisbov||"").trim().toUpperCase()===t||String(a.eletro||"").trim().toUpperCase()===t));
+  });
+  // 2) final do numero (brinco visual costuma mostrar so os ultimos digitos), so se for unico
+  if(!ach.length&&d.length>=4){
+    var lote=_animaisLoteAtual?animaisDoLote(_animaisLoteAtual.fazenda,_animaisLoteAtual.pasto):[];
+    var noLote=lote.filter(function(a){return _soDig(a.sisbov).slice(-d.length)===d||_soDig(a.eletro).slice(-d.length)===d;});
+    ach=noLote.length?noLote:todos.filter(function(a){return _soDig(a.sisbov).slice(-d.length)===d||_soDig(a.eletro).slice(-d.length)===d;});
+  }
+  if(ach.length>1)return {ambiguo:ach.length};
+  return ach[0]||null;
+}
+function salvarPesagemRapidaLote(){
+  // busca o elemento a cada aviso: a lista e redesenhada depois de gravar
+  function aviso(t,cor){var msg=document.getElementById("al-msg");if(msg){msg.style.color=cor||"#C62828";msg.textContent=t;}}
+  var cod=vs("al-busca").trim(), peso=vn("al-peso"), data=vs("al-data")||todayStr();
+  if(!cod){aviso("Informe o SISBOV ou o chip.");return;}
+  if(!peso||peso<=0){aviso("Informe o peso.");return;}
+  if(peso<30||peso>1500){aviso("Peso fora do normal ("+peso+" kg). Confira.");return;}
+  var a=_acharAnimalPorCodigo(cod);
+  if(a&&a.ambiguo){aviso("Esse final bate com "+a.ambiguo+" animais. Digite o número inteiro.");return;}
+  if(!a){aviso("Animal não cadastrado. Cadastre na tela SISBOV (ou importe a planilha) e pese de novo.");return;}
+  var L=_animaisLoteAtual;
+  var noLote=animaisDoLote(L.fazenda,L.pasto).some(function(x){return x.id===a.id;});
+  if(!noLote){
+    if(!confirm("O animal "+(a.sisbov||a.eletro)+" está em "+(a.fazenda||"—")+" / "+(a.pasto||"—")+".\nGravar a pesagem e trazer para este lote ("+L.pasto+")?"))return;
+    var an=getAnimais(), i=an.findIndex(function(x){return x.id===a.id;});
+    if(i>=0){
+      var faz=L.fazenda?(["Caiman","Maguary","Cruz Alta","Pinheiral","Furna"].find(function(f){return _fazCore(L.fazenda).indexOf(_fazCore(f))>=0;})||L.fazenda):an[i].fazenda;
+      if(!an[i].historico)an[i].historico=[];
+      an[i].historico.push({data:data,de:(an[i].fazenda||"")+" / Pasto "+(an[i].pasto||"—"),para:faz+" / Pasto "+L.pasto,motivo:"Pesagem no lote"});
+      an[i].fazenda=faz;an[i].pasto=L.pasto;setAnimais(an);
+    }
+  }
+  var pes=getPesagensSisbov();
+  var dup=pes.find(function(p){return p.animalId===a.id&&p.data===data;});
+  if(dup&&!confirm("Já existe pesagem desse animal em "+fmtData(data)+" ("+dup.peso+" kg). Substituir por "+peso+" kg?"))return;
+  pes=pes.filter(function(p){return !(dup&&p.id===dup.id);});
+  pes.push({id:novoId(),animalId:a.id,data:data,peso:peso,obs:"Pesagem no lote"});
+  setPesagensSisbov(pes);
+  document.getElementById("al-busca").value="";document.getElementById("al-peso").value="";
+  renderAnimaisLote();
+  var ph=pesoHojeAnimal(a);
+  aviso("✓ "+(a.sisbov||a.eletro)+": "+peso+" kg gravado"+(ph.gmd!=null?" · GMD "+ph.gmd.toFixed(3):""),"#1B5E20");
+  var b=document.getElementById("al-busca");if(b)b.focus();
+  try{_r(renderAnimais,"renderAnimais");}catch(e){}
+}
+function exportarAnimaisLote(){
+  if(!_animaisLoteAtual)return;
+  if(typeof XLSX==="undefined"){alert("Biblioteca de planilha não carregou. Tente de novo com internet.");return;}
+  var L=_animaisLoteAtual;
+  var rows=[["SISBOV","Chip","Fazenda","Pasto/Curral","Última pesagem (kg)","Data","Peso hoje (kg)","Projetado","GMD geral","GMD recente","Nº pesagens"]];
+  animaisDoLote(L.fazenda,L.pasto).forEach(function(a){
+    var ph=pesoHojeAnimal(a);
+    rows.push([a.sisbov||"",a.eletro||"",a.fazenda||"",a.pasto||"",ph.ultPeso||"",ph.ultData?fmtData(ph.ultData):"",ph.hoje||"",ph.projetado?"sim":"",ph.gmd!=null?ph.gmd:"",ph.gmdRec!=null?ph.gmdRec:"",ph.nPes]);
+  });
+  var wb=XLSX.utils.book_new(), ws=XLSX.utils.aoa_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb,ws,"Animais");
+  baixarXLSX(wb,"Animais_"+String(L.pasto||"lote").replace(/[^\w-]+/g,"_")+"_"+todayStr()+".xlsx");
+}
+
 // ===== Resumo do rebanho por fazenda (dashboard) =====
 function renderResumoRebanho(){
   const lotes=getLotes().filter(function(l){
@@ -5964,7 +6183,7 @@ function renderLotesConf(tipoManejo,containerId){
         ${l.custoFin?`<span class="tag" style="background:#FFF3E0;color:#E65100">Custo financeiro: ${brl(l.custoFin)}</span>`:""}
         ${l.mAno&&l.mAno!=="—"?`<span class="tag tg">Anual: ${l.mAno}</span>`:""}
         ${tipoManejo==="Semi-Confinamento"?(function(){var _lot=calcLotacaoPasto(l.fazenda,l.pasto);return _lot?`<span class="tag" style="background:#F1F8E9;color:#1B5E20;border:1px solid #A5D6A7">Lotação: ${_lot.uaHa.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} UA/ha</span>`:"";})():""}
-       ${(function(){var _m=mediaPastoIndividual(l.pasto||"");return (_m&&(_m.gmdMedio!=null||_m.pesoMedio!=null))?`<span class="tag" style="background:#E8F5E9;color:#1B5E20;border:1px solid #A5D6A7">Individual: ${_m.pesoMedio!=null?_m.pesoMedio+" kg":""}${_m.gmdMedio!=null?" · GMD "+_m.gmdMedio.toFixed(3):""} <span style="opacity:.7">(${_m.nAnimais} ID)</span></span>`:"";})()}
+       ${_tagIndividualLote(l)}
       </div>
       ${blocoCustoLote(l)}
     </div>`).join("");
@@ -15468,6 +15687,7 @@ function salvarPesagemSisbov(){
   document.getElementById("pess-obs").value="";
   renderHistPesagemSisbov(_pesagemAnimalAtual);
   _r(renderAnimais,"renderAnimais");
+  _refrescarAnimaisLote();
 }
 
 function excluirPesagemSisbov(id){
@@ -15475,6 +15695,7 @@ function excluirPesagemSisbov(id){
   setPesagensSisbov(getPesagensSisbov().filter(p=>p.id!==id));
   renderHistPesagemSisbov(_pesagemAnimalAtual);
   _r(renderAnimais,"renderAnimais");
+  _refrescarAnimaisLote();
 }
 
 function baixarModeloApartacao(){
@@ -20172,6 +20393,7 @@ function confirmarMover(){
   a.fazenda=novaFaz;a.pasto=novoPasto;animais[idx]=a;setAnimais(animais);
   document.getElementById("modal-mover").style.display="none";animalParaMover=null;
   renderAnimais();renderPastos();
+  _refrescarAnimaisLote();
   alerta(paginaAtual==="pastos"?"pastos":"sisbov","Animal movido!","ok");
 }
 function verHist(id){
@@ -20396,7 +20618,7 @@ function renderLotesTipo(tipo,elId){
       ${l.raca?`<span class="tag tgr">${l.raca}</span>`:""}
       ${l.obs?`<span class="tag tgr">${l.obs}</span>`:""}
       ${(function(){var _lot=calcLotacaoPasto(l.fazenda,l.pasto);return _lot?`<span class="tag" style="background:#F1F8E9;color:#1B5E20;border:1px solid #A5D6A7">Lotação: ${_lot.uaHa.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} UA/ha</span>`:"";})()}
-     ${(function(){var _m=mediaPastoIndividual(l.pasto||"");return (_m&&(_m.gmdMedio!=null||_m.pesoMedio!=null))?`<span class="tag" style="background:#E8F5E9;color:#1B5E20;border:1px solid #A5D6A7">Individual: ${_m.pesoMedio!=null?_m.pesoMedio+" kg":""}${_m.gmdMedio!=null?" · GMD "+_m.gmdMedio.toFixed(3):""} <span style="opacity:.7">(${_m.nAnimais} ID)</span></span>`:"";})()}
+     ${_tagIndividualLote(l)}
     </div></div>`;
   }).join("");
 }
@@ -22736,7 +22958,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.11-viabcompra</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.12-animaislote</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
