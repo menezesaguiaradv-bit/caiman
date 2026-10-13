@@ -429,6 +429,10 @@ Compartilhar</button></div>
 <div class="field"><label>Comissão do animal (R$)</label><input id="s-comissao" type="number" placeholder="0.00" step="0.01"></div>
 <div class="field"><label>Frete do animal (R$)</label><input id="s-frete" type="number" placeholder="0.00" step="0.01"></div>
 </div></div>
+<div class="sec" style="border-left:4px solid #B8944F">
+<div class="stitle" style="color:#23432D">Movimentação pela planilha <button onclick="abrirImportarMovimentacao()" style="background:#23432D;color:#F7F4EC;border:1px solid #23432D;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Importar movimentação</button></div>
+<div style="font-size:12px;color:#555">Suba o arquivo da balança ou do leitor: cada boi vai para o pasto/curral da planilha, com a pesagem e o histórico. Você confere tudo antes de confirmar.</div>
+</div>
 <div class="sec">
 <div class="stitle">Animais cadastrados <span id="total-animais" style="font-weight:400;font-size:12px"></span><div style="display:flex;gap:6px"><button class="btn-s btn-sm" onclick="toggleImport()" style="display:inline-flex;align-items:center;gap:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Importar</button><button onclick="exportarSISBOV()" style="background:var(--v);color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>Exportar Excel</button></div></div>
 <div id="import-area" class="imp-area">
@@ -5543,17 +5547,8 @@ function _tagIndividualLote(l){
     (r.gmdMedio!=null?' · GMD '+r.gmdMedio.toFixed(3):'')+' ›</button>';
 }
 
-var _animaisLoteAtual=null, _animaisLoteOrdem="sisbov";
-function abrirAnimaisLote(fEnc,pEnc){
-  _animaisLoteAtual={fazenda:decodeURIComponent(fEnc||""),pasto:decodeURIComponent(pEnc||"")};
-  var m=document.getElementById("modal-animais-lote");
-  if(!m){
-    m=document.createElement("div");
-    m.id="modal-animais-lote";m.className="modal-overlay";
-    m.style.cssText="display:none;z-index:300";
-    m.onclick=function(e){if(e.target===m)fecharAnimaisLote();};
-    document.body.appendChild(m);
-  }
+// estilos das etiquetas SISBOV / identificacao eletronica (usados nas duas janelas)
+function _alCss(){
   if(!document.getElementById("al-css")){
     var css=document.createElement("style");css.id="al-css";
     css.textContent="#modal-animais-lote{padding:8px}"+
@@ -5572,6 +5567,19 @@ function abrirAnimaisLote(fEnc,pEnc){
       ".al-entrada{display:flex;gap:10px;flex-wrap:wrap}.al-entrada>div{flex:1;min-width:280px}";
     document.head.appendChild(css);
   }
+}
+var _animaisLoteAtual=null, _animaisLoteOrdem="sisbov";
+function abrirAnimaisLote(fEnc,pEnc){
+  _animaisLoteAtual={fazenda:decodeURIComponent(fEnc||""),pasto:decodeURIComponent(pEnc||"")};
+  var m=document.getElementById("modal-animais-lote");
+  if(!m){
+    m=document.createElement("div");
+    m.id="modal-animais-lote";m.className="modal-overlay";
+    m.style.cssText="display:none;z-index:300";
+    m.onclick=function(e){if(e.target===m)fecharAnimaisLote();};
+    document.body.appendChild(m);
+  }
+  _alCss();
   m.innerHTML='<div class="modal"><div id="al-corpo"></div></div>';
   m.style.display="flex";
   renderAnimaisLote();
@@ -5836,6 +5844,244 @@ function importarPesagemLote(input){
     }catch(err){msg('<span style="color:#C62828">Erro ao ler a planilha: '+_escAL(err.message)+'</span>');input.value="";}
   };
   reader.readAsArrayBuffer(file);
+}
+
+// ===== Importar movimentacao (planilha da balanca / leitor) =====
+// Cada linha: SISBOV e/ou identificacao eletronica, destino (pasto/curral), peso e data opcionais.
+// Destinos da planilha (ex.: porteira "1", "2" da balanca) podem ser renomeados para o pasto/curral
+// certo antes de confirmar; o app lembra essa troca para a proxima importacao.
+var _movImp=null;
+var _MOV_FAZ=["Caiman","Maguary","Cruz Alta","Pinheiral","Furna"];
+function _movMapa(){try{return JSON.parse(localStorage.getItem("caiman_mov_mapa")||"{}")||{};}catch(e){return {};}}
+function _movFazNome(f){
+  if(!f)return "";var c=_fazCore(f);
+  return _MOV_FAZ.find(function(x){return c===_fazCore(x)||c.indexOf(_fazCore(x))>=0;})||String(f).trim();
+}
+function _colunasMov(rows){
+  for(var i=0;i<Math.min(6,rows.length);i++){
+    var c={sis:-1,chip:-1,cod:-1,peso:-1,data:-1,dest:-1,faz:-1};
+    var achouDestino=false;
+    (rows[i]||[]).forEach(function(v,j){
+      var h=_normIng(v);if(!h)return;
+      if(/origem|atual|anterior|from/.test(h))return; // coluna de onde o boi saiu nao e destino
+      if(c.sis<0&&/sisbov|vid|visual|brinco/.test(h))c.sis=j;
+      else if(c.chip<0&&/chip|eid|eletr|rfid|transp/.test(h))c.chip=j;
+      else if(c.peso<0&&/peso|weight|kg/.test(h))c.peso=j;
+      else if(c.data<0&&/data|date|^dia\b/.test(h))c.data=j;
+      else if(c.faz<0&&/fazenda|farm/.test(h))c.faz=j;
+      else if(/destino/.test(h)&&!/fazenda/.test(h)){c.dest=j;achouDestino=true;}
+      else if(!achouDestino&&c.dest<0&&/pasto|curral|lote|piquete|draft|apart|porteira|gate|sort/.test(h))c.dest=j;
+      else if(c.cod<0&&/^id$|animal|identif|codigo/.test(h))c.cod=j;
+    });
+    if(c.sis>=0||c.chip>=0||c.cod>=0)return {c:c,ini:i+1,cab:true};
+  }
+  // sem cabecalho: A=codigo, B=destino, C=peso, D=data (mesma ordem do modelo antigo de apartacao)
+  return {c:{sis:-1,chip:-1,cod:0,dest:1,peso:2,data:3,faz:-1},ini:0,cab:false};
+}
+function abrirImportarMovimentacao(){
+  var m=document.getElementById("modal-mov-imp");
+  if(!m){
+    m=document.createElement("div");m.id="modal-mov-imp";m.className="modal-overlay";
+    m.style.cssText="display:none;z-index:300;padding:8px";
+    m.onclick=function(e){if(e.target===m)fecharImportarMovimentacao();};
+    document.body.appendChild(m);
+  }
+  _movImp=null;
+  m.innerHTML='<div class="modal" style="max-width:980px;width:100%;max-height:calc(100vh - 16px);overflow:auto;padding:18px;background:#FFFEFA;border-top:4px solid #B8944F"><div id="mov-corpo"></div></div>';
+  _alCss();
+  m.style.display="flex";
+  renderImportarMovimentacao();
+}
+function fecharImportarMovimentacao(){var m=document.getElementById("modal-mov-imp");if(m)m.style.display="none";_movImp=null;}
+function baixarModeloMovimentacao(){
+  if(typeof XLSX==="undefined"){alert("Biblioteca de planilha não carregou. Tente de novo com internet.");return;}
+  var rows=[["SISBOV","Identificação eletrônica","Pasto/curral destino","Fazenda destino","Peso (kg)","Data"],
+    ["076.1234.5678.9012","982000123456789","Curral 12","Pinheiral","465","12/10/2026"],
+    ["","982000123456790","Pasto 6B","Cruz Alta","",""]];
+  var wb=XLSX.utils.book_new(), ws=XLSX.utils.aoa_to_sheet(rows);
+  ws["!cols"]=[{wch:22},{wch:24},{wch:20},{wch:16},{wch:10},{wch:12}];
+  XLSX.utils.book_append_sheet(wb,ws,"Movimentacao");
+  baixarXLSX(wb,"Modelo_movimentacao.xlsx");
+}
+function lerArquivoMovimentacao(input){
+  var file=input.files&&input.files[0];if(!file)return;
+  if(typeof XLSX==="undefined"){alert("Biblioteca de planilha não carregou. Tente de novo com internet.");input.value="";return;}
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var wb=XLSX.read(new Uint8Array(e.target.result),{type:"array"});
+      var rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:""});
+      var cab=_colunasMov(rows), c=cab.c, linhas=[];
+      for(var i=cab.ini;i<rows.length;i++){
+        var r=rows[i]||[];
+        var sis=c.sis>=0?_celTxt(r[c.sis]):"", chip=c.chip>=0?_celTxt(r[c.chip]):"";
+        if(c.cod>=0){var g=_celTxt(r[c.cod]);if(g){if(_ehSisbovTxt(g)){if(!sis)sis=g;}else if(!chip)chip=g;}}
+        var pTxt=c.peso>=0?_celTxt(r[c.peso]):"";
+        var peso=pTxt?(parseFloat(/,/.test(pTxt)?pTxt.replace(/\./g,"").replace(",","."):pTxt)||0):0;
+        var dest=c.dest>=0?_celTxt(r[c.dest]):"", faz=c.faz>=0?_celTxt(r[c.faz]):"";
+        var data=(c.data>=0&&r[c.data]!=="")?formatarData(r[c.data]):"";
+        if(!sis&&!chip&&!dest&&!peso)continue;
+        linhas.push({n:i+1,sis:sis,chip:chip,dest:dest,faz:faz,peso:peso,data:data});
+      }
+      var mapa=_movMapa(), destinos={};
+      linhas.forEach(function(l){
+        var k=l.dest||"";
+        if(!destinos[k])destinos[k]={orig:k,n:0,pasto:k?((mapa[k]&&mapa[k].pasto)||k):"",faz:(mapa[k]&&mapa[k].faz)||""};
+        destinos[k].n++;
+      });
+      _movImp={arquivo:file.name,linhas:linhas,destinos:destinos,temDestino:c.dest>=0,temFaz:c.faz>=0};
+      input.value="";
+      renderImportarMovimentacao();
+    }catch(err){alert("Erro ao ler a planilha: "+err.message);input.value="";}
+  };
+  reader.readAsArrayBuffer(file);
+}
+function _movAcharAnimal(todos,sis,chip){
+  var ds=_soDig(sis), dc=_soDig(chip), a=null, comoFinal=false;
+  if(ds)a=todos.find(function(x){return _soDig(x.sisbov)===ds;});
+  if(!a&&dc)a=todos.find(function(x){return _soDig(x.eletro)===dc;});
+  if(!a&&!ds&&dc)a=todos.find(function(x){return _soDig(x.sisbov)===dc;});
+  // brinco visual com so o final do SISBOV: aceita se for unico
+  if(!a&&ds&&ds.length>=4&&ds.length<15){
+    var f=todos.filter(function(x){return _soDig(x.sisbov).slice(-ds.length)===ds;});
+    if(f.length===1){a=f[0];comoFinal=true;}
+  }
+  return {a:a,comoFinal:comoFinal};
+}
+function _movPlano(){
+  var M=_movImp;if(!M)return null;
+  var dataPad=vs("movi-data")||todayStr(), fazPad=vs("movi-faz"), cadastrar=!!(document.getElementById("movi-cad")||{}).checked;
+  var todos=getAnimais().filter(function(a){return !a.morto&&!a.encerrado;});
+  var plano=[], usados={};
+  M.linhas.forEach(function(l){
+    var it={l:l,status:"",obs:""};
+    var dst=M.destinos[l.dest||""]||{};
+    var pasto=(dst.pasto||"").trim();
+    it.data=l.data||dataPad;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(it.data)){it.status="erro";it.obs="data inválida ("+l.data+")";plano.push(it);return;}
+    if(!l.sis&&!l.chip){it.status="erro";it.obs="sem SISBOV/identificação eletrônica";plano.push(it);return;}
+    if(l.peso&&!(l.peso>=30&&l.peso<=1500)){it.status="erro";it.obs="peso "+l.peso;plano.push(it);return;}
+    var ach=_movAcharAnimal(todos,l.sis,l.chip);
+    it.a=ach.a;if(ach.comoFinal)it.obs="pelo final do SISBOV";
+    if(it.a&&usados[it.a.id]){it.status="erro";it.obs="animal repetido na planilha (linha "+usados[it.a.id]+")";plano.push(it);return;}
+    if(it.a)usados[it.a.id]=l.n;
+    var fazDest=_movFazNome(l.faz||dst.faz||fazPad||(it.a&&it.a.fazenda)||"");
+    it.fazDest=fazDest;it.pastoDest=pasto;
+    if(!it.a){
+      if(!cadastrar){it.status="erro";it.obs="não cadastrado";plano.push(it);return;}
+      if(!pasto||!fazDest){it.status="erro";it.obs="não cadastrado e sem destino";plano.push(it);return;}
+      it.status="novo";plano.push(it);return;
+    }
+    var mesmo=!pasto||(String(it.a.pasto||"").trim().toUpperCase()===pasto.toUpperCase()&&_fazCore(it.a.fazenda)===_fazCore(fazDest));
+    if(mesmo&&!l.peso){it.status="igual";it.obs=it.obs||"já está no destino";plano.push(it);return;}
+    it.status=mesmo?"pesar":"mover";
+    plano.push(it);
+  });
+  return plano;
+}
+function movTrocarDestino(k,campo,v){
+  if(!_movImp)return;var d=_movImp.destinos[decodeURIComponent(k)];if(!d)return;
+  d[campo]=v;renderImportarMovimentacao(true);
+}
+function renderImportarMovimentacao(manterFoco){
+  var c=document.getElementById("mov-corpo");if(!c)return;
+  var V="#23432D",D="#B8944F",DE="#7A5F28",CR="#F7F4EC",BD="#E3DCC8";
+  var M=_movImp;
+  var dataPad=(document.getElementById("movi-data")||{}).value||todayStr();
+  var fazPad=(document.getElementById("movi-faz")||{}).value||"";
+  var cadEl=document.getElementById("movi-cad"), cad=cadEl?cadEl.checked:true;
+  var foco=manterFoco&&document.activeElement&&document.activeElement.id;
+  var h='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div><div style="font-size:17px;font-weight:700;color:'+V+'">Importar movimentação</div>'+
+    '<div style="font-size:12px;color:'+DE+';font-weight:600">'+(M?_escAL(M.arquivo)+' · '+M.linhas.length+' linha(s)':'Planilha da balança ou do leitor')+'</div></div>'+
+    '<button onclick="fecharImportarMovimentacao()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#666">✕</button></div>';
+  h+='<div style="background:'+CR+';border:1px solid '+BD+';border-radius:8px;padding:10px;margin-bottom:12px">'+
+    '<div style="font-size:11px;color:#555;margin-bottom:8px">Colunas: SISBOV e/ou Identificação eletrônica, Pasto/curral destino, Fazenda destino, Peso e Data. Só o SISBOV ou a identificação eletrônica é obrigatório; o que faltar usa os campos abaixo.</div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">'+
+      '<label style="font-size:12px;padding:8px 14px;border:1px solid '+V+';background:'+V+';color:'+CR+';border-radius:7px;cursor:pointer;font-weight:600">'+(M?'Trocar planilha':'Escolher planilha')+'<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="lerArquivoMovimentacao(this)"></label>'+
+      '<button onclick="baixarModeloMovimentacao()" style="font-size:12px;padding:8px 14px;border:1px solid '+D+';background:#fff;color:'+DE+';border-radius:7px;cursor:pointer;font-weight:600">Baixar modelo</button>'+
+      '<div><label style="font-size:10px;color:#555;display:block">Data (se a planilha não tiver)</label><input id="movi-data" type="date" value="'+dataPad+'" onchange="renderImportarMovimentacao()"></div>'+
+      '<div><label style="font-size:10px;color:#555;display:block">Fazenda destino (se a planilha não tiver)</label><select id="movi-faz" onchange="renderImportarMovimentacao()"><option value="">a mesma do animal</option>'+
+        _MOV_FAZ.map(function(f){return '<option'+(fazPad===f?' selected':'')+'>'+f+'</option>';}).join("")+'</select></div>'+
+      '<label style="font-size:12px;display:flex;align-items:center;gap:5px;padding-bottom:4px"><input id="movi-cad" type="checkbox"'+(cad?' checked':'')+' onchange="renderImportarMovimentacao()"> cadastrar animal que não existir</label>'+
+    '</div></div>';
+  if(!M){c.innerHTML=h;return;}
+  // destinos encontrados
+  var ks=Object.keys(M.destinos);
+  h+='<div style="font-size:12px;font-weight:700;color:'+V+';margin-bottom:6px">Destinos da planilha'+(M.temDestino?'':' <span style="font-weight:400;color:#777">(a planilha não tem coluna de destino: informe abaixo)</span>')+'</div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'+
+    ks.map(function(k){
+      var d=M.destinos[k], ke=encodeURIComponent(k).replace(/'/g,"%27");
+      return '<div style="border:1px solid '+BD+';border-left:4px solid '+D+';border-radius:8px;padding:8px;background:#fff;min-width:230px;flex:1">'+
+        '<div style="font-size:11px;color:#777">Na planilha: <b style="color:'+V+'">'+(k?_escAL(k):'(sem destino)')+'</b> · '+d.n+' animal(is)</div>'+
+        '<div style="display:flex;gap:6px;margin-top:5px"><input id="movd-p-'+_escAL(ke)+'" value="'+_escAL(d.pasto)+'" placeholder="pasto/curral destino" style="flex:2;min-width:0" onchange="movTrocarDestino(\''+ke+'\',\'pasto\',this.value)">'+
+        (M.temFaz?'':'<select style="flex:1;min-width:0" onchange="movTrocarDestino(\''+ke+'\',\'faz\',this.value)"><option value="">fazenda padrão</option>'+_MOV_FAZ.map(function(f){return '<option'+(d.faz===f?' selected':'')+'>'+f+'</option>';}).join("")+'</select>')+
+        '</div></div>';
+    }).join("")+'</div>';
+  var plano=_movPlano(), cont={mover:0,pesar:0,novo:0,igual:0,erro:0}, comPeso=0;
+  plano.forEach(function(p){cont[p.status]++;if(p.status!=="erro"&&p.l.peso)comPeso++;});
+  function card(t,v){return '<div style="flex:1;min-width:110px;background:'+CR+';border:1px solid '+BD+';border-left:4px solid '+D+';border-radius:8px;padding:7px 10px"><div style="font-size:10px;color:#7A7668;text-transform:uppercase">'+t+'</div><div style="font-size:17px;font-weight:700;color:'+V+'">'+v+'</div></div>';}
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">'+card("Vão mudar de lugar",cont.mover)+card("Só pesagem",cont.pesar)+card("Novos cadastros",cont.novo)+card("Pesagens",comPeso)+card("Ficam de fora",cont.erro+cont.igual)+'</div>';
+  var ST={mover:["Mover",V,"#fff"],pesar:["Pesar",DE,"#fff"],novo:["Cadastrar",DE,"#F3E9D2"],igual:["Sem mudança","#777","#f3f3f3"],erro:["Fora","#A32D2D","#FBEAEA"]};
+  var mostra=plano.slice(0,300);
+  h+='<div style="overflow-x:auto;max-height:45vh;overflow-y:auto;border:1px solid '+BD+';border-radius:8px"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="text-align:left">'+
+    ['Linha','Animal','De','Para','Peso','Data','Situação'].map(function(t){return '<th style="position:sticky;top:0;background:'+V+';color:'+CR+';padding:6px">'+t+'</th>';}).join("")+'</tr></thead><tbody>'+
+    mostra.map(function(p,i){
+      var a=p.a, st=ST[p.status];
+      var ident=a?_idAnimalHtml(a):'<div class="al-id">'+(p.l.sis?'<div class="al-sis"><span class="al-lbl s">SISBOV</span>'+_sisbovHtml(p.l.sis)+'</div>':'')+(p.l.chip?'<div class="al-chip"><span class="al-lbl c">ID ELETRÔNICA</span>'+_escAL(_chipFmt(p.l.chip))+'</div>':'')+'</div>';
+      return '<tr style="border-top:1px solid '+BD+(i%2?';background:#FBF8F0':'')+'"><td style="padding:6px;color:#999">'+p.l.n+'</td><td style="padding:6px">'+ident+'</td>'+
+        '<td style="padding:6px">'+(a?_escAL((a.fazenda||"")+" / "+(a.pasto||"—")):'—')+'</td>'+
+        '<td style="padding:6px;font-weight:600;color:'+V+'">'+(p.pastoDest?_escAL((p.fazDest||"")+" / "+p.pastoDest):'—')+'</td>'+
+        '<td style="padding:6px;text-align:right">'+(p.l.peso?p.l.peso+' kg':'—')+'</td><td style="padding:6px">'+(p.data?fmtData(p.data):'—')+'</td>'+
+        '<td style="padding:6px"><span style="display:inline-block;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:700;background:'+st[2]+';color:'+st[1]+';border:1px solid '+st[1]+'">'+st[0]+'</span>'+(p.obs?'<div style="font-size:10px;color:#777">'+_escAL(p.obs)+'</div>':'')+'</td></tr>';
+    }).join("")+'</tbody></table></div>'+(plano.length>300?'<div style="font-size:11px;color:#777;margin-top:4px">Mostrando 300 de '+plano.length+' linhas; todas serão importadas.</div>':'');
+  var total=cont.mover+cont.pesar+cont.novo;
+  h+='<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">'+
+    '<button onclick="fecharImportarMovimentacao()" style="font-size:13px;padding:9px 16px;border:1px solid '+BD+';background:#fff;border-radius:7px;cursor:pointer">Cancelar</button>'+
+    '<button onclick="confirmarImportarMovimentacao()"'+(total?'':' disabled')+' style="font-size:13px;padding:9px 18px;border:1px solid '+V+';background:'+(total?V:'#9AA79E')+';color:'+CR+';border-radius:7px;cursor:pointer;font-weight:700">Confirmar '+total+' animal(is)</button></div>';
+  c.innerHTML=h;
+  if(foco){var e=document.getElementById(foco);if(e)e.focus();}
+}
+function confirmarImportarMovimentacao(){
+  var plano=_movPlano();if(!plano)return;
+  var ok=plano.filter(function(p){return p.status==="mover"||p.status==="pesar"||p.status==="novo";});
+  if(!ok.length)return;
+  var todos=getAnimais(), pes=getPesagensSisbov(), mov=0, pesadas=0, novos=0;
+  ok.forEach(function(p){
+    var a;
+    if(p.status==="novo"){
+      a={id:novoId(),sisbov:p.l.sis,eletro:p.l.chip,fazenda:p.fazDest,pasto:p.pastoDest,sexo:"",cat:"",peso:p.l.peso||0,dtE:p.data,produtor:"",encerrado:false,
+        historico:[{data:p.data,de:"—",para:p.fazDest+" / Pasto "+p.pastoDest,motivo:"Cadastro na importação de movimentação"}]};
+      todos.push(a);novos++;
+    }else{
+      var i=todos.findIndex(function(x){return x.id===p.a.id;});if(i<0)return;
+      a=todos[i];
+      if(p.l.chip&&!a.eletro)a.eletro=p.l.chip;
+      if(p.l.sis&&!a.sisbov&&_soDig(p.l.sis).length>=15)a.sisbov=p.l.sis;
+      if(p.status==="mover"){
+        if(!a.historico)a.historico=[];
+        a.historico.push({data:p.data,de:(a.fazenda||"")+" / Pasto "+(a.pasto||"—"),para:p.fazDest+" / Pasto "+p.pastoDest,motivo:"Importação de movimentação"});
+        a.fazenda=p.fazDest;a.pasto=p.pastoDest;mov++;
+      }
+    }
+    if(p.l.peso){
+      pes=pes.filter(function(x){return !(x.animalId===a.id&&x.data===p.data);});
+      pes.push({id:novoId(),animalId:a.id,data:p.data,peso:p.l.peso,pasto:a.pasto||"",obs:"Importação de movimentação"});
+      pesadas++;
+    }
+  });
+  setAnimais(todos);if(pesadas)setPesagensSisbov(pes);
+  // lembra a troca de nome dos destinos (porteira da balanca -> pasto/curral)
+  try{
+    var mapa=_movMapa();
+    Object.keys(_movImp.destinos).forEach(function(k){var d=_movImp.destinos[k];if(k&&d.pasto&&(d.pasto!==k||d.faz))mapa[k]={pasto:d.pasto,faz:d.faz||""};});
+    localStorage.setItem("caiman_mov_mapa",JSON.stringify(mapa));
+  }catch(e){}
+  fecharImportarMovimentacao();
+  try{_r(renderAnimais,"renderAnimais");}catch(e){}
+  try{renderPastos();}catch(e){}
+  _refrescarAnimaisLote();
+  alerta("sisbov","Movimentação importada: "+mov+" movido(s), "+pesadas+" pesagem(ns)"+(novos?", "+novos+" cadastrado(s)":"")+".","ok");
+  alert("Movimentação importada:\n• "+mov+" animal(is) mudaram de lugar\n• "+pesadas+" pesagem(ns) gravada(s)"+(novos?"\n• "+novos+" animal(is) cadastrado(s)":""));
 }
 
 function exportarAnimaisLote(){
@@ -23124,7 +23370,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.12-coresmarca</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.12-movplanilha</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
