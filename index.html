@@ -5606,7 +5606,14 @@ function renderAnimaisLote(){
         '<div style="flex:1;min-width:80px"><label style="font-size:10px;color:#555">Peso (kg)</label><input id="al-peso" type="number" inputmode="decimal" style="width:100%" onkeydown="if(event.key===\'Enter\'){event.preventDefault();salvarPesagemRapidaLote();}"></div>'+
         '<div style="flex:1;min-width:120px"><label style="font-size:10px;color:#555">Data</label><input id="al-data" type="date" value="'+todayStr()+'" style="width:100%"></div>'+
         '<button class="btn-p" onclick="salvarPesagemRapidaLote()" style="padding:8px 14px">Gravar</button>'+
-      '</div><div id="al-msg" style="font-size:12px;margin-top:6px;min-height:16px"></div></div>'+
+      '</div><div id="al-msg" style="font-size:12px;margin-top:6px;min-height:16px"></div>'+
+      '<div style="border-top:1px dashed #90CAF9;margin-top:8px;padding-top:8px">'+
+        '<div style="font-size:12px;font-weight:700;margin-bottom:4px">Importar Excel da balança</div>'+
+        '<div style="font-size:11px;color:#555;margin-bottom:6px">Colunas: SISBOV, Chip, Peso e Data (sem data, usa a data acima). Animal novo é cadastrado neste lote; animal de outro lugar vem para cá.</div>'+
+        '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
+          '<label style="font-size:12px;padding:6px 12px;border:1px solid #1565C0;background:#1565C0;color:#fff;border-radius:7px;cursor:pointer;font-weight:600">Escolher planilha<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarPesagemLote(this)"></label>'+
+          '<button onclick="baixarModeloPesagemLote()" style="font-size:12px;padding:6px 12px;border:1px solid #90CAF9;background:#fff;color:#1565C0;border-radius:7px;cursor:pointer">Baixar modelo</button>'+
+        '</div><div id="al-imp" style="font-size:12px;margin-top:6px"></div></div></div>'+
     '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">'+
       '<select onchange="alOrdenar(this.value)" style="font-size:12px;padding:4px">'+
         [["sisbov","Ordenar por SISBOV"],["peso","Mais pesados primeiro"],["pesoAsc","Mais leves primeiro"],["gmd","Maior GMD primeiro"]].map(function(op){return '<option value="'+op[0]+'"'+(o===op[0]?' selected':'')+'>'+op[1]+'</option>';}).join("")+
@@ -5672,6 +5679,132 @@ function salvarPesagemRapidaLote(){
   var b=document.getElementById("al-busca");if(b)b.focus();
   try{_r(renderAnimais,"renderAnimais");}catch(e){}
 }
+// ===== Importar Excel de pesagens para o lote (balanca / planilha do curral) =====
+// Aceita a planilha modelo (SISBOV | Chip | Peso | Data) e tambem exportacoes de balanca
+// com cabecalho em ingles (VID, EID, Weight, Date). Sem cabecalho: A=codigo, B=peso, C=data.
+function _loteDoAtual(){
+  var L=_animaisLoteAtual;if(!L)return null;
+  var p=String(L.pasto||"").trim().toUpperCase(), fc=_fazCore(L.fazenda);
+  return getLotes().find(function(l){
+    if(l.vendido||String(l.pasto||"").trim().toUpperCase()!==p)return false;
+    var lf=_fazCore(l.fazenda);return !fc||!lf||lf===fc||lf.indexOf(fc)>=0||fc.indexOf(lf)>=0;
+  })||null;
+}
+function baixarModeloPesagemLote(){
+  if(typeof XLSX==="undefined"){alert("Biblioteca de planilha não carregou. Tente de novo com internet.");return;}
+  var rows=[["SISBOV","Chip","Peso (kg)","Data"],["076.1234.5678.9012","982000123456789","465","12/10/2026"],["","982000123456790","448",""]];
+  var wb=XLSX.utils.book_new(), ws=XLSX.utils.aoa_to_sheet(rows);
+  ws["!cols"]=[{wch:22},{wch:20},{wch:10},{wch:12}];
+  XLSX.utils.book_append_sheet(wb,ws,"Pesagens");
+  baixarXLSX(wb,"Modelo_pesagem_lote.xlsx");
+}
+function _colunasPesagem(rows){
+  // procura o cabecalho nas 5 primeiras linhas
+  for(var i=0;i<Math.min(5,rows.length);i++){
+    var c={sis:-1,chip:-1,cod:-1,peso:-1,data:-1};
+    (rows[i]||[]).forEach(function(v,j){
+      var h=_normIng(v);if(!h)return;
+      if(c.sis<0&&/sisbov|vid|visual|brinco/.test(h))c.sis=j;
+      else if(c.chip<0&&/chip|eid|eletr|rfid|transp/.test(h))c.chip=j;
+      else if(c.peso<0&&/peso|weight|kg/.test(h))c.peso=j;
+      else if(c.data<0&&/data|date|^dia\b/.test(h))c.data=j;
+      else if(c.cod<0&&/^id$|animal|identif|codigo/.test(h))c.cod=j;
+    });
+    if(c.peso>=0&&(c.sis>=0||c.chip>=0||c.cod>=0))return {c:c,ini:i+1};
+  }
+  return {c:{sis:-1,chip:-1,cod:0,peso:1,data:2},ini:0};
+}
+function _celTxt(v){
+  if(v==null)return "";
+  if(typeof v==="number")return Number.isInteger(v)?v.toFixed(0):String(v);
+  return String(v).trim();
+}
+function _ehSisbovTxt(t){var d=_soDig(t);return /\./.test(t)||(d.length===15&&/^(076|105)/.test(d));}
+function importarPesagemLote(input){
+  var file=input.files&&input.files[0];if(!file)return;
+  var st=document.getElementById("al-imp");
+  function msg(h){var e=document.getElementById("al-imp");if(e)e.innerHTML=h;}
+  if(!_animaisLoteAtual){input.value="";return;}
+  if(typeof XLSX==="undefined"){msg('<span style="color:#C62828">Biblioteca de planilha não carregou. Tente de novo com internet.</span>');input.value="";return;}
+  msg('<span style="color:#888">Lendo...</span>');
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var wb=XLSX.read(new Uint8Array(e.target.result),{type:"array"});
+      var rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:""});
+      var cab=_colunasPesagem(rows), c=cab.c;
+      var L=_animaisLoteAtual, lote=_loteDoAtual();
+      var dataPadrao=vs("al-data")||todayStr();
+      var faz=(["Caiman","Maguary","Cruz Alta","Pinheiral","Furna"].find(function(f){return _fazCore(L.fazenda).indexOf(_fazCore(f))>=0;}))||L.fazenda;
+      var animais=getAnimais().filter(function(a){return !a.morto&&!a.encerrado;});
+      var plano=[], erros=[], novos=0, movidos=0, chips=0;
+      for(var i=cab.ini;i<rows.length;i++){
+        var r=rows[i]||[];
+        var sis=c.sis>=0?_celTxt(r[c.sis]):"", chip=c.chip>=0?_celTxt(r[c.chip]):"";
+        if(c.cod>=0){var g=_celTxt(r[c.cod]);if(g){if(_ehSisbovTxt(g)){if(!sis)sis=g;}else if(!chip)chip=g;}}
+        var peso=parseFloat(String(_celTxt(r[c.peso])).replace(/\./g,function(m,o,s){return /,/.test(s)?"":m;}).replace(",","."))||0;
+        if(!sis&&!chip&&!peso)continue; // linha vazia
+        var linha=i+1;
+        if(!sis&&!chip){erros.push("linha "+linha+": sem SISBOV/chip");continue;}
+        if(!(peso>=30&&peso<=1500)){erros.push("linha "+linha+": peso "+(peso||"vazio"));continue;}
+        var data=(c.data>=0&&r[c.data]!=="")?formatarData(r[c.data]):dataPadrao;
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(data)){erros.push("linha "+linha+": data "+data);continue;}
+        var ds=_soDig(sis), dc=_soDig(chip);
+        var a=(ds&&animais.find(function(x){return _soDig(x.sisbov)===ds;}))||(dc&&animais.find(function(x){return _soDig(x.eletro)===dc;}))||null;
+        if(!a&&!ds&&dc)a=animais.find(function(x){return _soDig(x.sisbov)===dc;})||null;
+        plano.push({a:a,sis:sis,chip:chip,peso:peso,data:data});
+        if(!a)novos++;
+        else{
+          var noLote=String(a.pasto||"").trim().toUpperCase()===String(L.pasto||"").trim().toUpperCase();
+          if(!noLote)movidos++;
+          if(chip&&!a.eletro)chips++;
+        }
+      }
+      if(!plano.length){msg('<span style="color:#C62828">Nada para importar.'+(erros.length?" "+erros.slice(0,5).join("; "):"")+'</span>');input.value="";return;}
+      var txt="Importar "+plano.length+" pesagem(ns) para "+L.pasto+"?\n";
+      if(novos)txt+="\n• "+novos+" animal(is) novo(s) serão cadastrados neste lote";
+      if(movidos)txt+="\n• "+movidos+" animal(is) de outro pasto/curral virão para este lote";
+      if(chips)txt+="\n• "+chips+" chip(s) serão ligados ao SISBOV";
+      if(erros.length)txt+="\n• "+erros.length+" linha(s) com problema ficam de fora";
+      if(!confirm(txt)){msg('<span style="color:#888">Importação cancelada.</span>');input.value="";return;}
+      var todos=getAnimais(), pes=getPesagensSisbov(), subst=0;
+      plano.forEach(function(p){
+        var a=p.a;
+        if(!a){
+          a={id:novoId(),sisbov:p.sis,eletro:p.chip,fazenda:faz,pasto:L.pasto,sexo:(lote&&lote.sexo)||"",cat:(lote&&lote.cat)||"",
+            peso:p.peso,dtE:p.data,produtor:(lote&&lote.produtor)||"",encerrado:false,
+            historico:[{data:p.data,de:"—",para:faz+" / Pasto "+L.pasto,motivo:"Cadastro na pesagem do lote"}]};
+          todos.push(a);
+        }else{
+          var i=todos.findIndex(function(x){return x.id===a.id;});
+          if(i>=0){
+            var t=todos[i];
+            if(p.chip&&!t.eletro)t.eletro=p.chip;
+            if(p.sis&&!t.sisbov)t.sisbov=p.sis;
+            if(String(t.pasto||"").trim().toUpperCase()!==String(L.pasto||"").trim().toUpperCase()){
+              if(!t.historico)t.historico=[];
+              t.historico.push({data:p.data,de:(t.fazenda||"")+" / Pasto "+(t.pasto||"—"),para:faz+" / Pasto "+L.pasto,motivo:"Pesagem no lote"});
+              t.fazenda=faz;t.pasto=L.pasto;
+            }
+          }
+        }
+        // mesma data = substitui (reimportar a mesma planilha nao duplica)
+        var antes=pes.length;
+        pes=pes.filter(function(x){return !(x.animalId===a.id&&x.data===p.data);});
+        if(pes.length<antes)subst++;
+        pes.push({id:novoId(),animalId:a.id,data:p.data,peso:p.peso,pasto:L.pasto,obs:"Importado no lote"});
+      });
+      setAnimais(todos);setPesagensSisbov(pes);
+      input.value="";
+      renderAnimaisLote();
+      msg('<span style="color:var(--v)">✓ '+plano.length+' pesagem(ns) importada(s)'+(novos?" · "+novos+" cadastrado(s)":"")+(movidos?" · "+movidos+" movido(s)":"")+(subst?" · "+subst+" substituída(s)":"")+'</span>'+
+        (erros.length?'<div style="color:#C62828;font-size:11px;margin-top:3px">Ficaram de fora: '+_escAL(erros.slice(0,8).join("; "))+(erros.length>8?"…":"")+'</div>':''));
+      try{_r(renderAnimais,"renderAnimais");}catch(e2){}
+    }catch(err){msg('<span style="color:#C62828">Erro ao ler a planilha: '+_escAL(err.message)+'</span>');input.value="";}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
 function exportarAnimaisLote(){
   if(!_animaisLoteAtual)return;
   if(typeof XLSX==="undefined"){alert("Biblioteca de planilha não carregou. Tente de novo com internet.");return;}
@@ -22958,7 +23091,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.12-animaislote</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.12-importlote</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
