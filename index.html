@@ -3613,7 +3613,10 @@ function _chavesBackup(){
     "caiman_alert_config_v2","caiman_alertas_dispensados","caiman_avaliacao_pasto","caiman_avaliacao_hist",
     "caiman_ordem_lotes",   // ordem dos lotes (arrastar) - tambem em chavesCompartilhadas
     "caiman_ponto","caiman_ponto_func",   // controle de ponto (06/10) - tambem em chavesCompartilhadas
-    "caiman_leitura_cocho"]; /* nota de cocho: gravada SO pelo robo saicon-cocho. Fica
+    "caiman_leitura_cocho",
+    "caiman_mov_fila"]; /* caiman_mov_fila (13/10): movimentacao mandada pela Bia - mesma
+       regra da leitura_cocho: so a Bia grava, o app so le e aplica (_aplicarFilaMovBia).
+       nota de cocho: gravada SO pelo robo saicon-cocho. Fica
        de proposito FORA da chavesCompartilhadas - o app so le; subir a copia local
        apagaria leituras novas do robo. */
   /* ATENCAO: esta lista e a chavesCompartilhadas do pushSupabase precisam andar
@@ -4213,6 +4216,7 @@ async function pullSupabase(allowReplace=false){
     if(_pontoMergeVisto)localStorage.setItem("_ponto_merge_v1","1");
     if(_pontoMergePend){try{marcarPendente();}catch(e){}}   // sobe a uniao no proximo envio
     try{_msDoRobo();}catch(e){console.warn("ms do robo:",e);}
+    try{_aplicarFilaMovBia();}catch(e){console.warn("fila de movimentacao da Bia:",e);}
     atualizarDashboard();_r(renderAnimais,"renderAnimais");_r(renderPastos,"renderPastos");
     // re-renderizar as outras telas com os dados baixados
     try{
@@ -5496,13 +5500,28 @@ function _idAnimalHtml(a){
   return '<div class="al-id"><div class="al-sis"><span class="al-lbl s">SISBOV</span>'+(a.sisbov?_sisbovHtml(a.sisbov):'<span class="al-falta">sem SISBOV</span>')+'</div>'+
     '<div class="al-chip"><span class="al-lbl c">ID ELETRÔNICA</span>'+(a.eletro?_escAL(_chipFmt(a.eletro)):'<span class="al-falta">sem identificação eletrônica</span>')+'</div></div>';
 }
+// "Curral 14", "curral 14" e "14" sao o mesmo lugar: o lote do confinamento guarda
+// so o numero e o card escreve "Curral" na frente; a balanca e a Bia mandam com a palavra.
+function _pastoCore(p){
+  return _normIng(p).replace(/\bn\s*[o\u00ba\u00b0]\.?\s*(?=\d)/g," ").replace(/\b(curral|currais|pasto|piquete|baia|lote)\b/g," ").replace(/[\s.\-_]+/g,"").toUpperCase();
+}
+// troca o nome digitado pelo nome que o app ja usa naquela fazenda (lote ativo ou animal)
+function _pastoCanon(fazenda,pasto){
+  var c=_pastoCore(pasto);if(!c)return String(pasto||"").trim();
+  var fc=_fazCore(fazenda);
+  function fazOk(f){var x=_fazCore(f);return !fc||!x||x===fc||x.indexOf(fc)>=0||fc.indexOf(x)>=0;}
+  var l=getLotes().find(function(l){return !l.vendido&&fazOk(l.fazenda)&&_pastoCore(l.pasto)===c;});
+  if(l)return String(l.pasto).trim();
+  var a=getAnimais().find(function(a){return !a.morto&&!a.encerrado&&fazOk(a.fazenda)&&_pastoCore(a.pasto)===c;});
+  return a?String(a.pasto).trim():String(pasto||"").trim();
+}
 function animaisDoLote(fazenda,pasto){
-  var p=String(pasto||"").trim().toUpperCase();
+  var p=_pastoCore(pasto);
   if(!p)return [];
   var fc=_fazCore(fazenda);
   return getAnimais().filter(function(a){
     if(a.morto||a.encerrado)return false;
-    if(String(a.pasto||"").trim().toUpperCase()!==p)return false;
+    if(_pastoCore(a.pasto)!==p)return false;
     var af=_fazCore(a.fazenda);
     // fazenda vazia de um dos lados nao bloqueia; senao uma tem que conter a outra
     return !fc||!af||af===fc||af.indexOf(fc)>=0||fc.indexOf(af)>=0;
@@ -5725,9 +5744,9 @@ function salvarPesagemRapidaLote(){
 // com cabecalho em ingles (VID, EID, Weight, Date). Sem cabecalho: A=codigo, B=peso, C=data.
 function _loteDoAtual(){
   var L=_animaisLoteAtual;if(!L)return null;
-  var p=String(L.pasto||"").trim().toUpperCase(), fc=_fazCore(L.fazenda);
+  var p=_pastoCore(L.pasto), fc=_fazCore(L.fazenda);
   return getLotes().find(function(l){
-    if(l.vendido||String(l.pasto||"").trim().toUpperCase()!==p)return false;
+    if(l.vendido||_pastoCore(l.pasto)!==p)return false;
     var lf=_fazCore(l.fazenda);return !fc||!lf||lf===fc||lf.indexOf(fc)>=0||fc.indexOf(lf)>=0;
   })||null;
 }
@@ -5796,7 +5815,7 @@ function importarPesagemLote(input){
         plano.push({a:a,sis:sis,chip:chip,peso:peso,data:data});
         if(!a)novos++;
         else{
-          var noLote=String(a.pasto||"").trim().toUpperCase()===String(L.pasto||"").trim().toUpperCase();
+          var noLote=_pastoCore(a.pasto)===_pastoCore(L.pasto);
           if(!noLote)movidos++;
           if(chip&&!a.eletro)chips++;
         }
@@ -5822,7 +5841,7 @@ function importarPesagemLote(input){
             var t=todos[i];
             if(p.chip&&!t.eletro)t.eletro=p.chip;
             if(p.sis&&!t.sisbov)t.sisbov=p.sis;
-            if(String(t.pasto||"").trim().toUpperCase()!==String(L.pasto||"").trim().toUpperCase()){
+            if(_pastoCore(t.pasto)!==_pastoCore(L.pasto)){
               if(!t.historico)t.historico=[];
               t.historico.push({data:p.data,de:(t.fazenda||"")+" / Pasto "+(t.pasto||"—"),para:faz+" / Pasto "+L.pasto,motivo:"Pesagem no lote"});
               t.fazenda=faz;t.pasto=L.pasto;
@@ -5950,7 +5969,9 @@ function _movAcharAnimal(todos,sis,chip){
 }
 function _movPlano(){
   var M=_movImp;if(!M)return null;
-  var dataPad=vs("movi-data")||todayStr(), fazPad=vs("movi-faz"), cadastrar=!!(document.getElementById("movi-cad")||{}).checked;
+  return _movPlanoDe(M,vs("movi-data")||todayStr(),vs("movi-faz"),!!(document.getElementById("movi-cad")||{}).checked);
+}
+function _movPlanoDe(M,dataPad,fazPad,cadastrar){
   var todos=getAnimais().filter(function(a){return !a.morto&&!a.encerrado;});
   var plano=[], usados={};
   M.linhas.forEach(function(l){
@@ -5966,13 +5987,14 @@ function _movPlano(){
     if(it.a&&usados[it.a.id]){it.status="erro";it.obs="animal repetido na planilha (linha "+usados[it.a.id]+")";plano.push(it);return;}
     if(it.a)usados[it.a.id]=l.n;
     var fazDest=_movFazNome(l.faz||dst.faz||fazPad||(it.a&&it.a.fazenda)||"");
+    if(pasto)pasto=_pastoCanon(fazDest,pasto);
     it.fazDest=fazDest;it.pastoDest=pasto;
     if(!it.a){
       if(!cadastrar){it.status="erro";it.obs="não cadastrado";plano.push(it);return;}
       if(!pasto||!fazDest){it.status="erro";it.obs="não cadastrado e sem destino";plano.push(it);return;}
       it.status="novo";plano.push(it);return;
     }
-    var mesmo=!pasto||(String(it.a.pasto||"").trim().toUpperCase()===pasto.toUpperCase()&&_fazCore(it.a.fazenda)===_fazCore(fazDest));
+    var mesmo=!pasto||(_pastoCore(it.a.pasto)===_pastoCore(pasto)&&_fazCore(it.a.fazenda)===_fazCore(fazDest));
     if(mesmo&&!l.peso){it.status="igual";it.obs=it.obs||"já está no destino";plano.push(it);return;}
     it.status=mesmo?"pesar":"mover";
     plano.push(it);
@@ -6045,31 +6067,7 @@ function confirmarImportarMovimentacao(){
   var plano=_movPlano();if(!plano)return;
   var ok=plano.filter(function(p){return p.status==="mover"||p.status==="pesar"||p.status==="novo";});
   if(!ok.length)return;
-  var todos=getAnimais(), pes=getPesagensSisbov(), mov=0, pesadas=0, novos=0;
-  ok.forEach(function(p){
-    var a;
-    if(p.status==="novo"){
-      a={id:novoId(),sisbov:p.l.sis,eletro:p.l.chip,fazenda:p.fazDest,pasto:p.pastoDest,sexo:"",cat:"",peso:p.l.peso||0,dtE:p.data,produtor:"",encerrado:false,
-        historico:[{data:p.data,de:"—",para:p.fazDest+" / Pasto "+p.pastoDest,motivo:"Cadastro na importação de movimentação"}]};
-      todos.push(a);novos++;
-    }else{
-      var i=todos.findIndex(function(x){return x.id===p.a.id;});if(i<0)return;
-      a=todos[i];
-      if(p.l.chip&&!a.eletro)a.eletro=p.l.chip;
-      if(p.l.sis&&!a.sisbov&&_soDig(p.l.sis).length>=15)a.sisbov=p.l.sis;
-      if(p.status==="mover"){
-        if(!a.historico)a.historico=[];
-        a.historico.push({data:p.data,de:(a.fazenda||"")+" / Pasto "+(a.pasto||"—"),para:p.fazDest+" / Pasto "+p.pastoDest,motivo:"Importação de movimentação"});
-        a.fazenda=p.fazDest;a.pasto=p.pastoDest;mov++;
-      }
-    }
-    if(p.l.peso){
-      pes=pes.filter(function(x){return !(x.animalId===a.id&&x.data===p.data);});
-      pes.push({id:novoId(),animalId:a.id,data:p.data,peso:p.l.peso,pasto:a.pasto||"",obs:"Importação de movimentação"});
-      pesadas++;
-    }
-  });
-  setAnimais(todos);if(pesadas)setPesagensSisbov(pes);
+  var res=_movAplicar(ok,"Importação de movimentação"), mov=res.mov, pesadas=res.pesadas, novos=res.novos;
   // lembra a troca de nome dos destinos (porteira da balanca -> pasto/curral)
   try{
     var mapa=_movMapa();
@@ -6082,6 +6080,65 @@ function confirmarImportarMovimentacao(){
   _refrescarAnimaisLote();
   alerta("sisbov","Movimentação importada: "+mov+" movido(s), "+pesadas+" pesagem(ns)"+(novos?", "+novos+" cadastrado(s)":"")+".","ok");
   alert("Movimentação importada:\n• "+mov+" animal(is) mudaram de lugar\n• "+pesadas+" pesagem(ns) gravada(s)"+(novos?"\n• "+novos+" animal(is) cadastrado(s)":""));
+}
+function _movAplicar(ok,motivo){
+  var todos=getAnimais(), pes=getPesagensSisbov(), mov=0, pesadas=0, novos=0;
+  ok.forEach(function(p){
+    var a;
+    if(p.status==="novo"){
+      a={id:novoId(),sisbov:p.l.sis,eletro:p.l.chip,fazenda:p.fazDest,pasto:p.pastoDest,sexo:"",cat:"",peso:p.l.peso||0,dtE:p.data,produtor:"",encerrado:false,
+        historico:[{data:p.data,de:"—",para:p.fazDest+" / Pasto "+p.pastoDest,motivo:"Cadastro: "+(motivo||"importação de movimentação")}]};
+      todos.push(a);novos++;
+    }else{
+      var i=todos.findIndex(function(x){return x.id===p.a.id;});if(i<0)return;
+      a=todos[i];
+      if(p.l.chip&&!a.eletro)a.eletro=p.l.chip;
+      if(p.l.sis&&!a.sisbov&&_soDig(p.l.sis).length>=15)a.sisbov=p.l.sis;
+      if(p.status==="mover"){
+        if(!a.historico)a.historico=[];
+        a.historico.push({data:p.data,de:(a.fazenda||"")+" / Pasto "+(a.pasto||"—"),para:p.fazDest+" / Pasto "+p.pastoDest,motivo:motivo||"Importação de movimentação"});
+        a.fazenda=p.fazDest;a.pasto=p.pastoDest;mov++;
+      }
+    }
+    if(p.l.peso){
+      pes=pes.filter(function(x){return !(x.animalId===a.id&&x.data===p.data);});
+      pes.push({id:novoId(),animalId:a.id,data:p.data,peso:p.l.peso,pasto:a.pasto||"",obs:motivo||"Importação de movimentação"});
+      pesadas++;
+    }
+  });
+  setAnimais(todos);if(pesadas)setPesagensSisbov(pes);
+  return {mov:mov,pesadas:pesadas,novos:novos};
+}
+
+/* Fila de movimentacao mandada pela Bia (planilha ou mensagem no WhatsApp).
+   A Bia grava em EMPRESA::caiman_mov_fila; o app SO LE essa chave (fica fora da
+   chavesCompartilhadas, como a caiman_leitura_cocho) e aplica aqui, uma vez por
+   item neste aparelho. Reaplicar em outro aparelho e inofensivo: o animal ja esta
+   no destino (vira "sem mudanca") e pesagem do mesmo dia e substituida. */
+function _aplicarFilaMovBia(){
+  var fila=_readLocal("caiman_mov_fila",[]);
+  if(!Array.isArray(fila)||!fila.length)return null;
+  var feitos=_readLocal("caiman_mov_fila_feitos",[]);if(!Array.isArray(feitos))feitos=[];
+  var novosItens=fila.filter(function(f){return f&&f.id&&feitos.indexOf(f.id)<0;});
+  if(!novosItens.length)return null;
+  var tot={mov:0,pesadas:0,novos:0,fora:0};
+  novosItens.forEach(function(f){
+    var linhas=(f.linhas||[]).map(function(l,i){return {n:i+1,sis:String(l.sis||""),chip:String(l.chip||""),dest:String(l.pasto||""),faz:String(l.faz||""),peso:+l.peso||0,data:String(l.data||"")};});
+    var destinos={};
+    linhas.forEach(function(l){var k=l.dest;if(!destinos[k])destinos[k]={orig:k,n:0,pasto:k,faz:""};destinos[k].n++;});
+    var plano=_movPlanoDe({linhas:linhas,destinos:destinos},f.data||todayStr(),"",f.cadastrar!==false);
+    var ok=plano.filter(function(p){return p.status==="mover"||p.status==="pesar"||p.status==="novo";});
+    tot.fora+=plano.filter(function(p){return p.status==="erro";}).length;
+    if(ok.length){var r=_movAplicar(ok,"Bia (WhatsApp)");tot.mov+=r.mov;tot.pesadas+=r.pesadas;tot.novos+=r.novos;}
+    feitos.push(f.id);
+  });
+  localStorage.setItem("caiman_mov_fila_feitos",JSON.stringify(feitos.slice(-500)));
+  if(tot.mov||tot.pesadas||tot.novos){try{marcarPendente();}catch(e){}}
+  try{_r(renderAnimais,"renderAnimais");}catch(e){}
+  try{renderPastos();}catch(e){}
+  _refrescarAnimaisLote();
+  try{toast("Movimentação da Bia: "+tot.mov+" animal(is) mudaram de lugar, "+tot.pesadas+" pesagem(ns)"+(tot.novos?", "+tot.novos+" cadastrado(s)":"")+(tot.fora?" · "+tot.fora+" linha(s) não aplicada(s)":"")+".");}catch(e){}
+  return tot;
 }
 
 function exportarAnimaisLote(){
@@ -23370,7 +23427,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.12-movplanilha</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.13-movbia</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
