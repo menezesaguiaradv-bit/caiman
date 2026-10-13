@@ -5476,6 +5476,21 @@ function _fazCore(f){
 }
 function _escAL(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
 function _soDig(s){return String(s||"").replace(/\D/g,"");}
+// SISBOV com os 4 ultimos digitos em destaque (conferir com o brinco visual);
+// chip no formato ISO 11784: pais/fabricante (3) + numero (12)
+function _sisbovHtml(t){
+  t=String(t||"").trim();if(!t)return "";
+  var m=t.match(/^(.*?)(\d{1,4})$/);
+  return m?_escAL(m[1])+"<b>"+_escAL(m[2])+"</b>":_escAL(t);
+}
+function _chipFmt(t){
+  t=String(t||"").trim();var d=_soDig(t);
+  return (d.length===15&&d===t)?d.slice(0,3)+" "+d.slice(3):t;
+}
+function _idAnimalHtml(a){
+  return '<div class="al-id"><div class="al-sis"><span class="al-lbl s">SISBOV</span>'+(a.sisbov?_sisbovHtml(a.sisbov):'<span class="al-falta">sem SISBOV</span>')+'</div>'+
+    '<div class="al-chip"><span class="al-lbl c">CHIP</span>'+(a.eletro?_escAL(_chipFmt(a.eletro)):'<span class="al-falta">sem chip</span>')+'</div></div>';
+}
 function animaisDoLote(fazenda,pasto){
   var p=String(pasto||"").trim().toUpperCase();
   if(!p)return [];
@@ -5538,7 +5553,22 @@ function abrirAnimaisLote(fEnc,pEnc){
     m.onclick=function(e){if(e.target===m)fecharAnimaisLote();};
     document.body.appendChild(m);
   }
-  m.innerHTML='<div class="modal" style="max-width:820px;width:96%;max-height:92vh;overflow:auto"><div id="al-corpo"></div></div>';
+  if(!document.getElementById("al-css")){
+    var css=document.createElement("style");css.id="al-css";
+    css.textContent="#modal-animais-lote{padding:8px}"+
+      "#modal-animais-lote .modal{max-width:1100px;width:100%;height:calc(100vh - 16px);max-height:calc(100vh - 16px);overflow:auto;padding:18px}"+
+      "@media(max-width:640px){#modal-animais-lote{padding:0}#modal-animais-lote .modal{border-radius:0;height:100vh;max-height:100vh;padding:14px 12px}}"+
+      ".al-id{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;line-height:1.35;white-space:nowrap}"+
+      ".al-sis{font-size:13px;color:#333;letter-spacing:.3px}.al-sis b{font-size:15px;color:#1B5E20}"+
+      ".al-chip{font-size:11px;color:#1565C0;margin-top:2px}"+
+      ".al-lbl{display:inline-block;font-family:system-ui,sans-serif;font-size:9px;font-weight:700;letter-spacing:.5px;border-radius:4px;padding:1px 4px;margin-right:5px;vertical-align:1px}"+
+      ".al-lbl.s{background:#E8F5E9;color:#1B5E20;border:1px solid #A5D6A7}.al-lbl.c{background:#E3F2FD;color:#1565C0;border:1px solid #90CAF9}"+
+      ".al-falta{color:#bbb;font-style:italic;font-family:system-ui,sans-serif}"+
+      "#al-tab thead th{position:sticky;top:-18px;background:#FAFAFA;z-index:1}"+
+      ".al-entrada{display:flex;gap:10px;flex-wrap:wrap}.al-entrada>div{flex:1;min-width:280px}";
+    document.head.appendChild(css);
+  }
+  m.innerHTML='<div class="modal"><div id="al-corpo"></div></div>';
   m.style.display="flex";
   renderAnimaisLote();
   setTimeout(function(){var i=document.getElementById("al-busca");if(i)i.focus();},50);
@@ -5577,8 +5607,7 @@ function renderAnimaisLote(){
     var a=x.a,ph=x.ph;
     var baixo=r.pesoMedio&&ph.hoje&&ph.hoje<r.pesoMedio*0.9;
     return '<tr style="border-bottom:1px solid #EEE'+(baixo?';background:#FFF8E1':'')+'">'+
-      '<td style="padding:6px 4px;font-weight:600">'+_escAL(a.sisbov||"—")+'</td>'+
-      '<td style="padding:6px 4px;color:#666">'+_escAL(a.eletro||"—")+'</td>'+
+      '<td style="padding:8px 4px">'+_idAnimalHtml(a)+'</td>'+
       '<td style="padding:6px 4px;text-align:right">'+(ph.ultPeso?ph.ultPeso.toFixed(0)+' kg<div style="font-size:10px;color:#999">'+fmtData(ph.ultData)+'</div>':'—')+'</td>'+
       '<td style="padding:6px 4px;text-align:right;font-weight:700">'+(ph.hoje?ph.hoje.toFixed(0)+' kg'+(ph.projetado?'<span title="projetado pelo GMD individual" style="color:#999">*</span>':''):'—')+(baixo?'<div style="font-size:10px;color:#E65100">abaixo da média</div>':'')+'</td>'+
       '<td style="padding:6px 4px;text-align:right;color:'+corG(ph.gmd)+'">'+(ph.gmd!=null?ph.gmd.toFixed(3):'—')+'</td>'+
@@ -5599,17 +5628,17 @@ function renderAnimaisLote(){
       card("GMD médio",r.gmdMedio!=null?r.gmdMedio.toFixed(3):"—",r.comGmd+" com 2+ pesagens")+
       card("Abaixo de 90% da média",r.abaixo,"candidatos a apartar")+
     '</div>'+
-    '<div style="background:#E3F2FD;border:1px solid #90CAF9;border-radius:8px;padding:10px;margin-bottom:12px">'+
+    '<div class="al-entrada" style="margin-bottom:12px"><div style="background:#E3F2FD;border:1px solid #90CAF9;border-radius:8px;padding:10px">'+
       '<div style="font-size:12px;font-weight:700;margin-bottom:6px">Pesagem rápida no curral</div>'+
       '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end">'+
         '<div style="flex:2;min-width:150px"><label style="font-size:10px;color:#555">SISBOV ou chip (leitor ou digitado)</label><input id="al-busca" inputmode="numeric" autocomplete="off" style="width:100%" onkeydown="if(event.key===\'Enter\'){event.preventDefault();var p=document.getElementById(\'al-peso\');if(p)p.focus();}"></div>'+
         '<div style="flex:1;min-width:80px"><label style="font-size:10px;color:#555">Peso (kg)</label><input id="al-peso" type="number" inputmode="decimal" style="width:100%" onkeydown="if(event.key===\'Enter\'){event.preventDefault();salvarPesagemRapidaLote();}"></div>'+
         '<div style="flex:1;min-width:120px"><label style="font-size:10px;color:#555">Data</label><input id="al-data" type="date" value="'+todayStr()+'" style="width:100%"></div>'+
         '<button class="btn-p" onclick="salvarPesagemRapidaLote()" style="padding:8px 14px">Gravar</button>'+
-      '</div><div id="al-msg" style="font-size:12px;margin-top:6px;min-height:16px"></div>'+
-      '<div style="border-top:1px dashed #90CAF9;margin-top:8px;padding-top:8px">'+
+      '</div><div id="al-msg" style="font-size:12px;margin-top:6px;min-height:16px"></div></div>'+
+      '<div style="background:#E3F2FD;border:1px solid #90CAF9;border-radius:8px;padding:10px">'+
         '<div style="font-size:12px;font-weight:700;margin-bottom:4px">Importar Excel da balança</div>'+
-        '<div style="font-size:11px;color:#555;margin-bottom:6px">Colunas: SISBOV, Chip, Peso e Data (sem data, usa a data acima). Animal novo é cadastrado neste lote; animal de outro lugar vem para cá.</div>'+
+        '<div style="font-size:11px;color:#555;margin-bottom:6px">Colunas: SISBOV, Chip, Peso e Data (sem data, usa a data da pesagem rápida). Animal novo é cadastrado neste lote; animal de outro lugar vem para cá.</div>'+
         '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
           '<label style="font-size:12px;padding:6px 12px;border:1px solid #1565C0;background:#1565C0;color:#fff;border-radius:7px;cursor:pointer;font-weight:600">Escolher planilha<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarPesagemLote(this)"></label>'+
           '<button onclick="baixarModeloPesagemLote()" style="font-size:12px;padding:6px 12px;border:1px solid #90CAF9;background:#fff;color:#1565C0;border-radius:7px;cursor:pointer">Baixar modelo</button>'+
@@ -5620,8 +5649,8 @@ function renderAnimaisLote(){
       '</select>'+
       '<button onclick="exportarAnimaisLote()" style="font-size:12px;padding:5px 10px;border:1px solid #A5D6A7;background:#E8F5E9;color:var(--v);border-radius:7px;cursor:pointer;font-weight:600">Exportar Excel</button></div>'+
     (lista.length?
-      '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#FAFAFA;text-align:left">'+
-      '<th style="padding:6px 4px">SISBOV</th><th style="padding:6px 4px">Chip</th><th style="padding:6px 4px;text-align:right">Última pesagem</th><th style="padding:6px 4px;text-align:right">Peso hoje</th><th style="padding:6px 4px;text-align:right">GMD geral</th><th style="padding:6px 4px;text-align:right">GMD recente</th><th style="padding:6px 4px;text-align:center">Pes.</th><th></th></tr></thead><tbody>'+
+      '<div style="overflow-x:auto"><table id="al-tab" style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#FAFAFA;text-align:left">'+
+      '<th style="padding:6px 4px">Animal (SISBOV / chip)</th><th style="padding:6px 4px;text-align:right">Última pesagem</th><th style="padding:6px 4px;text-align:right">Peso hoje</th><th style="padding:6px 4px;text-align:right">GMD geral</th><th style="padding:6px 4px;text-align:right">GMD recente</th><th style="padding:6px 4px;text-align:center">Pes.</th><th></th></tr></thead><tbody>'+
       linhas+'</tbody></table></div><div style="font-size:10px;color:#999;margin-top:6px">* peso de hoje projetado pela última pesagem + GMD individual do animal. Linha amarela: abaixo de 90% da média do lote.</div>'
       :'<div class="empty" style="padding:20px">Nenhum animal identificado neste lote. Pese pelo SISBOV ou chip acima, ou importe a planilha de apartação na tela SISBOV.</div>');
 }
@@ -23091,7 +23120,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.12-importlote</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.12-layoutid</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
