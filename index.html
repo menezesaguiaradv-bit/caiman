@@ -3090,6 +3090,14 @@ function _recordChange(key,before,after){
 function _saveRecovery(reason){
   const item={at:new Date().toISOString(),reason,user:getUserId(),data:Object.fromEntries(_chavesBackup().map(k=>[k,localStorage.getItem(k)]))};
   const txt=JSON.stringify(item);
+  /* 17/10/2026 ("Failed to execute 'setItem'... caiman_cargas_v1 exceeded the quota"): a copia de recuperacao
+     duplica TODOS os dados no aparelho (~2,7 milhoes de caracteres hoje) e o navegador da ~5 MB por site. Com ela
+     guardada, o Baixar dados estourava a cota e desfazia tudo - o dia 16 nao entrava. Sem alteracao pendente
+     (nada para recuperar que nao esteja no servidor), nao guarda a copia e apaga a antiga. */
+  if(localStorage.getItem("caiman_sync_pend")!=="1"||txt.length>2000000){
+    try{localStorage.removeItem("_cag_recovery_v2");}catch(e){}
+    return false;
+  }
   try{localStorage.setItem("_cag_recovery_v2",txt);return true;}
   catch(e1){
     try{localStorage.removeItem("_cag_audit_v2");localStorage.setItem("_cag_recovery_v2",txt);return true;}
@@ -4213,8 +4221,16 @@ async function pullSupabase(allowReplace=false){
     _saveRecovery("Antes de baixar dados");
     _pullEmAndamento=true;
     const old=Object.fromEntries(Object.keys(staged).map(k=>[k,localStorage.getItem(k)]));
-    try{Object.entries(staged).forEach(([k,v])=>localStorage.setItem(k,v));}
-    catch(e){Object.entries(old).forEach(([k,v])=>v===null?localStorage.removeItem(k):localStorage.setItem(k,v));throw e;}
+    const _gravaStaged=()=>Object.entries(staged).forEach(([k,v])=>localStorage.setItem(k,v));
+    const _volta=()=>{try{Object.entries(old).forEach(([k,v])=>v===null?localStorage.removeItem(k):localStorage.setItem(k,v));}catch(e3){console.warn("restaurar local:",e3);}};
+    try{_gravaStaged();}
+    catch(e){
+      /* 17/10/2026: cota do navegador cheia - libera a copia de recuperacao e a auditoria (o servidor e a
+         referencia) e grava de novo; so desiste se ainda assim nao couber. */
+      if(!/quota|exceeded/i.test(String(e&&(e.name+" "+e.message)))){_volta();throw e;}
+      try{localStorage.removeItem("_cag_recovery_v2");localStorage.removeItem("_cag_audit_v2");_gravaStaged();}
+      catch(e2){_volta();throw new Error("O aparelho ficou sem espaço para os dados do app (limite do navegador). Avise o Claude.");}
+    }
     if(metaAfter&&metaAfter.ts)localStorage.setItem("caiman_sync_lastmeta",String(metaAfter.ts));
     else localStorage.setItem("caiman_sync_lastmeta","legacy-downloaded");
     _syncSignature=_dataSignature();
@@ -23434,7 +23450,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.16-painel</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.17-cota</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
