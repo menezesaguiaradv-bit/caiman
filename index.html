@@ -14550,9 +14550,14 @@ function _pdfGrafico(doc,y,titulo,series,opts){
   const yTopo=y, yBase=y+alt;
   const todos=[].concat.apply([],series.map(function(s){return s.v;})).filter(function(v){return isFinite(v);});
   if(!todos.length)return y;
-  let vmax=opts.max!=null?opts.max:Math.max.apply(null,todos)*1.15;
+  /* 19/10: topo acompanha o maior valor (energia de A2/A5 passava de 120% e saia do grafico) e marcas redondas
+     (25% na energia; 1/2/2,5/5 kg no consumo). Igual ao PDF da Bia. */
   let vmin=opts.min!=null?opts.min:0;
-  if(vmax<=vmin)vmax=vmin+1;
+  const dMax=Math.max.apply(null,todos);
+  let passo;
+  if(opts.suf==="%"){ passo=Math.max(opts.max||0,dMax)>150?50:25; }
+  else { const bruto=Math.max(dMax*1.05-vmin,1)/5, b=Math.pow(10,Math.floor(Math.log10(bruto))); passo=b*10; for(const m of [1,2,2.5,5,10]){ if(b*m>=bruto){ passo=b*m; break; } } }
+  let vmax=Math.max(vmin+passo,Math.ceil(Math.max(opts.max||0,dMax*(opts.suf==="%"?1.02:1.05))/passo)*passo);
   const n=series[0].v.length;
   const px=function(i){return n<2?x0:(x0+(x1-x0)*i/(n-1));};
   const py=function(v){return yBase-((v-vmin)/(vmax-vmin))*alt;};
@@ -14563,10 +14568,10 @@ function _pdfGrafico(doc,y,titulo,series,opts){
   // grade e eixo
   doc.setDrawColor(232,232,228); doc.setLineWidth(0.15);
   doc.setFontSize(7); doc.setTextColor(150,150,145); doc.setFont("helvetica","normal");
-  for(let i=0;i<=4;i++){
-    const v=vmin+(vmax-vmin)*i/4, yy=py(v);
+  for(let v=vmin;v<=vmax+1e-9;v+=passo){
+    const yy=py(v);
     doc.line(x0,yy,x1,yy);
-    doc.text((opts.suf==="%"?v.toFixed(0)+"%":v.toFixed(1)),x0-2.5,yy+1.6,{align:"right"});
+    doc.text((opts.suf==="%"?v.toFixed(0)+"%":(Number.isInteger(v)?v.toFixed(0):v.toFixed(1).replace(".",","))),x0-2.5,yy+1.6,{align:"right"});
   }
   // linha de referencia (meta 100%)
   if(opts.ref!=null&&opts.ref>=vmin&&opts.ref<=vmax){
@@ -14783,7 +14788,7 @@ function exportarTratosDiaPdf(data,dataF,filtroLote){
         const y1=_pdfGrafico(doc,yG,"Energia (% do previsto)",[
           {nome:"Diario",v:S.pctDia,cor:[185,148,47],w:0.9},
           {nome:"Acumulado",v:S.pctAc,cor:[30,86,49],w:1.4},
-        ],{dias:S.dias,suf:"%",ref:100,min:0,max:120,alt:_gh,x0:_x1a,x1:_x1b});
+        ],{dias:S.dias,suf:"%",ref:100,min:0,max:125,alt:_gh,x0:_x1a,x1:_x1b});
         const y2=_pdfGrafico(doc,yG,"Consumo por cabeca (kg/dia)",[
           {nome:"Mat. natural",v:S.mnCab,cor:[185,148,47],w:1.1},
           {nome:"Mat. seca",v:S.msCab,cor:[30,86,49],w:1.1},
@@ -23450,7 +23455,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.17-cota</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.19-graf</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
