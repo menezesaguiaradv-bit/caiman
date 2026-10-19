@@ -7783,9 +7783,13 @@ function _estDefasagem(fazenda){
 }
 
 function _estAlertas(){
+  /* 19/10: com os numeros da Bia carregados, a Pinheiral do aviso vem deles (igual ao relatorio) */
+  const B=(_estBia&&_estBia.ok)?_estBia:null;
   return _estLista(null).filter(function(x){
-    return x.dias!=null&&x.dias<EST_LIMITE_DIAS&&x.saldo>=0;
-  });
+    return x.dias!=null&&x.dias<EST_LIMITE_DIAS&&x.saldo>=0&&!(B&&_estEhPinheiral(x.fazenda));
+  }).concat(B?B.linhas.filter(function(x){return x.dur_cor!=null&&x.dur_cor<EST_LIMITE_DIAS;}).map(function(x){
+    const m=(x.conf_real_dia||0)+(x.producao_dia||0);
+    return {nome:x.produto,fazenda:"Pinheiral",dias:Math.floor(x.dur_cor),saldo:x.saldo_kg,media:m};}):[]);
 }
 
 /* ---------- importacao do Relatorio de estoque do Saicon ----------
@@ -7976,13 +7980,72 @@ function excluirMovEstoque(id){
 }
 
 /* ---------- tela ---------- */
+/* 19/10/2026 (ele: "o relatorio de estoque da Bia e do aplicativo estao vindo de formas diferentes. Os dois precisam
+   ser identicos com as mesmas quantidades"): a Pinheiral passa a vir da Bia (?estoque_json=1) - as MESMAS linhas do PDF
+   de estoque (inventario do Saicon + cargas da balanca + dietas). As outras fazendas continuam na conta do app.
+   Sem conexao, mostra a conta local com aviso. */
+var _estBia=null, _estBiaBusy=false;
+async function _estBiaCarregar(){
+  if(_estBiaBusy)return; _estBiaBusy=true;
+  try{
+    const h=await _hdrAuth(); delete h["Content-Type"];
+    const r=await fetch(SB_URL.replace(/\/+$/,"")+"/functions/v1/Bia?estoque_json=1",{headers:h});
+    const j=await r.json().catch(function(){return null;});
+    _estBia=(j&&j.ok)?{ts:Date.now(),ok:true,linhas:j.linhas||[],inventario:j.inventario}:{ts:Date.now(),ok:false,erro:(j&&j.erro)||("HTTP "+r.status)};
+  }catch(e){ _estBia={ts:Date.now(),ok:false,erro:String(e&&e.message||e)}; }
+  finally{ _estBiaBusy=false; }
+  try{ if(document.getElementById("est-lista"))renderEstoque(); }catch(e){}
+}
+function _estEhPinheiral(f){ return /pinheiral/.test(_normIng(f||"")); }
+function _estBiaBloco(B){
+  const f=function(v,c){return (v||0).toLocaleString("pt-BR",{minimumFractionDigits:c==null?0:c,maximumFractionDigits:c==null?0:c});};
+  const dTx=function(v){return v==null?"sem consumo":v>365?"> 365":f(Math.floor(v));};
+  const cor=function(d){ if(d==null)return "#999"; if(d<15)return "#C62828"; if(d<30)return "#B8860B"; return "var(--v)"; };
+  let tP=0,tR=0,tO=0,tV=0;
+  const linhas=B.linhas.map(function(x,i){
+    tP+=x.conf_prev_dia||0; tR+=x.conf_real_dia||0; tO+=x.producao_dia||0; tV+=x.valor||0;
+    return "<tr><td>"+(i+1)+"</td><td><b>"+String(x.produto).toUpperCase()+"</b></td>"+
+      "<td style='text-align:right'>"+(x.custo_kg!=null?"R$ "+f(x.custo_kg,4):"—")+"</td>"+
+      "<td style='text-align:right'>"+f(x.saldo_kg)+" kg</td>"+
+      "<td style='text-align:right'>"+((x.conf_prev_dia||0)>0?f(x.conf_prev_dia,1)+" kg"+(x.fator_saicon&&Math.abs(x.fator_saicon-1)>=0.05?"<div style='font-size:10px;color:var(--mt)'>Saicon x"+f(x.fator_saicon,2)+"</div>":""):"—")+"</td>"+
+      "<td style='text-align:right'>"+(x.conf_real_dia>0?f(x.conf_real_dia,1)+" kg":"—")+"</td>"+
+      "<td style='text-align:right'>"+(x.producao_dia>0?f(x.producao_dia,1)+" kg":"—")+"</td>"+
+      "<td style='text-align:right'>"+dTx(x.dur_conf)+"</td>"+
+      "<td style='text-align:right;font-weight:700;color:"+cor(x.dur_cor)+"'>"+(x.sobra_kg!=null?"sobra "+f(x.sobra_kg/1000,1)+" t":(x.dur_dietas==null&&x.conf_prev_dia==null?"—":dTx(x.dur_dietas)))+"</td>"+
+      "<td style='text-align:right'>"+dTx(x.dur_media)+"</td>"+
+      "<td style='text-align:right'>"+(x.valor!=null?"R$ "+f(x.valor,2):"—")+"</td></tr>";
+  }).join("");
+  return "<div style='font-size:13px;font-weight:700;color:var(--v);margin:4px 0 6px'>Fazenda Pinheiral — mesmos números do relatório da Bia"+
+    (B.inventario?" <span style='font-weight:400;color:var(--mt);font-size:11.5px'>(inventário do Saicon de "+fmtData(B.inventario)+")</span>":"")+"</div>"+
+    "<div style='overflow-x:auto;margin-bottom:18px'><table class='atable'><thead><tr><th>#</th><th>Produto</th><th style='text-align:right'>Custo/kg</th>"+
+    "<th style='text-align:right'>Estoque real</th><th style='text-align:right'>Conf. kg/dia previsto</th><th style='text-align:right'>Conf. kg/dia real (7d)</th>"+
+    "<th style='text-align:right'>Outras fazendas kg/dia</th><th style='text-align:right'>Duração só conf.</th><th style='text-align:right'>Duração pelas dietas</th>"+
+    "<th style='text-align:right'>Duração pela média</th><th style='text-align:right'>Valor</th></tr></thead><tbody>"+linhas+
+    "<tr style='font-weight:700;background:var(--bg)'><td></td><td>TOTAL</td><td></td><td></td><td style='text-align:right'>"+f(tP)+" kg</td><td style='text-align:right'>"+f(tR)+" kg</td>"+
+    "<td style='text-align:right'>"+f(tO)+" kg</td><td></td><td></td><td></td><td style='text-align:right'>R$ "+f(tV,2)+"</td></tr></tbody></table></div>";
+}
 function renderEstoque(){
   const el=document.getElementById("est-lista"); if(!el)return;
   _estPopularFazendas();
   const fsel=document.getElementById("est-filtro-faz");
   const faz=(fsel&&fsel.value)||"";
-  const l=_estLista(faz||null);
-  if(!l.length){el.innerHTML="<div class='empty'>Nenhum ingrediente com estoque. Importe o relatório do Saicon ou lance manualmente.</div>";return;}
+  let l=_estLista(faz||null);
+  const querPinh=!faz||_estEhPinheiral(faz);
+  if(querPinh&&SB_URL&&(!_estBia||Date.now()-_estBia.ts>10*60e3))_estBiaCarregar();
+  const B=(querPinh&&_estBia&&_estBia.ok)?_estBia:null;
+  if(B)l=l.filter(function(x){return !_estEhPinheiral(x.fazenda);});
+  const blocoBia=B?_estBiaBloco(B):(querPinh?"<div style='font-size:11.5px;color:var(--mt);margin-bottom:10px'>"+
+    (_estBia&&!_estBia.ok?"⚠️ Não consegui buscar os números da Bia ("+_estBia.erro+") — a Pinheiral abaixo está na conta do aparelho e pode diferir do relatório dela.":"Buscando os números da Bia para a Pinheiral…")+"</div>":"");
+  if(B){
+    const alB=B.linhas.filter(function(x){return x.dur_cor!=null&&x.dur_cor<EST_LIMITE_DIAS;});
+    if(!l.length){
+      el.innerHTML=(alB.length?"<div style='background:#FFEBEE;border:1px solid #FFCDD2;border-left:4px solid #C62828;border-radius:8px;padding:11px 15px;margin-bottom:14px;font-size:12.5px;line-height:1.7;color:#5a3a3a'><b>"+alB.length+" ingrediente(s) com menos de "+EST_LIMITE_DIAS+" dias</b><br>"+
+        alB.map(function(x){return "<b>"+x.produto+"</b> (Pinheiral): "+Math.floor(x.dur_cor)+" dias · "+Math.round(x.saldo_kg).toLocaleString("pt-BR")+" kg";}).join("<br>")+"</div>":"")+
+        blocoBia+_estHistorico(faz);
+      return;
+    }
+  }
+  if(!l.length&&!B){el.innerHTML="<div class='empty'>Nenhum ingrediente com estoque. Importe o relatório do Saicon ou lance manualmente.</div>";return;}
   const f=function(v,c){return (v||0).toLocaleString("pt-BR",{minimumFractionDigits:c==null?0:c,maximumFractionDigits:c==null?0:c});};
   const cor=function(d){
     if(d==null)return "#999";
@@ -7991,10 +8054,12 @@ function renderEstoque(){
     return "var(--v)";
   };
   let vt=0; l.forEach(function(x){vt+=x.saldo*(x.custo||0);});
-  const alertas=l.filter(function(x){return x.dias!=null&&x.dias<EST_LIMITE_DIAS;});
+  const alertas=l.filter(function(x){return x.dias!=null&&x.dias<EST_LIMITE_DIAS;})
+    .concat(B?B.linhas.filter(function(x){return x.dur_cor!=null&&x.dur_cor<EST_LIMITE_DIAS;}).map(function(x){return {nome:x.produto,fazenda:"Pinheiral",dias:Math.floor(x.dur_cor),saldo:x.saldo_kg};}):[]);
+  if(B)B.linhas.forEach(function(x){vt+=x.valor||0;});
   const _def=_estDefasagem(faz||null);
   el.innerHTML=
-    ((_def&&_def.dias>1)?"<div style='background:#FFF8E1;border:1px solid #FFE0B2;border-left:4px solid "+
+    ((_def&&_def.dias>1&&!B)?"<div style='background:#FFF8E1;border:1px solid #FFE0B2;border-left:4px solid "+
       "var(--dou);border-radius:8px;padding:11px 15px;margin-bottom:14px;font-size:12.5px;line-height:1.7;"+
       "color:#5a4a2a'><b>Inventário com "+_def.dias+" dia(s) de defasagem.</b><br>"+
       "Último inventário em "+fmtData(_def.inv)+", última carga em "+fmtData(_def.carga)+". "+
@@ -8008,13 +8073,13 @@ function renderEstoque(){
       }).join("<br>")+"</div>":"")+
     "<div style='display:flex;gap:8px;flex-wrap:wrap;background:var(--bg);border:1px solid var(--bd);"+
       "border-radius:9px;padding:12px 16px;margin-bottom:14px'>"+
-      "<div style='flex:1;min-width:110px'><div style='font-size:16px;font-weight:700;color:var(--v)'>"+l.length+"</div>"+
+      "<div style='flex:1;min-width:110px'><div style='font-size:16px;font-weight:700;color:var(--v)'>"+(l.length+(B?B.linhas.length:0))+"</div>"+
         "<div style='font-size:9px;color:#7a7a74'>INGREDIENTES</div></div>"+
       "<div style='flex:1;min-width:110px'><div style='font-size:16px;font-weight:700;color:"+(alertas.length?"#C62828":"var(--v)")+"'>"+
         alertas.length+"</div><div style='font-size:9px;color:#7a7a74'>ABAIXO DE "+EST_LIMITE_DIAS+" DIAS</div></div>"+
       "<div style='flex:1;min-width:130px'><div style='font-size:16px;font-weight:700;color:var(--v)'>R$ "+f(vt,2)+"</div>"+
         "<div style='font-size:9px;color:#7a7a74'>VALOR EM ESTOQUE</div></div>"+
-    "</div>"+
+    "</div>"+blocoBia+(B&&l.length?"<div style='font-size:13px;font-weight:700;color:var(--v);margin:4px 0 6px'>Outras fazendas</div>":"")+
     "<div style='overflow-x:auto'><table class='atable'><thead><tr>"+
       "<th>Ingrediente</th><th>Fazenda</th><th style='text-align:right'>Saldo</th>"+
       "<th style='text-align:right'>Consumo/dia</th><th style='text-align:right'>Dura</th>"+
@@ -23455,7 +23520,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.19-graf</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.19-estoque</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
