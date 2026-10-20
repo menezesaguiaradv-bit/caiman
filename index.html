@@ -3131,7 +3131,7 @@ function _weightInfo(l){
   const measured=last?Number(last.peso):Number(l.pesoE||l.peso)||null;
   const date=last?last.data:l.dtE;
   const days=date?diasEntre(date,today):NaN;
-  const gmd=Number(l.gmdP??l.gmd??((_ehCochoQualquer(l.tipo))?1.2:gmdSazonal()));
+  const gmd=l.tipo==="Confinamento"?GMD_PROJ_CONF:Number(l.gmdP??l.gmd??((_ehCochoQualquer(l.tipo))?1.2:gmdSazonal()));
   return {measured,date,source:last?"Pesagem":"Entrada",projected:measured>0&&date<=today&&Number.isFinite(days)&&days>=0&&Number.isFinite(gmd)?measured+gmd*days:null};
 }
 function _alertConfig(farm,type){
@@ -6258,7 +6258,10 @@ function gmdPorTipo(tipo){
   return gmdSazonal(); // Recria / Engorda a Pasto = ganho de pasto sazonal
 }
 
+/* 19/10/2026 (ele: "o gmd projetado e 1.4 para todos" no confinamento): igual a Bia (GMD_PROJ_CONF) */
+const GMD_PROJ_CONF=1.4;
 function gmdDoLote(l){
+  if(l&&l.tipo==="Confinamento")return GMD_PROJ_CONF;
   // GMD do lote: usa o gmdP cadastrado se valido, senao o padrao do tipo
   if(l&&l.gmdP!==undefined&&l.gmdP!==null&&l.gmdP!==""&&!isNaN(parseFloat(l.gmdP))&&parseFloat(l.gmdP)>0){
     return parseFloat(l.gmdP);
@@ -6784,7 +6787,7 @@ function confirmarEnc(){
     let pesoSaida=pvEmb||0;
     if(!pesoSaida&&at>0&&rend>0)pesoSaida=(at*15)/rend;
     // GMD real: última pesagem do lote, senão projetado
-    let gmd=l.gmdP||0,gmdReal=false;
+    let gmd=l.tipo==="Confinamento"?GMD_PROJ_CONF:(l.gmdP||0),gmdReal=false;
     const pesagens=(typeof getPesagens==="function")?getPesagens():[];
     const pesL=pesagens.filter(function(p){return String(p.loteId)===String(l.id)&&p.peso>0;}).sort(function(a,b){return a.data.localeCompare(b.data);});
     if(pesL.length&&l.pesoE>0){
@@ -7985,6 +7988,19 @@ function excluirMovEstoque(id){
    de estoque (inventario do Saicon + cargas da balanca + dietas). As outras fazendas continuam na conta do app.
    Sem conexao, mostra a conta local com aviso. */
 var _estBia=null, _estBiaBusy=false;
+/* 19/10/2026: custo/cab/dia unico do confinamento e GMD 1,4 vindos da Bia, para o app e a Bia calcularem igual */
+var _custoConf=null;
+async function _custoConfCarregar(){
+  try{
+    if(!SB_URL)return;
+    const h=await _hdrAuth(); delete h["Content-Type"];
+    const r=await fetch(SB_URL.replace(/\/+$/,"")+"/functions/v1/Bia?custo_conf_json=1",{headers:h});
+    const j=await r.json().catch(function(){return null;});
+    if(j&&j.ok&&j.custo_dia>0)_custoConf={ts:Date.now(),custo_dia:+j.custo_dia,gmd:+j.gmd||GMD_PROJ_CONF};
+  }catch(e){console.warn("custo conf:",e);}
+}
+setTimeout(function(){_custoConfCarregar();},4000);
+setInterval(function(){_custoConfCarregar();},60*60e3);
 async function _estBiaCarregar(){
   if(_estBiaBusy)return; _estBiaBusy=true;
   try{
@@ -9499,7 +9515,7 @@ function renderEficienciaConf(){
       diasGmd=l.dtE?diasEntre(l.dtE,ult.data):diasCocho;
       if(diasGmd>0&&pesoE>0){gmd=(pesoAtual-pesoE)/diasGmd;gmdEhReal=true;}
     }
-    if(!gmdEhReal){gmd=l.gmdP||0;pesoAtual=pesoE+gmd*diasCocho;}
+    if(!gmdEhReal){gmd=l.tipo==="Confinamento"?GMD_PROJ_CONF:(l.gmdP||0);pesoAtual=pesoE+gmd*diasCocho;}
 
     // consumo e custo realizados (tratos do lote)
     let msTotal=0,custoTotal=0;
@@ -16127,7 +16143,7 @@ function renderPesagensLotes(){
         }
       }
     }
-    const gmdProj=l.gmdP||l.gmd||1.2;
+    const gmdProj=l.tipo==="Confinamento"?GMD_PROJ_CONF:(l.gmdP||l.gmd||1.2);
     const gmdCor=gmdReal>=gmdProj?"var(--v)":(gmdReal>0?"#C62828":"#888");
     const gmdIcon=gmdReal>=gmdProj?"▲":(gmdReal>0?"▼":"—");
     
@@ -18640,7 +18656,7 @@ function gerarPDFLote(loteId){
     const ult=pes[pes.length-1];
     y=_pdfLinha(doc,y,"Última pesagem",ult.peso.toFixed(0)+" kg ("+fmtData(ult.data)+")");
   }
-  if(l.gmdP)y=_pdfLinha(doc,y,"GMD projetado",l.gmdP+" kg/dia");
+  if(l.gmdP||l.tipo==="Confinamento")y=_pdfLinha(doc,y,"GMD projetado",gmdDoLote(l)+" kg/dia");
   y+=4;
   
   y=_pdfSecao(doc,y,"Custos");
@@ -19844,7 +19860,7 @@ function gerarAlertas(){
       const diasP=Math.floor((new Date(ult.data)-dtE)/86400000);
       if(diasP>0){
         const gmdReal=(ult.peso-(l.peso||l.pesoE||0))/diasP;
-        const gmdProj=l.gmdP||l.gmd||1.2;
+        const gmdProj=l.tipo==="Confinamento"?GMD_PROJ_CONF:(l.gmdP||l.gmd||1.2);
         if(Number.isFinite(gmdReal)&&Number(ult.peso)>0&&gmdProj>0&&gmdReal<gmdProj*(1-cfg.gmd/100)){
           alertas.push({tipo:"gmd",cor:"#C62828",icone:"gmd",
             titulo:nomeL,texto:"GMD real "+gmdReal.toFixed(3)+" kg — abaixo do projetado ("+gmdProj.toFixed(3)+")"});
@@ -20092,11 +20108,13 @@ function atualizarProjecao(){
     
     const qtd=l.qtd||0;
     const dieta=dietas.find(d=>d.id===l.dietaId);
-    const custoDia=dieta?dieta.custoDia:0;
+    /* 19/10/2026 (ele: "o preco da dieta e a mesma para todos os lotes"): no confinamento usa o custo/cab/dia unico da
+       Bia (real dos ultimos 7 dias, ?custo_conf_json=1); sem ele, o custo da dieta do cadastro */
+    const custoDia=(l.tipo==="Confinamento"&&_custoConf&&_custoConf.custo_dia>0)?_custoConf.custo_dia:(dieta?dieta.custoDia:0);
     
     // Peso saída projetado
     const pesoE=l.peso||l.pesoE||0;
-    const gmd=l.gmdP||l.gmd||1.2;
+    const gmd=l.tipo==="Confinamento"?GMD_PROJ_CONF:(l.gmdP||l.gmd||1.2);
     const pesoSaida=pesoE+(gmd*dias);
     const arrobas=(pesoSaida*rend)/15;
     // Se o lote já foi vendido, usa o VALOR REAL recebido (já é a metade do usuário).
@@ -23520,7 +23538,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.19-estoque</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.19-custos</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
