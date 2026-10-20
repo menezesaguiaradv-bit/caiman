@@ -14854,7 +14854,7 @@ function exportarTratosDiaPdf(data,dataF,filtroLote){
     if(ENER){
       y=_pdfLinhaTr(doc,y,"Energia / cabeca",c.cab>0?(f(c.mcal/c.cab,1)+" Mcal  ("+f(c.pctE,1)+"% da meta  -  previsto "+f(c.alvo/c.cab,1)+" Mcal)"):"-");
       y=_pdfLinhaTr(doc,y,"Energia total do lote",f(c.mcal,0)+" Mcal  ("+c.cab+" cabecas)");
-      if(c.gmdEner>0)y=_pdfLinhaTr(doc,y,"GMD pela energia do ciclo (Livio)",f(c.gmdEner,2)+" kg/dia");
+      if(c.gmdEner>0)y=_pdfLinhaTr(doc,y,"GMD pela energia do ciclo",f(c.gmdEner,2)+" kg/dia");
     }
     /* curvas DESTE curral, dois graficos lado a lado (metade da largura cada) */
     try{
@@ -14978,7 +14978,7 @@ function verTratosDia(data){
           (c.pctPvMS>=c.metaPV*0.9?"var(--v)":(c.pctPvMS>=c.metaPV*0.7?"#B8860B":"#C62828"))):"")+
         (ENER?R("Energia / cabeça",c.cab>0?(f(c.mcal/c.cab,1)+' Mcal · <span style="color:'+corE+'">'+f(c.pctE,1)+'% da meta</span> <span style="color:#9a9a94;font-weight:400">· previsto '+f(c.cab>0?c.alvo/c.cab:0,1)+' Mcal</span>'):"—"):"")+
         (ENER?R("Energia total do lote",f(c.mcal,0)+' Mcal <span style="color:#9a9a94;font-weight:400">· '+c.cab+' cabeças</span>'):"")+
-        ((ENER&&c.gmdEner>0)?R("GMD pela energia do ciclo (Livio)",f(c.gmdEner,2)+" kg/dia"):"")+
+        ((ENER&&c.gmdEner>0)?R("GMD pela energia do ciclo",f(c.gmdEner,2)+" kg/dia"):"")+
       '</div></div>';
   });
 
@@ -23563,7 +23563,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.20-livio</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.20-meta</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
