@@ -14522,7 +14522,7 @@ function _dadosTratosDia(data,dataF,filtroLote){
        meta diaria nem com o relatorio de um dia. */
     const _nd=(_diasLote[k]&&_diasLote[k].size)?_diasLote[k].size:1;
     if(dataF&&_nd>1){ g.kg=g.kg/_nd; g.ms=g.ms/_nd; }
-    const alvo=(pvMeta>0?pvMeta*meta*_emDietaCheia(cfg)*cab:0), mcal=g.ms*em;
+    const alvo=(pvMeta>0?pvMeta*_livioEmPct(lote)*cab:0), mcal=g.ms*em;
     totKg+=g.kg; totMS+=g.ms; totCab+=cab; totMcal+=mcal; totAlvo+=alvo; totPV+=pv*cab;
     let fase="";
     try{
@@ -14540,11 +14540,14 @@ function _dadosTratosDia(data,dataF,filtroLote){
     }catch(e){}
     /* MS media por cabeca dos ultimos 3 dias (incluindo o dia do relatorio):
        um dia sozinho oscila com sobra de cocho; tres dias mostram a tendencia. */
-    let ms3=0;
+    let ms3=0, gmdEner=0;
     try{
       const S3=_serieHist(dataF||data,k);
       const ult=S3.msCab.slice(-3).filter(function(v){return v>0;});
       if(ult.length)ms3=ult.reduce(function(a,b){return a+b;},0)/ult.length;
+      /* Livio: GMD pela energia consumida no ciclo (media % da meta x Cons. EM %PV da meta) */
+      const acU=S3.pctAc&&S3.pctAc.length?S3.pctAc[S3.pctAc.length-1]:0;
+      if(ENER&&acU>0)gmdEner=_livioGmd(acU/100*_livioEmPct(lote),lote);
     }catch(e){}
     /* % do peso vivo: MS por cabeca dividida pelo peso projetado do dia — e o
        "CONS % PV ATUAL" do ROTEIRO da planilha (coluna O). A meta do lote
@@ -14557,7 +14560,7 @@ function _dadosTratosDia(data,dataF,filtroLote){
       pv:(ENER?pv:0), metaPV:(lote.metaPV>0?lote.metaPV:2.26),
       // %PV so faz sentido no confinamento (meta de dieta cheia de cocho)
       pctPvMS:(ENER&&pv>0?(msCab/pv*100):0), pctPvMN:(ENER&&pv>0?(mnCab/pv*100):0),
-      pesoE:(+lote.pesoE||0), ms3:ms3, dtE:(lote.dtE||""), pvMeta:pvMeta,
+      pesoE:(+lote.pesoE||0), ms3:ms3, dtE:(lote.dtE||""), pvMeta:pvMeta, gmdEner:gmdEner,
       nDias:((_diasLote[k]&&_diasLote[k].size)?_diasLote[k].size:1),
       itens:g.itens.map(function(t){
         const dt=dietas.find(function(d){return String(d.id)===String(t.dietaId);});
@@ -14603,7 +14606,7 @@ function _serieHist(ate,filtroLote,desde){
         let pv=0; try{pv=pesoProjetadoLoteEm(lote,k)||0;}catch(e){}
         const meta=(lote.metaPV>0?lote.metaPV:2.26)/100;
         const _pvM=_pesoMedioCiclo(lote,k);
-        dia[k].alvo+=(_pvM>0?_pvM*meta*_emDietaCheia(cfg)*cabK:0);
+        dia[k].alvo+=(_pvM>0?_pvM*_livioEmPct(lote)*cabK:0);
       }
       c.setDate(c.getDate()+1);
     }
@@ -14851,6 +14854,7 @@ function exportarTratosDiaPdf(data,dataF,filtroLote){
     if(ENER){
       y=_pdfLinhaTr(doc,y,"Energia / cabeca",c.cab>0?(f(c.mcal/c.cab,1)+" Mcal  ("+f(c.pctE,1)+"% da meta  -  previsto "+f(c.alvo/c.cab,1)+" Mcal)"):"-");
       y=_pdfLinhaTr(doc,y,"Energia total do lote",f(c.mcal,0)+" Mcal  ("+c.cab+" cabecas)");
+      if(c.gmdEner>0)y=_pdfLinhaTr(doc,y,"GMD pela energia do ciclo (Livio)",f(c.gmdEner,2)+" kg/dia");
     }
     /* curvas DESTE curral, dois graficos lado a lado (metade da largura cada) */
     try{
@@ -14974,6 +14978,7 @@ function verTratosDia(data){
           (c.pctPvMS>=c.metaPV*0.9?"var(--v)":(c.pctPvMS>=c.metaPV*0.7?"#B8860B":"#C62828"))):"")+
         (ENER?R("Energia / cabeça",c.cab>0?(f(c.mcal/c.cab,1)+' Mcal · <span style="color:'+corE+'">'+f(c.pctE,1)+'% da meta</span> <span style="color:#9a9a94;font-weight:400">· previsto '+f(c.cab>0?c.alvo/c.cab:0,1)+' Mcal</span>'):"—"):"")+
         (ENER?R("Energia total do lote",f(c.mcal,0)+' Mcal <span style="color:#9a9a94;font-weight:400">· '+c.cab+' cabeças</span>'):"")+
+        ((ENER&&c.gmdEner>0)?R("GMD pela energia do ciclo (Livio)",f(c.gmdEner,2)+" kg/dia"):"")+
       '</div></div>';
   });
 
@@ -15375,7 +15380,7 @@ function renderDiaTrato(){
                  idade:(lote.idade||0),sexo:(lote.sexo||"Machos"),raca:(lote.raca||""),
                  meta:(lote.metaPV>0?lote.metaPV:2.26)});
     const _pvM=_pesoMedioCiclo(lote);
-    totAlvo+=(_pvM>0?_pvM*((lote.metaPV>0?lote.metaPV:2.26)/100)*_emDietaCheia(cfg)*(lote.qtd||0):0);
+    totAlvo+=(_pvM>0?_pvM*_livioEmPct(lote)*(lote.qtd||0):0);
   });
 
   if(!linhas.length){
@@ -15468,9 +15473,29 @@ function renderDiaTrato(){
    Fixo para o lote inteiro: nao muda com o dia. Sem previsao de abate
    cadastrada, cai para o peso projetado do dia, que era o comportamento
    antigo — melhor um numero aproximado que nenhum. */
+/* 20/10/2026 (ele mandou a planilha "CORRECAO EQUACAO LIVIO": "use essa formula como exemplo da megacaloria.
+   Hoje todos os currais sao nelore"). Meta de energia = Cons. EM em % do PV (Nelore inteiro 6,21%; castrado/femea
+   6,25%; Angus 6,23%) x PESO MEDIO DO PERIODO = peso inicial + GMD da meta x dias (entrada->abate) / 2, com
+   GMD = -74,073 p2 + 36,573 p - 0,5623 (Nelore). Mesma conta na Bia e no relatorio das 7h. */
+function _livioEmPct(l){
+  const r=String((l&&l.raca)||"").toLowerCase(), s=String((l&&l.sexo)||"").toLowerCase();
+  if(r.indexOf("angus")>=0)return 0.0623;
+  if(s.indexOf("castr")>=0||s.indexOf("femea")>=0||s.indexOf("fêmea")>=0)return 0.0625;
+  return 0.0621;
+}
+function _livioGmd(p,l){
+  const r=String((l&&l.raca)||"").toLowerCase(), s=String((l&&l.sexo)||"").toLowerCase();
+  if(s.indexOf("femea")>=0||s.indexOf("fêmea")>=0)return -0.0000011*p*p+27.508*p-0.47;
+  if(r.indexOf("cruz")>=0)return -74.073*p*p+36.573*p-0.6323;
+  if(r.indexOf("angus")>=0)return -147.35*p*p+56.249*p-1.2206;
+  return -74.073*p*p+36.573*p-0.5623;
+}
 function _pesoMedioCiclo(lote,dataFallback){
   try{
     const pe=+lote.pesoE||0;
+    /* Livio: peso medio do periodo (precisa da data de abate) */
+    if(pe>0&&lote.dtE&&/^\d{4}-\d{2}-\d{2}$/.test(String(lote.dtAbate||""))&&lote.dtAbate>lote.dtE)
+      return pe+_livioGmd(_livioEmPct(lote),lote)*diasEntre(lote.dtE,lote.dtAbate)/2;
     /* 30/09: igual a planilha (PROJECAO ABATES!J = (M + PI x 0,96)/2), o peso
        final aqui e SEMPRE o do modelo (sexo, tamanho, acabamento do lote). O
        peso de abate digitado vale para a data de abate, nao para a meta de
@@ -15567,7 +15592,7 @@ function renderGraficoEnergia(){
         let _pv=0; try{_pv=pesoProjetadoLoteEm(lote,k)||0;}catch(e){}
         const _meta=(lote.metaPV>0?lote.metaPV:2.26)/100;
         const _pvM=_pesoMedioCiclo(lote,k);
-        dia[k].alvo+=(_pvM>0?_pvM*_meta*_emDietaCheia(cfg)*_cabK:0);
+        dia[k].alvo+=(_pvM>0?_pvM*_livioEmPct(lote)*_cabK:0);
       }
       c.setDate(c.getDate()+1);
     }
@@ -23538,7 +23563,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.19-custos</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.20-livio</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
