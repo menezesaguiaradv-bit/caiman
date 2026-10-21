@@ -5166,6 +5166,30 @@ function pontoPdf(){
   doc.text(f(tV),194,y,{align:"right"});
   y+=14;
 
+  /* 21/10/2026: grafico de barras "a receber por funcionario" (ele quer relatorio sempre com grafico).
+     Barra verde = valor; dourado = quem e desligado. Valor escrito por extenso no fim da barra. */
+  const GR=NOMES.map(function(n){return {n:n,v:(R[n]||{}).total||0};}).filter(function(g){return g.v>0;})
+                .sort(function(a,b){return b.v-a.v;});
+  if(GR.length){
+    const hG=GR.length*7+6;
+    if(y+hG+12>282){doc.addPage();y=20;}
+    y=_pdfSecao(doc,y,"A receber por funcionário");
+    const vMax=Math.max.apply(null,GR.map(function(g){return g.v;}));
+    const x0=62, wMax=105;
+    GR.forEach(function(g){
+      doc.setFontSize(8.5); doc.setFont("helvetica","normal"); doc.setTextColor(40,40,40);
+      const nm=String(g.n).length>30?String(g.n).slice(0,29)+"…":String(g.n);
+      doc.text(nm,x0-2,y,{align:"right"});
+      const w=Math.max(1,wMax*g.v/vMax);
+      if(INAT[g.n])doc.setFillColor(184,135,10); else doc.setFillColor(46,125,50);
+      doc.roundedRect(x0,y-3.6,w,4.8,0.8,0.8,"F");
+      doc.setFont("helvetica","bold"); doc.setTextColor(30,86,49);
+      doc.text(f(g.v),x0+w+2,y);
+      y+=7;
+    });
+    y+=8;
+  }
+
   if(y>250){doc.addPage();y=20;}
   y=_pdfSecao(doc,y,"Lançamentos");
   L.forEach(function(x){
@@ -23563,7 +23587,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.20-meta</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.21-ponto</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
@@ -23666,6 +23690,7 @@ if(typeof autoSyncEnviar==="function"){
       <span style="display:inline-flex;gap:6px">
         <button onclick="pontoMes(-1)" style="background:#fff;border:1px solid var(--bd);color:var(--v);padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer">‹ anterior</button>
         <button onclick="pontoMes(1)" style="background:#fff;border:1px solid var(--bd);color:var(--v);padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer">próximo ›</button>
+        <button onclick="pontoPdf()" style="background:var(--v);border:1px solid var(--v);color:#fff;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">Exportar PDF</button>
       </span>
     </div>
     <div id="pt-kpis" class="dash" style="margin-bottom:12px"></div>
