@@ -5985,12 +5985,13 @@ function abrirImportarMovimentacao(){
   var m=document.getElementById("modal-mov-imp");
   if(!m){
     m=document.createElement("div");m.id="modal-mov-imp";m.className="modal-overlay";
-    m.style.cssText="display:none;z-index:300;padding:8px";
+    m.style.cssText="display:none;z-index:300;padding:0";
     m.onclick=function(e){if(e.target===m)fecharImportarMovimentacao();};
     document.body.appendChild(m);
   }
   _movImp=null;
-  m.innerHTML='<div class="modal" style="max-width:980px;width:100%;max-height:calc(100vh - 16px);overflow:auto;padding:18px;background:#FFFEFA;border-top:4px solid #B8944F"><div id="mov-corpo"></div></div>';
+  /* 22/10: tela cheia (ele: "coloque a janela grande, nao em popup") */
+  m.innerHTML='<div class="modal" style="max-width:100%;width:100%;height:100vh;max-height:100vh;border-radius:0;overflow:auto;padding:18px;background:#FFFEFA;border-top:4px solid #B8944F"><div id="mov-corpo" style="max-width:1100px;margin:0 auto"></div></div>';
   _alCss();
   m.style.display="flex";
   renderImportarMovimentacao();
@@ -6174,6 +6175,16 @@ function renderImportarMovimentacao(manterFoco){
   c.innerHTML=h;
   if(foco){var e=document.getElementById(foco);if(e)e.focus();}
 }
+/* resultado da importacao/movimentacao dentro da tela cheia (sem o popup do navegador) */
+function _telaResultadoMov(tit,cards,txtLotes,elId,fechar){
+  var el=document.getElementById(elId);if(!el)return;
+  var V="#23432D",D="#B8944F",CR="#F7F4EC",BD="#E3DCC8";
+  el.innerHTML='<div style="text-align:center;padding:18px 6px 8px"><div style="font-size:30px;color:'+V+'">✓</div><div style="font-size:18px;font-weight:700;color:'+V+';margin:4px 0 14px">'+_escAL(tit)+'</div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:16px">'+cards.filter(function(c){return c[0];}).map(function(c){return '<div style="min-width:130px;background:'+CR+';border:1px solid '+BD+';border-left:4px solid '+D+';border-radius:8px;padding:8px 12px;text-align:left"><div style="font-size:22px;font-weight:700;color:'+V+'">'+c[0]+'</div><div style="font-size:11px;color:#7A7668">'+c[1]+'</div></div>';}).join("")+'</div></div>'+
+    (txtLotes&&txtLotes.length?'<div style="max-width:640px;margin:0 auto 16px;border:1px solid '+BD+';border-radius:8px;overflow:hidden"><div style="background:'+V+';color:'+CR+';font-size:12px;font-weight:700;padding:7px 10px">O que aconteceu com os lotes</div>'+
+      txtLotes.map(function(t,i){return '<div style="padding:7px 10px;font-size:13px;border-top:1px solid #EFEAD9'+(i%2?';background:#FBF8F0':'')+'">'+_escAL(t)+'</div>';}).join("")+'</div>':'')+
+    '<div style="text-align:center"><button onclick="'+fechar+'" style="font-size:14px;padding:10px 26px;border:1px solid '+V+';background:'+V+';color:'+CR+';border-radius:8px;cursor:pointer;font-weight:700">Fechar</button></div>';
+}
 function confirmarImportarMovimentacao(){
   var plano=_movPlano();if(!plano)return;
   var ok=plano.filter(function(p){return p.status==="mover"||p.status==="pesar"||p.status==="novo";});
@@ -6186,12 +6197,12 @@ function confirmarImportarMovimentacao(){
     Object.keys(_movImp.destinos).forEach(function(k){var d=_movImp.destinos[k];if(k&&d.pasto&&(d.pasto!==k||d.faz))mapa[k]={pasto:d.pasto,faz:d.faz||""};});
     localStorage.setItem("caiman_mov_mapa",JSON.stringify(mapa));
   }catch(e){}
-  fecharImportarMovimentacao();
   try{_r(renderAnimais,"renderAnimais");}catch(e){}
   try{renderPastos();}catch(e){}
   _refrescarAnimaisLote();
   alerta("sisbov","Movimentação importada: "+mov+" movido(s), "+pesadas+" pesagem(ns)"+(novos?", "+novos+" cadastrado(s)":"")+".","ok");
-  alert("Movimentação importada:\n• "+mov+" animal(is) mudaram de lugar\n• "+pesadas+" pesagem(ns) gravada(s)"+(novos?"\n• "+novos+" animal(is) cadastrado(s)":"")+(nLotes?"\n\nLotes:\n• "+lr.txt.slice(0,12).join("\n• ")+(lr.txt.length>12?"\n…":""):""));
+  _movImp=null;
+  _telaResultadoMov("Movimentação importada",[[mov,"bois mudaram de lugar"],[pesadas,"pesagens gravadas"],[novos,"bois cadastrados"]],lr.txt,"mov-corpo","fecharImportarMovimentacao()");
 }
 function _movAplicar(ok,motivo){
   var todos=getAnimais(), pes=getPesagensSisbov(), mov=0, pesadas=0, novos=0, moves=[], criados={};
@@ -6380,25 +6391,48 @@ function _apagarLotesPelaPesagem(){
   return lista.length;
 }
 function acertarLotesPelaPesagem(){
-  var plano=_planoLotesPelaPesagem();
-  var mudou=0;
-  if(plano.length){
-    var txt="Acertar "+plano.length+" lote(s) de recria/engorda pelos animais identificados?\n";
-    plano.forEach(function(p){
-      if(p.zerar){txt+="\n• "+(p.princ.fazenda||"")+" / "+(p.princ.pasto||"")+": "+(parseInt(p.princ.qtd)||0)+" → 0 cab. (sem identificado)";return;}
-      var nome=p.g.faz+" / "+p.g.pasto;
-      if(!p.princ)txt+="\n• "+nome+": criar lote com "+p.g.n+" cab."+(p.media?" ("+p.media.toLocaleString("pt-BR")+" kg)":"");
-      else txt+="\n• "+nome+": "+(parseInt(p.princ.qtd)||0)+" → "+p.g.n+" cab."+(p.mudaPeso?" · pesagem "+p.media.toLocaleString("pt-BR")+" kg em "+fmtData(p.data):"");
-      p.extras.forEach(function(x){txt+="\n   outro lote no mesmo pasto ("+(parseInt(x.qtd)||0)+" cab.) será apagado em seguida";});
-    });
-    if(!confirm(txt))return;
-    mudou=_aplicarPlanoLotes(plano);
+  /* 22/10: tela cheia com tudo o que vai mudar, um botao so (ele nao quer popup) */
+  var plano=_planoLotesPelaPesagem(), apagar=_lotesParaApagarPelaPesagem();
+  var m=document.getElementById("modal-acerto-lotes");
+  if(!m){m=document.createElement("div");m.id="modal-acerto-lotes";m.className="modal-overlay";m.style.cssText="display:none;z-index:480;padding:0";document.body.appendChild(m);}
+  var V="#23432D",D="#B8944F",CR="#F7F4EC",BD="#E3DCC8",DE="#7A5F28";
+  function linha(t,i,cor){return '<div style="padding:8px 10px;font-size:13px;border-top:1px solid #EFEAD9'+(i%2?';background:#FBF8F0':'')+(cor?';color:'+cor:'')+'">'+t+'</div>';}
+  var la=plano.map(function(p,i){
+    if(p.zerar)return linha('<b>'+_escAL((p.princ.fazenda||"")+" / "+(p.princ.pasto||""))+'</b>: '+(parseInt(p.princ.qtd)||0)+' → 0 cab. (sem identificado)',i);
+    var nome=_escAL(p.g.faz+" / "+p.g.pasto);
+    if(!p.princ)return linha('<b>'+nome+'</b>: criar lote com '+p.g.n+' cab.'+(p.media?' ('+p.media.toLocaleString("pt-BR")+' kg)':''),i);
+    return linha('<b>'+nome+'</b>: '+(parseInt(p.princ.qtd)||0)+' → <b>'+p.g.n+'</b> cab.'+(p.mudaPeso?' · pesagem '+p.media.toLocaleString("pt-BR")+' kg em '+fmtData(p.data):''),i);
+  }).join("");
+  var tot=apagar.reduce(function(s,x){return s+(parseInt(x.l.qtd)||0);},0);
+  var lb=apagar.map(function(x,i){return linha('<b>'+_escAL((x.l.fazenda||"")+" / "+(x.l.pasto||""))+'</b>: '+(parseInt(x.l.qtd)||0)+' cab.'+(x.l.produtor?' ('+_escAL(x.l.produtor)+')':'')+' — '+x.motivo,i,"#A32D2D");}).join("");
+  var nada=!plano.length&&!apagar.length;
+  m.innerHTML='<div class="modal" style="max-width:100%;width:100%;height:100vh;max-height:100vh;border-radius:0;overflow:auto;padding:0;background:#FFFEFA"><div style="max-width:820px;margin:0 auto">'+
+    '<div style="padding:13px 16px;background:'+V+';color:'+CR+';font-weight:700;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:2">Acertar lotes pela pesagem<button onclick="document.getElementById(\'modal-acerto-lotes\').style.display=\'none\'" style="background:none;border:none;color:'+CR+';font-size:22px;cursor:pointer">✕</button></div>'+
+    '<div id="acerto-corpo" style="padding:14px 16px">'+
+    (nada?'<div class="empty" style="padding:24px">Os lotes já batem com os animais identificados.</div>':
+      (plano.length?'<div style="font-size:13px;font-weight:700;color:'+V+';margin-bottom:6px">Lotes que ficam com os bois identificados ('+plano.length+')</div><div style="border:1px solid '+BD+';border-radius:8px;overflow:hidden;margin-bottom:16px">'+la+'</div>':'')+
+      (apagar.length?'<div style="font-size:13px;font-weight:700;color:#A32D2D;margin-bottom:6px">Lotes de recria/engorda que saem ('+apagar.length+' lotes, '+tot+' cab. no cadastro)</div><div style="border:1px solid #E0B4B4;border-radius:8px;overflow:hidden;margin-bottom:6px">'+lb+'</div><div style="font-size:11.5px;color:#888;margin-bottom:16px">As pesagens, tratos e mortes ligados a esses lotes também saem. Semi, confinamento e UTI não são tocados.</div>':'')+
+      '<div style="display:flex;justify-content:flex-end;gap:8px"><button onclick="document.getElementById(\'modal-acerto-lotes\').style.display=\'none\'" style="font-size:13px;padding:9px 14px;border:1px solid '+BD+';background:#fff;border-radius:7px;cursor:pointer">Cancelar</button>'+
+      '<button onclick="confirmarAcertoLotes()" style="font-size:14px;padding:9px 18px;border:1px solid '+V+';background:'+V+';color:'+CR+';border-radius:7px;cursor:pointer;font-weight:700">Confirmar</button></div>')+
+    '</div></div></div>';
+  m.style.display="flex";
+}
+function confirmarAcertoLotes(){
+  var plano=_planoLotesPelaPesagem(), apagar=_lotesParaApagarPelaPesagem();
+  var txt=[];
+  plano.forEach(function(p){if(p.zerar)txt.push((p.princ.fazenda||"")+" / "+(p.princ.pasto||"")+": 0 cab.");else txt.push(p.g.faz+" / "+p.g.pasto+": "+(p.princ?(parseInt(p.princ.qtd)||0)+" → ":"lote novo com ")+p.g.n+" cab.");});
+  var mudou=plano.length?_aplicarPlanoLotes(plano):0;
+  /* apaga (a lista e recalculada depois do acerto: o repetido zerado entra aqui) */
+  var lista=_lotesParaApagarPelaPesagem();
+  if(lista.length){
+    var ids={};lista.forEach(function(x){ids[x.l.id]=1;txt.push("apagado: "+(x.l.fazenda||"")+" / "+(x.l.pasto||"")+" ("+(parseInt(x.l.qtd)||0)+" cab.)");});
+    var _lerL=function(k){try{return JSON.parse(localStorage.getItem(k)||"[]")||[];}catch(e){return[];}};
+    setLotes(getLotes().filter(function(l){return !ids[l.id];}));
+    ["caiman_pesagens","caiman_tratos","caiman_mortes_lote"].forEach(function(k){var v=_lerL(k),f=v.filter(function(x){return !ids[x.loteId];});if(f.length!==v.length)localStorage.setItem(k,JSON.stringify(f));});
+    try{marcarPendente();}catch(e){}
   }
-  var apagados=_apagarLotesPelaPesagem();
-  if(apagados)try{marcarPendente();}catch(e){}
-  if(!mudou&&!apagados){if(!plano.length&&!_lotesParaApagarPelaPesagem().length)alert("Os lotes já batem com os animais identificados.");return;}
   _rerenderLotesId();
-  try{toast("Lotes acertados pelos animais identificados: "+mudou+(apagados?" · "+apagados+" apagado(s)":"")+".");}catch(e){alert("Lotes acertados: "+mudou+".");}
+  _telaResultadoMov("Lotes acertados",[[mudou,"lotes acertados"],[lista.length,"lotes apagados"]],txt,"acerto-corpo","document.getElementById(\\'modal-acerto-lotes\\').style.display=\\'none\\'");
 }
 
 /* ===== 22/10/2026: o LOTE SEGUE OS BOIS =====
@@ -7111,12 +7145,11 @@ function confirmarMoverBloco(){
   var res=_movAplicar(ok,"Mover em bloco");
   var tp={}, sel=document.getElementById("mb-tipo");if(sel)tp[chD]=sel.value;
   var lr=_lotesSeguemBois(res.moves,tp,false);
-  document.getElementById("modal-mover-bloco").style.display="none";
   _alSel={};
   try{renderAnimaisLote();}catch(e){}
   try{renderResumoIdentificados();}catch(e){}
   try{_r(renderAnimais,"renderAnimais");}catch(e){}
-  alert(res.mov+" boi(s) foram para "+faz+" / "+pc+"."+(lr.txt.length?"\n\nLotes:\n• "+lr.txt.slice(0,12).join("\n• "):""));
+  _telaResultadoMov("Bois movidos para "+faz+" / "+pc,[[res.mov,"bois mudaram de lugar"]],lr.txt,"mb-prev","document.getElementById(\'modal-mover-bloco\').style.display=\'none\'");
 }
 
 /* Fila de movimentacao mandada pela Bia (planilha ou mensagem no WhatsApp).
@@ -24557,7 +24590,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-bloco</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-cheia</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
