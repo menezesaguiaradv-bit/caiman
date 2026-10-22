@@ -5757,6 +5757,7 @@ function renderAnimaisLote(){
       '<div id="al-barra-sel" style="display:none;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;background:#23432D;color:#F7F4EC;border-radius:8px;padding:8px 10px;margin-bottom:8px"><b id="al-sel-n"></b><span style="display:inline-flex;gap:6px;flex-wrap:wrap">'+
         '<button onclick="alMoverSelecionados()" style="font-size:12px;padding:6px 11px;border:1px solid #B8944F;background:#B8944F;color:#fff;border-radius:7px;cursor:pointer;font-weight:700">Mover em bloco</button>'+
         '<button onclick="alProtocoloSelecionados()" style="font-size:12px;padding:6px 11px;border:1px solid #D9D2BD;background:transparent;color:#F7F4EC;border-radius:7px;cursor:pointer;font-weight:600">Protocolo Sanitário</button>'+
+        '<button onclick="abrirBaixaMorte(Object.keys(_alSel))" style="font-size:12px;padding:6px 11px;border:1px solid #D9D2BD;background:transparent;color:#F7F4EC;border-radius:7px;cursor:pointer;font-weight:600">Baixa (morte)</button>'+
         '<button onclick="alMarcarTodos(false)" style="font-size:12px;padding:6px 9px;border:none;background:transparent;color:#D9D2BD;cursor:pointer">limpar</button></span></div>'+
       (_alListaOculta?'<div style="text-align:center;padding:10px"><button onclick="alMostrarLista(true)" style="font-size:12px;padding:7px 14px;border:1px solid #23432D;background:#23432D;color:#F7F4EC;border-radius:7px;cursor:pointer;font-weight:700">Mostrar os '+lista.length+' animais ▾</button></div>':
       '<div style="text-align:right;margin-bottom:4px"><button onclick="alMostrarLista(false)" style="font-size:11px;padding:3px 9px;border:1px solid #E3DCC8;background:#fff;color:#7A7668;border-radius:6px;cursor:pointer">Recolher lista ▴</button></div>'+
@@ -6552,6 +6553,7 @@ function _lotesSeguemBois(moves,tipos,dry,op){
   if(!dry){
     var ks=Object.keys(toque);
     var pl=_planoLotesPelaPesagem(ks);
+    if(op.correcao)pl=pl.filter(function(x){return !!x.princ;});   // correcao de cadastro nao cria lote
     var n4=_aplicarPlanoLotes(pl);
     pl.forEach(function(p){if(p.zerar)res.txt.push((p.princ.fazenda||"")+" / "+(p.princ.pasto||"")+": ficou sem identificado → 0 cab.");else if(p.g)res.txt.push(p.g.faz+" / "+p.g.pasto+": "+(p.princ?(parseInt(p.princ.qtd)||0)+" → ":"lote novo com ")+p.g.n+" cab.");});
     res.n+=n4;
@@ -6911,7 +6913,8 @@ function abrirVidaAnimal(id){
     '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap">'+
       '<button onclick="alPesar('+a.id+')" style="font-size:12px;padding:7px 13px;border:1px solid '+V+';background:'+V+';color:'+CR+';border-radius:7px;cursor:pointer;font-weight:700">⚖️ Pesar</button>'+
       '<button onclick="abrirMedicar(['+a.id+'])" style="font-size:12px;padding:7px 13px;border:1px solid '+D+';background:#fff;color:'+DE+';border-radius:7px;cursor:pointer;font-weight:700">Protocolo Sanitário</button>'+
-      '<button onclick="alMover('+a.id+')" style="font-size:12px;padding:7px 13px;border:1px solid '+D+';background:#fff;color:'+DE+';border-radius:7px;cursor:pointer;font-weight:700">↔ Mover</button></div>'+
+      '<button onclick="alMover('+a.id+')" style="font-size:12px;padding:7px 13px;border:1px solid '+D+';background:#fff;color:'+DE+';border-radius:7px;cursor:pointer;font-weight:700">↔ Mover</button>'+
+      '<button onclick="abrirBaixaMorte(['+a.id+'])" style="font-size:12px;padding:7px 13px;border:1px solid #E0B4B4;background:#fff;color:#A32D2D;border-radius:7px;cursor:pointer;font-weight:700">Baixa (morte)</button></div>'+
     '</div></div></div>';
   m.innerHTML=h;m.style.display="flex";
 }
@@ -7142,6 +7145,7 @@ function abrirMoverBloco(ids){
         '<div><label style="font-size:11px;color:#555">Pasto/curral destino</label><input id="mb-pasto" list="mb-pastos" oninput="renderMoverBloco()" placeholder="Ex.: 20" style="'+inp+'"><datalist id="mb-pastos">'+Object.keys(pastos).sort(function(a,b){return a.localeCompare(b,"pt",{numeric:true});}).map(function(p){return '<option value="'+_escAL(p)+'">';}).join("")+'</datalist></div>'+
         '<div><label style="font-size:11px;color:#555">Data</label><input id="mb-data" type="date" value="'+todayStr()+'" style="'+inp+'"></div>'+
       '</div>'+
+      '<label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;font-size:12.5px;color:#333;cursor:pointer"><input type="checkbox" id="mb-corr" style="width:18px;height:18px;margin-top:1px"> <span><b>Só corrigir o cadastro dos bois</b> — as cabeças dos lotes no app já estão certas (ex.: bois que já estão na UTI ou que estavam no curral errado). Os bois mudam de lugar, mas semi e confinamento não somam nem diminuem.</span></label>'+
       '<div id="mb-prev" style="margin-top:12px"></div>'+
     '</div></div></div>';
   m.style.display="flex";
@@ -7189,12 +7193,49 @@ function confirmarMoverBloco(){
   var ok=mover.map(function(a){return {status:"mover",a:a,idk:"a"+a.id,l:{sis:"",chip:"",peso:0,dest:pc},fazDest:faz,pastoDest:pc,data:data};});
   var res=_movAplicar(ok,"Mover em bloco");
   var tp={}, sel=document.getElementById("mb-tipo");if(sel)tp[chD]=sel.value;
-  var lr=_lotesSeguemBois(res.moves,tp,false);
+  var corr=!!(document.getElementById("mb-corr")||{}).checked;
+  var lr=_lotesSeguemBois(res.moves,tp,false,{correcao:corr});
   _alSel={};
   try{renderAnimaisLote();}catch(e){}
   try{renderResumoIdentificados();}catch(e){}
   try{_r(renderAnimais,"renderAnimais");}catch(e){}
   _telaResultadoMov("Bois movidos para "+faz+" / "+pc,[[res.mov,"bois mudaram de lugar"]],lr.txt,"mb-prev","document.getElementById(\'modal-mover-bloco\').style.display=\'none\'");
+}
+
+/* 22/10: baixa por morte de um ou varios bois identificados (ele: "essa diferenca sao bois que morreram e os
+   que estao na UTI"). Marca o animal como morto (some da contagem dos identificados) e NAO mexe no lote:
+   a morte do lote ja e lancada na tela de mortes e as cabecas do app ja estao certas. */
+function abrirBaixaMorte(ids){
+  ids=(ids||[]).map(String);if(!ids.length)return;
+  var m=document.getElementById("modal-baixa-morte");
+  if(!m){m=document.createElement("div");m.id="modal-baixa-morte";m.className="modal-overlay";m.style.cssText="display:none;z-index:520;padding:0";document.body.appendChild(m);}
+  window._bmIds=ids;
+  var an=getAnimais().filter(function(a){return ids.indexOf(String(a.id))>=0;});
+  var inp='font-size:13px;padding:8px;border:1px solid #E3DCC8;border-radius:7px;width:100%;box-sizing:border-box';
+  m.innerHTML='<div class="modal" style="max-width:100%;width:100%;height:100vh;max-height:100vh;border-radius:0;overflow:auto;padding:0;background:#FFFEFA"><div style="max-width:620px;margin:0 auto">'+
+    '<div style="padding:13px 16px;background:#7A2222;color:#F7F4EC;font-weight:700;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0">Baixa por morte — '+an.length+' boi(s)<button onclick="document.getElementById(\'modal-baixa-morte\').style.display=\'none\'" style="background:none;border:none;color:#F7F4EC;font-size:22px;cursor:pointer">✕</button></div>'+
+    '<div style="padding:14px 16px"><div style="font-size:12px;color:#555;margin-bottom:10px;line-height:1.5">'+an.slice(0,12).map(function(a){return _escAL(_chipFmt(a.eletro||a.sisbov||"?"))+' ('+_escAL(a.pasto||"—")+')';}).join(" · ")+(an.length>12?' …':'')+'</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
+      '<div><label style="font-size:11px;color:#555">Data da morte</label><input id="bm-data" type="date" value="'+todayStr()+'" style="'+inp+'"></div>'+
+      '<div><label style="font-size:11px;color:#555">Causa</label><select id="bm-causa" style="'+inp+'"><option>Doença</option><option>Acidente</option><option>Picada de cobra</option><option>Timpanismo</option><option>Pneumonia</option><option>Causa desconhecida</option><option>Outra</option></select></div>'+
+      '<div style="grid-column:1/3"><label style="font-size:11px;color:#555">Observação</label><input id="bm-obs" style="'+inp+'" placeholder="Opcional"></div></div>'+
+    '<div style="font-size:11.5px;color:#7A7668;margin-top:10px">O boi sai da lista de identificados e fica no histórico de mortos. As cabeças do lote não mudam (a morte do lote é lançada na tela de mortes).</div>'+
+    '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px"><button onclick="document.getElementById(\'modal-baixa-morte\').style.display=\'none\'" style="font-size:13px;padding:9px 14px;border:1px solid #E3DCC8;background:#fff;border-radius:7px;cursor:pointer">Cancelar</button>'+
+    '<button onclick="confirmarBaixaMorte()" style="font-size:14px;padding:9px 18px;border:1px solid #7A2222;background:#7A2222;color:#F7F4EC;border-radius:7px;cursor:pointer;font-weight:700">Dar baixa</button></div></div></div></div>';
+  m.style.display="flex";
+}
+function confirmarBaixaMorte(){
+  var ids=window._bmIds||[], data=vs("bm-data"), causa=vs("bm-causa"), obs=(document.getElementById("bm-obs").value||"").trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(data)){alert("Informe a data.");return;}
+  var todos=getAnimais(), n=0;
+  todos.forEach(function(a){if(ids.indexOf(String(a.id))>=0&&!a.morto){a.morto=true;a.dataMorte=data;a.causaMorte=causa;a.obsMorte=obs;
+    if(!a.historico)a.historico=[];a.historico.push({data:data,de:(a.fazenda||"")+" / "+(a.pasto||"—"),para:"—",motivo:"Morte: "+causa+(obs?" ("+obs+")":"")});n++;}});
+  setAnimais(todos);try{marcarPendente();}catch(e){}
+  document.getElementById("modal-baixa-morte").style.display="none";
+  var v=document.getElementById("modal-vida-animal");if(v)v.style.display="none";
+  _alSel={};
+  try{renderAnimaisLote();}catch(e){}try{renderResumoIdentificados();}catch(e){}try{_r(renderAnimaisMortos,"renderAnimaisMortos");}catch(e){}
+  try{toast("Baixa por morte registrada: "+n+" boi(s).");}catch(e){}
 }
 
 /* Fila de movimentacao mandada pela Bia (planilha ou mensagem no WhatsApp).
@@ -24649,7 +24690,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-corr</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-baixa</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
