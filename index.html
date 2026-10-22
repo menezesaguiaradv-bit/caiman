@@ -418,10 +418,10 @@ Compartilhar</button></div>
 <div id="page-sisbov" class="page">
 <div class="ph"><button class="back" onclick="irPara('dashboard')">← Dashboard</button></div>
 <div class="main">
-<div class="ptitle" style="display:flex;align-items:center;gap:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg> SISBOV / ID Eletrônica</div><div class="psub-h">Cadastro e gestão de identificação animal</div>
+<div class="ptitle" style="display:flex;align-items:center;gap:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg> SISBOV / ID Eletrônica</div><div class="psub-h">Pesagem individual, vida de cada boi, protocolo sanitário e movimentação em bloco</div>
 <div id="alert-sisbov" class="alert"></div>
 <div class="sec" style="border-left:4px solid #B8944F;background:#FFFEFA">
-<div class="stitle" style="color:#23432D;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span>Pesagem individual por pasto <span style="font-weight:400;font-size:12px;color:#7A7668">recria e engorda</span></span><span style="display:inline-flex;gap:6px;flex-wrap:wrap"><button onclick="abrirImportarMovimentacao()" style="background:#23432D;color:#F7F4EC;border:1px solid #23432D;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Importar pesagem / movimentação</button><button onclick="acertarLotesPelaPesagem()" style="background:#FBF8F0;color:#23432D;border:1px solid #B8944F;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Acertar lotes pela pesagem</button></span></div>
+<div class="stitle" style="color:#23432D;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span>Pesagem individual por pasto <span style="font-weight:400;font-size:12px;color:#7A7668">recria e engorda</span></span><span style="display:inline-flex;gap:6px;flex-wrap:wrap"><button onclick="abrirImportarMovimentacao()" style="background:#23432D;color:#F7F4EC;border:1px solid #23432D;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Importar pesagem / movimentação</button><button onclick="abrirMoverBloco()" style="background:#23432D;color:#F7F4EC;border:1px solid #23432D;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Mover em bloco</button><button onclick="acertarLotesPelaPesagem()" style="background:#FBF8F0;color:#23432D;border:1px solid #B8944F;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Acertar lotes pela pesagem</button></span></div>
 <div style="font-size:12px;color:#555;margin-bottom:10px">Suba a planilha da balança (pode ter várias abas e datas) ou mande para a Bia no WhatsApp: cada boi vai para o pasto/curral da planilha com a pesagem, e o <b>lote segue os bois</b> — muda de pasto ou vira semi/confinamento sozinho.</div>
 <div style="position:relative;margin-bottom:10px"><input id="ident-busca" inputmode="numeric" autocomplete="off" placeholder="🔎 Pesquisar boi pela identificação eletrônica ou SISBOV (pode ser o final do número)" oninput="renderBuscaAnimalGeral()" style="width:100%;font-size:13px;padding:9px 11px;border:1px solid #B8944F;border-radius:8px;background:#fff"><div id="ident-busca-res"></div></div>
 <div id="ident-resumo"></div>
@@ -443,7 +443,8 @@ Compartilhar</button></div>
 <div class="field"><label>Frete do animal (R$)</label><input id="s-frete" type="number" placeholder="0.00" step="0.01"></div>
 </div></details>
 
-<div class="sec">
+<details class="sec" id="sec-lista-geral"><summary style="cursor:pointer;font-size:14px;font-weight:700;color:#23432D;padding:4px 0 8px">Lista geral de animais cadastrados <span style="font-weight:400;font-size:12px;color:#7A7668">(abrir)</span></summary>
+<div>
 <div class="stitle">Animais cadastrados <span id="total-animais" style="font-weight:400;font-size:12px"></span><div style="display:flex;gap:6px"><button class="btn-s btn-sm" onclick="toggleImport()" style="display:inline-flex;align-items:center;gap:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Importar</button><button onclick="exportarSISBOV()" style="background:var(--v);color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>Exportar Excel</button></div></div>
 <div id="import-area" class="imp-area">
 <div style="font-size:13px;font-weight:600;color:var(--az);margin-bottom:8px;display:inline-flex;align-items:center;gap:5px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Importar via planilha</div>
@@ -477,7 +478,7 @@ Compartilhar</button></div>
 <input class="sbar" id="search-animal" placeholder="Buscar..." oninput="renderAnimais()">
 <div style="overflow-x:auto"><table class="atable"><thead><tr><th>SISBOV</th><th>ID Eletrônica</th><th>Fazenda</th><th>Pasto</th><th>Produtor</th><th>Lote</th><th>Sexo</th><th>Categoria</th><th>Peso / GMD</th><th>Movim.</th><th></th></tr></thead><tbody id="sisbov-tbody"></tbody></table></div>
 <div id="sisbov-empty" class="empty">Nenhum animal cadastrado ainda.</div>
-</div>
+</div></details>
 
 <div class="sec">
   <div class="stitle" style="display:flex;align-items:center;gap:6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Encerrar animais vendidos 
@@ -5656,7 +5657,7 @@ function abrirAnimaisLote(fEnc,pEnc){
   _alCss();
   m.innerHTML='<div class="modal"><div id="al-corpo"></div></div>';
   m.style.display="flex";
-  _alListaOculta=false;_alTexto="";
+  _alListaOculta=false;_alTexto="";_alSel={};
   try{_alAplicarTamanho();}catch(e){}
   renderAnimaisLote();
 }
@@ -5704,6 +5705,7 @@ function renderAnimaisLote(){
     var a=x.a,ph=x.ph;
     var baixo=r.pesoMedio&&ph.hoje&&ph.hoje<r.pesoMedio*0.9;
     return '<tr'+(baixo?' class="al-baixo"':'')+' style="border-bottom:1px solid #E3DCC8">'+
+      '<td style="padding:6px 2px 6px 6px;width:26px"><input type="checkbox" class="al-cb" data-id="'+a.id+'"'+(_alSel[a.id]?' checked':'')+' onclick="event.stopPropagation()" onchange="alMarcar(\''+a.id+'\',this.checked)" style="width:18px;height:18px"></td>'+
       '<td style="padding:8px 4px;cursor:pointer" onclick="abrirVidaAnimal('+a.id+')" title="Ver a vida do boi">'+_idAnimalHtml(a)+'<div style="font-size:10px;color:#B8944F;font-weight:700;margin-top:2px">ver vida do boi ›'+(function(){var c=_carenciaAtiva(medicacoesDoAnimal(a));return c?' <span style="color:#A32D2D">Em carência até '+fmtData(c.ate).slice(0,5)+'</span>':'';})()+'</div></td>'+
       '<td style="padding:6px 4px;text-align:right">'+(ph.ultPeso?ph.ultPeso.toFixed(0)+' kg<div style="font-size:10px;color:#999">'+fmtData(ph.ultData)+'</div>':'—')+'</td>'+
       '<td style="padding:6px 4px;text-align:right;font-weight:700">'+(ph.hoje?ph.hoje.toFixed(0)+' kg'+(ph.projetado?'<span title="projetado pelo GMD individual" style="color:#999">*</span>':''):'—')+(baixo?'<div style="font-size:10px;color:#7A5F28;font-weight:600">abaixo da média</div>':'')+'</td>'+
@@ -5752,12 +5754,17 @@ function renderAnimaisLote(){
         [["peso","Mais pesados primeiro"],["pesoAsc","Mais leves primeiro"],["gmd","Maior GMD primeiro"],["sisbov","Por identificação"]].map(function(op){return '<option value="'+op[0]+'"'+(o===op[0]?' selected':'')+'>'+op[1]+'</option>';}).join("")+
       '</select><button onclick="medicarPastoAtual()" style="font-size:12px;padding:6px 11px;border:1px solid #B8944F;background:#fff;color:#7A5F28;border-radius:7px;cursor:pointer;font-weight:700">Protocolo Sanitário do pasto</button></div>'+
     (lista.length?
+      '<div id="al-barra-sel" style="display:none;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;background:#23432D;color:#F7F4EC;border-radius:8px;padding:8px 10px;margin-bottom:8px"><b id="al-sel-n"></b><span style="display:inline-flex;gap:6px;flex-wrap:wrap">'+
+        '<button onclick="alMoverSelecionados()" style="font-size:12px;padding:6px 11px;border:1px solid #B8944F;background:#B8944F;color:#fff;border-radius:7px;cursor:pointer;font-weight:700">Mover em bloco</button>'+
+        '<button onclick="alProtocoloSelecionados()" style="font-size:12px;padding:6px 11px;border:1px solid #D9D2BD;background:transparent;color:#F7F4EC;border-radius:7px;cursor:pointer;font-weight:600">Protocolo Sanitário</button>'+
+        '<button onclick="alMarcarTodos(false)" style="font-size:12px;padding:6px 9px;border:none;background:transparent;color:#D9D2BD;cursor:pointer">limpar</button></span></div>'+
       (_alListaOculta?'<div style="text-align:center;padding:10px"><button onclick="alMostrarLista(true)" style="font-size:12px;padding:7px 14px;border:1px solid #23432D;background:#23432D;color:#F7F4EC;border-radius:7px;cursor:pointer;font-weight:700">Mostrar os '+lista.length+' animais ▾</button></div>':
       '<div style="text-align:right;margin-bottom:4px"><button onclick="alMostrarLista(false)" style="font-size:11px;padding:3px 9px;border:1px solid #E3DCC8;background:#fff;color:#7A7668;border-radius:6px;cursor:pointer">Recolher lista ▴</button></div>'+
       '<div style="overflow:auto;'+(_alGrande?'':'max-height:55vh;')+'border:1px solid #E3DCC8;border-radius:8px"><table id="al-tab" style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="text-align:left;position:sticky;top:0;background:#F7F4EC;z-index:1;box-shadow:0 1px 0 #E3DCC8">'+
-      '<th style="padding:6px 4px">Animal (SISBOV / identificação eletrônica)</th><th style="padding:6px 4px;text-align:right">Última pesagem</th><th style="padding:6px 4px;text-align:right">Peso hoje</th><th style="padding:6px 4px;text-align:right">GMD geral</th><th style="padding:6px 4px;text-align:right">GMD recente</th><th style="padding:6px 4px;text-align:center">Pes.</th><th></th></tr></thead><tbody>'+
+      '<th style="padding:6px 2px 6px 6px"><input type="checkbox" title="Marcar todos da lista" onchange="alMarcarTodos(this.checked)" style="width:18px;height:18px"></th><th style="padding:6px 4px">Animal (SISBOV / identificação eletrônica)</th><th style="padding:6px 4px;text-align:right">Última pesagem</th><th style="padding:6px 4px;text-align:right">Peso hoje</th><th style="padding:6px 4px;text-align:right">GMD geral</th><th style="padding:6px 4px;text-align:right">GMD recente</th><th style="padding:6px 4px;text-align:center">Pes.</th><th></th></tr></thead><tbody>'+
       linhas+'</tbody></table></div><div style="font-size:10px;color:#999;margin-top:6px">* peso de hoje projetado pela última pesagem + GMD individual do animal. Linha dourada: abaixo de 90% da média do lote. Toque no boi para ver a vida dele.</div>')
       :(totLista?'<div class="empty" style="padding:20px">Nenhum animal neste filtro.</div>':'<div class="empty" style="padding:20px">Nenhum animal identificado neste pasto. Pese pela identificação eletrônica acima ou importe a planilha da balança.</div>'));
+  _alBarraSel();
 }
 
 function _acharAnimalPorCodigo(cod){
@@ -6615,21 +6622,20 @@ function renderResumoIdentificados(){
     var dif=cl!=null&&cl!==r.n;
     var f=encodeURIComponent(g.faz).replace(/'/g,"%27"), p=encodeURIComponent(g.pasto).replace(/'/g,"%27");
     var corG=r.gmdMedio==null?"#999":(r.gmdMedio>=0.6?"#23432D":(r.gmdMedio>0?"#7A5F28":"#A32D2D"));
-    return '<tr style="background:'+(i%2?"#F7F4EC":"#fff")+';border-bottom:1px solid #EFEAD9">'+
-      '<td style="padding:7px 8px;font-weight:700;color:#23432D;cursor:pointer" onclick="abrirAnimaisLote(\''+f+'\',\''+p+'\')">'+_escAL(String(g.pasto).replace(/^pasto\s*/i,""))+(umaFaz?'':'<div style="font-size:10px;color:#9a9a94;font-weight:400">'+_escAL(g.faz)+'</div>')+'</td>'+
-      '<td style="padding:7px 8px;text-align:center;font-weight:700">'+r.n+'</td>'+
-      '<td style="padding:7px 8px;text-align:center;'+(dif?'color:#A32D2D;font-weight:700':'color:#555')+'">'+(cl==null?'<span style="color:#B8944F">sem lote</span>':cl)+'</td>'+
-      '<td style="padding:7px 8px;text-align:center">'+(r.pesoMedio?r.pesoMedio+' kg':'—')+'</td>'+
-      '<td style="padding:7px 8px;text-align:center;color:'+corG+';font-weight:600">'+(r.gmdMedio!=null?r.gmdMedio.toFixed(3):'—')+(r.comGmd?'<div style="font-size:10px;color:#9a9a94;font-weight:400">'+r.comGmd+' bois</div>':'')+'</td>'+
-      '<td style="padding:7px 8px;text-align:center;'+(r.abaixo?'color:#7A5F28;font-weight:700':'color:#999')+'">'+r.abaixo+'</td>'+
-      '<td style="padding:7px 8px;text-align:center;color:#555">'+(g.ultData?fmtData(g.ultData):'—')+'</td>'+
-      '<td style="padding:7px 8px;text-align:center;white-space:nowrap">'+
-        '<button onclick="abrirAnimaisLote(\''+f+'\',\''+p+'\')" style="font-size:11px;padding:4px 9px;border:1px solid #23432D;background:#23432D;color:#F7F4EC;border-radius:6px;cursor:pointer;font-weight:600">Ver</button> '+
-        '<button onclick="pdfPesagemPasto(\''+f+'\',\''+p+'\')" style="font-size:11px;padding:4px 9px;border:1px solid #B8944F;background:#fff;color:#7A5F28;border-radius:6px;cursor:pointer;font-weight:600">PDF</button></td></tr>';
+    return '<tr onclick="if(event.target.tagName!==\'BUTTON\')abrirAnimaisLote(\''+f+'\',\''+p+'\')" style="cursor:pointer;background:'+(i%2?"#F7F4EC":"#fff")+';border-bottom:1px solid #EFEAD9">'+
+      '<td style="padding:7px 5px;font-weight:700;color:#23432D;cursor:pointer" onclick="abrirAnimaisLote(\''+f+'\',\''+p+'\')">'+_escAL(String(g.pasto).replace(/^pasto\s*/i,""))+(umaFaz?'':'<div style="font-size:10px;color:#9a9a94;font-weight:400">'+_escAL(g.faz)+'</div>')+'</td>'+
+      '<td style="padding:7px 5px;text-align:center;font-weight:700">'+r.n+'</td>'+
+      '<td style="padding:7px 5px;text-align:center;'+(dif?'color:#A32D2D;font-weight:700':'color:#555')+'">'+(cl==null?'<span style="color:#B8944F">sem lote</span>':cl)+'</td>'+
+      '<td style="padding:7px 5px;text-align:center">'+(r.pesoMedio?r.pesoMedio:'—')+'</td>'+
+      '<td style="padding:7px 5px;text-align:center;color:'+corG+';font-weight:600">'+(r.gmdMedio!=null?r.gmdMedio.toFixed(3):'—')+(r.comGmd?'<div style="font-size:10px;color:#9a9a94;font-weight:400">'+r.comGmd+' bois</div>':'')+'</td>'+
+      '<td style="padding:7px 5px;text-align:center;'+(r.abaixo?'color:#7A5F28;font-weight:700':'color:#999')+'">'+r.abaixo+'</td>'+
+      '<td style="padding:7px 5px;text-align:center;color:#555">'+(g.ultData?fmtData(g.ultData).slice(0,5):'—')+'</td>'+
+      '<td style="padding:7px 5px;text-align:center;white-space:nowrap">'+
+        '<button onclick="pdfPesagemPasto(\''+f+'\',\''+p+'\')" style="font-size:10.5px;padding:3px 7px;border:1px solid #B8944F;background:#fff;color:#7A5F28;border-radius:6px;cursor:pointer;font-weight:600">PDF</button></td></tr>';
   }).join("");
   el.innerHTML=(umaFaz?'<div style="font-size:12px;font-weight:700;color:#7A5F28;margin-bottom:6px">'+_escAL(grupos[ks[0]].faz)+' · '+ks.length+' pasto(s)</div>':'')+'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px">'+
     '<thead><tr style="background:#23432D;color:#F7F4EC">'+
-    ['Pasto','Identif.','No lote','Peso hoje','GMD','Abaixo 90%','Pesagem',''].map(function(h,i){return '<th style="padding:8px;text-align:'+(i?'center':'left')+';font-size:11px">'+h+'</th>';}).join("")+
+    ['Pasto','Identif.','Lote','Peso (kg)','GMD','< 90%','Pesado',''].map(function(h,i){return '<th style="padding:8px 5px;text-align:'+(i?'center':'left')+';font-size:10.5px">'+h+'</th>';}).join("")+
     '</tr></thead><tbody>'+linhas+
     '<tr style="background:#E8EFE9;font-weight:700;border-top:2px solid #23432D"><td style="padding:8px">TOTAL</td><td style="padding:8px;text-align:center">'+tot.n+'</td><td style="padding:8px;text-align:center">'+tot.lote+'</td><td colspan="5"></td></tr>'+
     '</tbody></table></div>'+
@@ -7012,6 +7018,105 @@ function _medicacoesHtml(a){
         '<td style="padding:7px;color:#555">'+_escAL([r.dose,r.via].filter(Boolean).join(" · ")||"—")+'</td>'+
         '<td style="padding:7px;'+(emCar?'color:#A32D2D;font-weight:700':'color:#777')+'">'+(r.dataCarencia?fmtData(r.dataCarencia):'—')+'</td>'+
         '<td style="padding:7px;font-size:11px;color:#777">'+como+'</td></tr>';}).join("")+'</tbody></table></div>';
+}
+
+/* ===== 22/10/2026: MOVER EM BLOCO =====
+   Ele: "nao quero fazer de forma individual, quero fazer em bloco" (o peao junta varios bois de lotes
+   diferentes para formar um lote). Dois jeitos sem planilha:
+   - na lista do pasto: marca os bois (ou "marcar todos" do filtro) -> Mover em bloco;
+   - na tela SISBOV: "Mover em bloco" e cola os numeros (do leitor/bastao), um por linha ou separados.
+   Usa o mesmo motor da importacao: os bois mudam com historico e o lote segue os bois. */
+var _alSel={};
+function alMarcar(id,v){if(v)_alSel[id]=1;else delete _alSel[id];_alBarraSel();}
+function alMarcarTodos(v){
+  var cbs=document.querySelectorAll("#al-tab input.al-cb");
+  cbs.forEach(function(cb){cb.checked=v;var id=cb.getAttribute("data-id");if(v)_alSel[id]=1;else delete _alSel[id];});
+  _alBarraSel();
+}
+function _alBarraSel(){
+  var el=document.getElementById("al-barra-sel");if(!el)return;
+  var n=Object.keys(_alSel).length;
+  el.style.display=n?"flex":"none";
+  var t=document.getElementById("al-sel-n");if(t)t.textContent=n+" boi"+(n!==1?"s":"")+" marcado"+(n!==1?"s":"");
+}
+function alMoverSelecionados(){var ids=Object.keys(_alSel);if(!ids.length)return;abrirMoverBloco(ids);}
+function alProtocoloSelecionados(){
+  var ids=Object.keys(_alSel);if(!ids.length||!_animaisLoteAtual)return;
+  abrirMedicar(ids,{faz:_movFazNome(_animaisLoteAtual.fazenda),pasto:_animaisLoteAtual.pasto});
+}
+/* ids: animais ja escolhidos; sem ids abre a caixa para colar os numeros */
+function abrirMoverBloco(ids){
+  var m=document.getElementById("modal-mover-bloco");
+  if(!m){m=document.createElement("div");m.id="modal-mover-bloco";m.className="modal-overlay";m.style.cssText="display:none;z-index:480;padding:0";
+    m.onclick=function(e){if(e.target===m)m.style.display="none";};document.body.appendChild(m);}
+  window._mbIds=ids&&ids.length?ids.map(String):null;
+  var V="#23432D",CR="#F7F4EC",D="#B8944F",DE="#7A5F28";
+  var inp='font-size:13px;padding:8px;border:1px solid #E3DCC8;border-radius:7px;width:100%;box-sizing:border-box';
+  var fazPad=_animaisLoteAtual?_movFazNome(_animaisLoteAtual.fazenda):"";
+  var pastos={};getLotes().forEach(function(l){if(!l.vendido&&l.pasto)pastos[String(l.pasto).trim()]=1;});getAnimais().forEach(function(a){if(a.pasto&&!a.morto)pastos[String(a.pasto).trim()]=1;});
+  m.innerHTML='<div class="modal" style="max-width:100%;width:100%;height:100vh;max-height:100vh;border-radius:0;overflow:auto;padding:0;background:#FFFEFA"><div style="max-width:720px;margin:0 auto">'+
+    '<div style="padding:13px 16px;background:'+V+';color:'+CR+';font-weight:700;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:2">Mover em bloco'+(window._mbIds?' — '+window._mbIds.length+' boi(s) marcados':'')+'<button onclick="document.getElementById(\'modal-mover-bloco\').style.display=\'none\'" style="background:none;border:none;color:'+CR+';font-size:22px;cursor:pointer">✕</button></div>'+
+    '<div style="padding:14px 16px">'+
+      (window._mbIds?'':'<label style="font-size:12px;font-weight:700;color:'+DE+'">Identificação dos bois</label><textarea id="mb-lista" rows="6" oninput="renderMoverBloco()" placeholder="Cole aqui os números lidos no curral (identificação eletrônica ou SISBOV), um por linha ou separados por espaço/vírgula" style="'+inp+';font-family:monospace;margin:4px 0 10px"></textarea>')+
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">'+
+        '<div><label style="font-size:11px;color:#555">Fazenda destino</label><select id="mb-faz" onchange="renderMoverBloco()" style="'+inp+'">'+_MOV_FAZ.map(function(f){return '<option'+(f===fazPad?' selected':'')+'>'+f+'</option>';}).join("")+'</select></div>'+
+        '<div><label style="font-size:11px;color:#555">Pasto/curral destino</label><input id="mb-pasto" list="mb-pastos" oninput="renderMoverBloco()" placeholder="Ex.: 20" style="'+inp+'"><datalist id="mb-pastos">'+Object.keys(pastos).sort(function(a,b){return a.localeCompare(b,"pt",{numeric:true});}).map(function(p){return '<option value="'+_escAL(p)+'">';}).join("")+'</datalist></div>'+
+        '<div><label style="font-size:11px;color:#555">Data</label><input id="mb-data" type="date" value="'+todayStr()+'" style="'+inp+'"></div>'+
+      '</div>'+
+      '<div id="mb-prev" style="margin-top:12px"></div>'+
+    '</div></div></div>';
+  m.style.display="flex";
+  renderMoverBloco();
+}
+function _mbAnimais(){
+  var todos=getAnimais().filter(function(a){return !a.morto&&!a.encerrado;}), achados=[], faltam=[];
+  if(window._mbIds){var set={};window._mbIds.forEach(function(i){set[i]=1;});todos.forEach(function(a){if(set[String(a.id)])achados.push(a);});return {achados:achados,faltam:faltam};}
+  var txt=(document.getElementById("mb-lista")||{}).value||"";
+  var cods=txt.split(/[\s,;]+/).map(function(x){return x.trim();}).filter(function(x){return _soDig(x).length>=4;});
+  var vistos={};
+  cods.forEach(function(c){var r=_movAcharAnimal(todos,_ehSisbovTxt(c)?c:"",_ehSisbovTxt(c)?"":c);
+    if(r.a){if(!vistos[r.a.id]){vistos[r.a.id]=1;achados.push(r.a);}}else faltam.push(c);});
+  return {achados:achados,faltam:faltam};
+}
+function renderMoverBloco(){
+  var el=document.getElementById("mb-prev");if(!el)return;
+  var V="#23432D",D="#B8944F",DE="#7A5F28",BD="#E3DCC8";
+  var r=_mbAnimais(), faz=vs("mb-faz"), pasto=(vs("mb-pasto")||"").trim();
+  if(!r.achados.length&&!r.faltam.length){el.innerHTML='<div style="font-size:12px;color:#999">Cole os números dos bois para ver o resumo.</div>';return;}
+  var pc=pasto?_pastoCanon(faz,pasto):"", chD=pc?_chPastoId(faz,pc):"";
+  var mover=r.achados.filter(function(a){return !pc||_chPastoId(a.fazenda,a.pasto)!==chD;}), jaLa=r.achados.length-mover.length;
+  var orig={};mover.forEach(function(a){var k=(a.fazenda||"")+" / "+(a.pasto||"—");orig[k]=(orig[k]||0)+1;});
+  var h='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">'+
+    ['Vão mudar',mover.length,'Já estão no destino',jaLa,'Não encontrados',r.faltam.length].reduce(function(acc,v,i,arr){if(i%2)return acc;return acc+'<div style="flex:1;min-width:110px;background:#F7F4EC;border:1px solid '+BD+';border-left:4px solid '+D+';border-radius:8px;padding:7px 10px"><div style="font-size:10px;color:#7A7668;text-transform:uppercase">'+v+'</div><div style="font-size:18px;font-weight:700;color:'+V+'">'+arr[i+1]+'</div></div>';},"")+'</div>';
+  if(Object.keys(orig).length)h+='<div style="font-size:12px;font-weight:700;color:'+V+';margin-bottom:4px">De onde vêm</div><div style="font-size:12.5px;color:#333;margin-bottom:10px">'+Object.keys(orig).sort().map(function(k){return _escAL(k)+': <b>'+orig[k]+'</b>';}).join(" · ")+'</div>';
+  if(r.faltam.length)h+='<div style="font-size:11.5px;color:#A32D2D;margin-bottom:10px">Não achei no cadastro: '+_escAL(r.faltam.slice(0,12).join(", "))+(r.faltam.length>12?"…":"")+'</div>';
+  if(pc){
+    var lotesD=getLotes().filter(function(l){return !l.vendido&&_chPastoId(l.fazenda,l.pasto)===chD&&(parseInt(l.qtd)||0)>0;});
+    var oriTipo=null;if(mover[0]){var lo=getLotes().find(function(l){return !l.vendido&&_chPastoId(l.fazenda,l.pasto)===_chPastoId(mover[0].fazenda,mover[0].pasto);});if(lo)oriTipo=lo.tipo;}
+    h+=lotesD.length?'<div style="font-size:12px;color:'+V+';background:#E8EFE9;border-radius:6px;padding:7px 9px;margin-bottom:10px">Lote no destino: <b>'+lotesD.map(function(l){return _escAL(l.tipo||"")+" · "+(parseInt(l.qtd)||0)+" cab.";}).join(" + ")+'</b> — '+(lotesD.some(function(l){return _ehTipoId(l.tipo);})?'fica com os identificados':'soma os que entrarem')+'</div>'
+      :'<div style="font-size:12px;color:'+DE+';background:#FBF8F0;border:1px dashed '+D+';border-radius:6px;padding:7px 9px;margin-bottom:10px">Sem lote em '+_escAL(pc)+'. Se um lote inteiro vier, ele muda junto; senão crio lote de <select id="mb-tipo" style="font-size:12px">'+
+        ["Recria","Engorda a Pasto","Semi-Confinamento","Confinamento"].map(function(t){var d=_tipoDestinoPadrao(faz,oriTipo);return '<option'+(t===d?' selected':'')+'>'+t+'</option>';}).join("")+'</select></div>';
+  }
+  h+='<div style="display:flex;justify-content:flex-end;gap:8px"><button onclick="document.getElementById(\'modal-mover-bloco\').style.display=\'none\'" style="font-size:13px;padding:9px 14px;border:1px solid '+BD+';background:#fff;border-radius:7px;cursor:pointer">Cancelar</button>'+
+    '<button onclick="confirmarMoverBloco()"'+(mover.length&&pc?'':' disabled')+' style="font-size:14px;padding:9px 18px;border:1px solid '+V+';background:'+(mover.length&&pc?V:'#9AA79E')+';color:#F7F4EC;border-radius:7px;cursor:pointer;font-weight:700">Mover '+mover.length+' boi(s)'+(pc?' para '+_escAL(pc):'')+'</button></div>';
+  el.innerHTML=h;
+}
+function confirmarMoverBloco(){
+  var r=_mbAnimais(), faz=vs("mb-faz"), pasto=(vs("mb-pasto")||"").trim(), data=vs("mb-data")||todayStr();
+  if(!pasto){alert("Informe o pasto/curral de destino.");return;}
+  var pc=_pastoCanon(faz,pasto), chD=_chPastoId(faz,pc);
+  var mover=r.achados.filter(function(a){return _chPastoId(a.fazenda,a.pasto)!==chD;});
+  if(!mover.length)return;
+  var ok=mover.map(function(a){return {status:"mover",a:a,idk:"a"+a.id,l:{sis:"",chip:"",peso:0,dest:pc},fazDest:faz,pastoDest:pc,data:data};});
+  var res=_movAplicar(ok,"Mover em bloco");
+  var tp={}, sel=document.getElementById("mb-tipo");if(sel)tp[chD]=sel.value;
+  var lr=_lotesSeguemBois(res.moves,tp,false);
+  document.getElementById("modal-mover-bloco").style.display="none";
+  _alSel={};
+  try{renderAnimaisLote();}catch(e){}
+  try{renderResumoIdentificados();}catch(e){}
+  try{_r(renderAnimais,"renderAnimais");}catch(e){}
+  alert(res.mov+" boi(s) foram para "+faz+" / "+pc+"."+(lr.txt.length?"\n\nLotes:\n• "+lr.txt.slice(0,12).join("\n• "):""));
 }
 
 /* Fila de movimentacao mandada pela Bia (planilha ou mensagem no WhatsApp).
@@ -24452,7 +24557,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-protocolo</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-bloco</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
