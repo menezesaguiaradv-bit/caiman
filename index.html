@@ -5704,7 +5704,7 @@ function renderAnimaisLote(){
     var a=x.a,ph=x.ph;
     var baixo=r.pesoMedio&&ph.hoje&&ph.hoje<r.pesoMedio*0.9;
     return '<tr'+(baixo?' class="al-baixo"':'')+' style="border-bottom:1px solid #E3DCC8">'+
-      '<td style="padding:8px 4px;cursor:pointer" onclick="abrirVidaAnimal('+a.id+')" title="Ver a vida do boi">'+_idAnimalHtml(a)+'<div style="font-size:10px;color:#B8944F;font-weight:700;margin-top:2px">ver vida do boi ›'+(function(){var c=_carenciaAtiva(medicacoesDoAnimal(a));return c?' <span style="color:#A32D2D">💉 carência até '+fmtData(c.ate).slice(0,5)+'</span>':'';})()+'</div></td>'+
+      '<td style="padding:8px 4px;cursor:pointer" onclick="abrirVidaAnimal('+a.id+')" title="Ver a vida do boi">'+_idAnimalHtml(a)+'<div style="font-size:10px;color:#B8944F;font-weight:700;margin-top:2px">ver vida do boi ›'+(function(){var c=_carenciaAtiva(medicacoesDoAnimal(a));return c?' <span style="color:#A32D2D">Em carência até '+fmtData(c.ate).slice(0,5)+'</span>':'';})()+'</div></td>'+
       '<td style="padding:6px 4px;text-align:right">'+(ph.ultPeso?ph.ultPeso.toFixed(0)+' kg<div style="font-size:10px;color:#999">'+fmtData(ph.ultData)+'</div>':'—')+'</td>'+
       '<td style="padding:6px 4px;text-align:right;font-weight:700">'+(ph.hoje?ph.hoje.toFixed(0)+' kg'+(ph.projetado?'<span title="projetado pelo GMD individual" style="color:#999">*</span>':''):'—')+(baixo?'<div style="font-size:10px;color:#7A5F28;font-weight:600">abaixo da média</div>':'')+'</td>'+
       '<td style="padding:6px 4px;text-align:right;color:'+corG(ph.gmd)+'">'+(ph.gmd!=null?ph.gmd.toFixed(3):'—')+'</td>'+
@@ -5750,7 +5750,7 @@ function renderAnimaisLote(){
       '<input id="al-filtro-txt" value="'+_escAL(_alTexto)+'" placeholder="Buscar na lista (identificação ou SISBOV)" inputmode="numeric" oninput="alBuscarLista(this.value)" style="flex:1;min-width:180px;font-size:12px;padding:6px 8px;border:1px solid #E3DCC8;border-radius:7px">'+
       '<select onchange="alOrdenar(this.value)" style="font-size:12px;padding:5px">'+
         [["peso","Mais pesados primeiro"],["pesoAsc","Mais leves primeiro"],["gmd","Maior GMD primeiro"],["sisbov","Por identificação"]].map(function(op){return '<option value="'+op[0]+'"'+(o===op[0]?' selected':'')+'>'+op[1]+'</option>';}).join("")+
-      '</select><button onclick="medicarPastoAtual()" style="font-size:12px;padding:6px 11px;border:1px solid #B8944F;background:#fff;color:#7A5F28;border-radius:7px;cursor:pointer;font-weight:700">💉 Medicar o pasto</button></div>'+
+      '</select><button onclick="medicarPastoAtual()" style="font-size:12px;padding:6px 11px;border:1px solid #B8944F;background:#fff;color:#7A5F28;border-radius:7px;cursor:pointer;font-weight:700">Protocolo Sanitário do pasto</button></div>'+
     (lista.length?
       (_alListaOculta?'<div style="text-align:center;padding:10px"><button onclick="alMostrarLista(true)" style="font-size:12px;padding:7px 14px;border:1px solid #23432D;background:#23432D;color:#F7F4EC;border-radius:7px;cursor:pointer;font-weight:700">Mostrar os '+lista.length+' animais ▾</button></div>':
       '<div style="text-align:right;margin-bottom:4px"><button onclick="alMostrarLista(false)" style="font-size:11px;padding:3px 9px;border:1px solid #E3DCC8;background:#fff;color:#7A7668;border-radius:6px;cursor:pointer">Recolher lista ▴</button></div>'+
@@ -6825,7 +6825,7 @@ function abrirVidaAnimal(id){
       hist.slice().reverse().map(function(x){return '<div style="margin-bottom:8px"><div style="font-size:11px;color:'+DE+';font-weight:700">'+(x.data?fmtData(x.data):"—")+'</div><div style="font-size:12.5px;color:#333">'+_escAL((x.de||"—")+" → "+(x.para||"—"))+'</div>'+(x.motivo?'<div style="font-size:11px;color:#888">'+_escAL(x.motivo)+'</div>':'')+'</div>';}).join("")+'</div>':'')+
     '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap">'+
       '<button onclick="alPesar('+a.id+')" style="font-size:12px;padding:7px 13px;border:1px solid '+V+';background:'+V+';color:'+CR+';border-radius:7px;cursor:pointer;font-weight:700">⚖️ Pesar</button>'+
-      '<button onclick="abrirMedicar(['+a.id+'])" style="font-size:12px;padding:7px 13px;border:1px solid '+D+';background:#fff;color:'+DE+';border-radius:7px;cursor:pointer;font-weight:700">💉 Medicar</button>'+
+      '<button onclick="abrirMedicar(['+a.id+'])" style="font-size:12px;padding:7px 13px;border:1px solid '+D+';background:#fff;color:'+DE+';border-radius:7px;cursor:pointer;font-weight:700">Protocolo Sanitário</button>'+
       '<button onclick="alMover('+a.id+')" style="font-size:12px;padding:7px 13px;border:1px solid '+D+';background:#fff;color:'+DE+';border-radius:7px;cursor:pointer;font-weight:700">↔ Mover</button></div>'+
     '</div></div></div>';
   m.innerHTML=h;m.style.display="flex";
@@ -6928,7 +6928,7 @@ function abrirMedicar(ids,ctx){
     m.onclick=function(e){if(e.target===m)m.style.display="none";};document.body.appendChild(m);}
   window._medIds=ids;window._medCtx=ctx||null;
   var V="#23432D",CR="#F7F4EC",D="#B8944F",DE="#7A5F28";
-  var tit=ctx?("Medicar o pasto "+ctx.pasto+" — "+ids.length+" boi"+(ids.length!==1?"s":"")):"Medicar o boi";
+  var tit=ctx?("Protocolo Sanitário — pasto "+ctx.pasto+" ("+ids.length+" boi"+(ids.length!==1?"s":"")+")"):"Protocolo Sanitário do boi";
   var inp='font-size:13px;padding:7px;border:1px solid #E3DCC8;border-radius:7px;width:100%;box-sizing:border-box';
   var itens=PROTOCOLO_SAN.map(function(it){
     var ult=_ultProd(it.k);
@@ -6943,7 +6943,7 @@ function abrirMedicar(ids,ctx){
       '</div></div>';
   }).join("");
   m.innerHTML='<div class="modal" style="max-width:100%;width:100%;height:100vh;max-height:100vh;border-radius:0;overflow:auto;padding:0;background:#FFFEFA"><div style="max-width:640px;margin:0 auto">'+
-    '<div style="padding:13px 16px;background:'+V+';color:'+CR+';font-weight:700;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:2">💉 '+_escAL(tit)+'<button onclick="document.getElementById(\'modal-medicar\').style.display=\'none\'" style="background:none;border:none;color:'+CR+';font-size:22px;cursor:pointer">✕</button></div>'+
+    '<div style="padding:13px 16px;background:'+V+';color:'+CR+';font-weight:700;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:2">'+_escAL(tit)+'<button onclick="document.getElementById(\'modal-medicar\').style.display=\'none\'" style="background:none;border:none;color:'+CR+';font-size:22px;cursor:pointer">✕</button></div>'+
     '<div style="padding:14px 16px">'+
       '<div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap"><div style="flex:1;min-width:150px"><label style="font-size:11px;color:#555">Data do manejo</label><input id="med-data" type="date" value="'+todayStr()+'" style="'+inp+'"></div>'+
       '<div style="flex:2;min-width:200px"><label style="font-size:11px;color:#555">Observação (opcional)</label><input id="med-obs" placeholder="Ex.: manejo de entrada, tratamento" style="'+inp+'"></div></div>'+
@@ -6986,7 +6986,7 @@ function salvarMedicacao(){
   try{marcarPendente();}catch(e){}
   document.getElementById("modal-medicar").style.display="none";
   try{_r(renderSanidade,"renderSanidade");}catch(e){}
-  try{toast("💉 Gravado"+(ctx?" para "+ids.length+" boi(s) do pasto "+ctx.pasto:"")+": "+feitos.join(", ")+".");}catch(e){}
+  try{toast("Protocolo Sanitário gravado"+(ctx?" para "+ids.length+" boi(s) do pasto "+ctx.pasto:"")+": "+feitos.join(", ")+".");}catch(e){}
   if(!ctx)abrirVidaAnimal(ids[0]);else try{renderAnimaisLote();}catch(e){}
 }
 function medicarPastoAtual(){
@@ -6999,10 +6999,10 @@ function medicarPastoAtual(){
 function _medicacoesHtml(a){
   var meds=medicacoesDoAnimal(a), V="#23432D",D="#B8944F",DE="#7A5F28",BD="#E3DCC8",hoje=todayStr();
   var car=_carenciaAtiva(meds);
-  var h='<div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 6px"><div style="font-size:12px;font-weight:700;color:'+V+'">Medicações e vacinas ('+meds.length+')</div>'+
-    '<button onclick="abrirMedicar(['+a.id+'])" style="font-size:12px;padding:5px 11px;border:1px solid '+D+';background:#fff;color:'+DE+';border-radius:7px;cursor:pointer;font-weight:700">💉 Medicar</button></div>';
+  var h='<div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 6px"><div style="font-size:12px;font-weight:700;color:'+V+'">Protocolo Sanitário ('+meds.length+')</div>'+
+    '<button onclick="abrirMedicar(['+a.id+'])" style="font-size:12px;padding:5px 11px;border:1px solid '+D+';background:#fff;color:'+DE+';border-radius:7px;cursor:pointer;font-weight:700">Protocolo Sanitário</button></div>';
   if(car)h+='<div style="background:#FBEAEA;border:1px solid #E0B4B4;color:#A32D2D;border-radius:8px;padding:8px 10px;font-size:12.5px;font-weight:700;margin-bottom:8px">⚠ Em carência ('+_escAL(car.prod)+'): liberado para abate a partir de '+fmtData(car.ate)+'</div>';
-  if(!meds.length)return h+'<div class="empty" style="padding:12px">Nenhuma medicação registrada para este boi.</div>';
+  if(!meds.length)return h+'<div class="empty" style="padding:12px">Nenhum protocolo sanitário registrado para este boi.</div>';
   return h+'<div style="overflow-x:auto;border:1px solid '+BD+';border-radius:8px"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#F7F4EC">'+
     ['Data','Medicamento / vacina','Dose · via','Carência até','Como'].map(function(t){return '<th style="padding:7px;text-align:left;color:'+DE+';font-size:11px">'+t+'</th>';}).join("")+'</tr></thead><tbody>'+
     meds.map(function(m,i){var r=m.r, emCar=r.dataCarencia&&r.dataCarencia>=hoje;
@@ -24452,7 +24452,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-medic</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-protocolo</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
