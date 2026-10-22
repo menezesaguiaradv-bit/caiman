@@ -6640,40 +6640,62 @@ function _cabecasLotesId(faz,pasto){
   getLotes().forEach(function(l){if(!l.vendido&&_ehTipoId(l.tipo)&&_chPastoId(l.fazenda,l.pasto)===k){n+=parseInt(l.qtd)||0;achou=true;}});
   return achou?n:null;
 }
+/* 22/10: dividido por categoria (ele: "coloque tambem uma divisao dos bois que estao em recria, confinamento
+   e semi-confinamento"). A categoria do pasto/curral e a do lote que esta nele (o de mais cabecas). */
+var _CAT_ID=[["recria","Recria e engorda","pasto"],["semi","Semi-confinamento","pasto"],["conf","Confinamento","curral"],["sem","Sem lote","pasto"]];
+function _catDoTipo(t){return _ehTipoId(t)?"recria":(t==="Semi-Confinamento"?"semi":(t==="Confinamento"?"conf":"sem"));}
 function renderResumoIdentificados(){
   var el=document.getElementById("ident-resumo");if(!el)return;
   var grupos=_gruposIdentificados();
   var ks=Object.keys(grupos).filter(function(k){return grupos[k].n>0;});
-  /* so pasto de recria/engorda (ou sem lote): curral do confinamento tem a tela dele */
-  var lotes=getLotes().filter(function(l){return !l.vendido;});
-  ks=ks.filter(function(k){var ls=lotes.filter(function(l){return _chPastoId(l.fazenda,l.pasto)===k;});return !ls.length||ls.some(function(l){return _ehTipoId(l.tipo);});});
   if(!ks.length){el.innerHTML='<div class="empty" style="padding:14px">Nenhum pasto com animal identificado ainda. Importe a planilha da balança acima ou mande para a Bia no WhatsApp.</div>';return;}
-  ks.sort(function(a,b){var x=grupos[a],y=grupos[b];return (x.faz+" "+x.pasto).localeCompare(y.faz+" "+y.pasto,"pt",{numeric:true});});
-  var tot={n:0,lote:0}, umaFaz=ks.every(function(k){return _fazCore(grupos[k].faz)===_fazCore(grupos[ks[0]].faz);});
-  var linhas=ks.map(function(k,i){
-    var g=grupos[k], d=_identDoPasto(g.faz,g.pasto), r=d.r, cl=_cabecasLotesId(g.faz,g.pasto);
-    tot.n+=r.n;tot.lote+=cl||0;
-    var dif=cl!=null&&cl!==r.n;
-    var f=encodeURIComponent(g.faz).replace(/'/g,"%27"), p=encodeURIComponent(g.pasto).replace(/'/g,"%27");
-    var corG=r.gmdMedio==null?"#999":(r.gmdMedio>=0.6?"#23432D":(r.gmdMedio>0?"#7A5F28":"#A32D2D"));
-    return '<tr onclick="if(event.target.tagName!==\'BUTTON\')abrirAnimaisLote(\''+f+'\',\''+p+'\')" style="cursor:pointer;background:'+(i%2?"#F7F4EC":"#fff")+';border-bottom:1px solid #EFEAD9">'+
-      '<td style="padding:7px 5px;font-weight:700;color:#23432D;cursor:pointer" onclick="abrirAnimaisLote(\''+f+'\',\''+p+'\')">'+_escAL(String(g.pasto).replace(/^pasto\s*/i,""))+(umaFaz?'':'<div style="font-size:10px;color:#9a9a94;font-weight:400">'+_escAL(g.faz)+'</div>')+'</td>'+
-      '<td style="padding:7px 5px;text-align:center;font-weight:700">'+r.n+'</td>'+
-      '<td style="padding:7px 5px;text-align:center;'+(dif?'color:#A32D2D;font-weight:700':'color:#555')+'">'+(cl==null?'<span style="color:#B8944F">sem lote</span>':cl)+'</td>'+
-      '<td style="padding:7px 5px;text-align:center">'+(r.pesoMedio?r.pesoMedio:'—')+'</td>'+
-      '<td style="padding:7px 5px;text-align:center;color:'+corG+';font-weight:600">'+(r.gmdMedio!=null?r.gmdMedio.toFixed(3):'—')+(r.comGmd?'<div style="font-size:10px;color:#9a9a94;font-weight:400">'+r.comGmd+' bois</div>':'')+'</td>'+
-      '<td style="padding:7px 5px;text-align:center;'+(r.abaixo?'color:#7A5F28;font-weight:700':'color:#999')+'">'+r.abaixo+'</td>'+
-      '<td style="padding:7px 5px;text-align:center;color:#555">'+(g.ultData?fmtData(g.ultData).slice(0,5):'—')+'</td>'+
-      '<td style="padding:7px 5px;text-align:center;white-space:nowrap">'+
-        '<button onclick="pdfPesagemPasto(\''+f+'\',\''+p+'\')" style="font-size:10.5px;padding:3px 7px;border:1px solid #B8944F;background:#fff;color:#7A5F28;border-radius:6px;cursor:pointer;font-weight:600">PDF</button></td></tr>';
-  }).join("");
-  el.innerHTML=(umaFaz?'<div style="font-size:12px;font-weight:700;color:#7A5F28;margin-bottom:6px">'+_escAL(grupos[ks[0]].faz)+' · '+ks.length+' pasto(s)</div>':'')+'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px">'+
-    '<thead><tr style="background:#23432D;color:#F7F4EC">'+
-    ['Pasto','Identif.','Lote','Peso (kg)','GMD','< 90%','Pesado',''].map(function(h,i){return '<th style="padding:8px 5px;text-align:'+(i?'center':'left')+';font-size:10.5px">'+h+'</th>';}).join("")+
-    '</tr></thead><tbody>'+linhas+
-    '<tr style="background:#E8EFE9;font-weight:700;border-top:2px solid #23432D"><td style="padding:8px">TOTAL</td><td style="padding:8px;text-align:center">'+tot.n+'</td><td style="padding:8px;text-align:center">'+tot.lote+'</td><td colspan="5"></td></tr>'+
-    '</tbody></table></div>'+
-    '<div style="font-size:11px;color:#7A7668;margin-top:6px">Toque no pasto para ver a lista de animais, pesar pela identificação eletrônica ou mover. Cabeças em vermelho: o lote não bate com os identificados — o botão <b>Acertar lotes pela pesagem</b> resolve.</div>';
+  var lotes=getLotes().filter(function(l){return !l.vendido;});
+  var porCat={recria:[],semi:[],conf:[],sem:[]};
+  ks.forEach(function(k){
+    var ls=lotes.filter(function(l){return _chPastoId(l.fazenda,l.pasto)===k;}).sort(function(x,y){return (parseInt(y.qtd)||0)-(parseInt(x.qtd)||0);});
+    var cat=ls.length?_catDoTipo(ls[0].tipo):"sem";
+    var noLote=ls.filter(function(l){return _catDoTipo(l.tipo)===cat;}).reduce(function(s,l){return s+(parseInt(l.qtd)||0);},0);
+    porCat[cat].push({k:k,g:grupos[k],lote:ls.length?noLote:null});
+  });
+  var umaFaz=ks.every(function(k){return _fazCore(grupos[k].faz)===_fazCore(grupos[ks[0]].faz);});
+  /* cartoes de cima: uma divisao do rebanho identificado */
+  var tot=0;ks.forEach(function(k){tot+=grupos[k].n;});
+  var cards='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'+
+    '<div style="flex:1;min-width:120px;background:#23432D;border-radius:8px;padding:8px 10px"><div style="font-size:10px;color:#B8944F;text-transform:uppercase;font-weight:700">Identificados</div><div style="font-size:22px;font-weight:700;color:#F7F4EC">'+tot+'</div><div style="font-size:10.5px;color:#D9D2BD">'+ks.length+' pastos/currais</div></div>'+
+    _CAT_ID.filter(function(c){return porCat[c[0]].length;}).map(function(c){
+      var n=porCat[c[0]].reduce(function(s,x){return s+x.g.n;},0);
+      return '<div onclick="var e=document.getElementById(\'ident-cat-'+c[0]+'\');if(e)e.scrollIntoView({behavior:\'smooth\'})" style="cursor:pointer;flex:1;min-width:120px;background:#F7F4EC;border:1px solid #E3DCC8;border-left:4px solid '+(c[0]==="sem"?"#A32D2D":"#B8944F")+';border-radius:8px;padding:8px 10px"><div style="font-size:10px;color:#7A7668;text-transform:uppercase;font-weight:700">'+c[1]+'</div><div style="font-size:22px;font-weight:700;color:#23432D">'+n+'</div><div style="font-size:10.5px;color:#7A7668">'+porCat[c[0]].length+' '+(c[2]==="curral"?"curral(is)":"pasto(s)")+' · '+(tot?Math.round(n/tot*100):0)+'%</div></div>';
+    }).join("")+'</div>';
+  function tabela(cat,lista){
+    var c=_CAT_ID.find(function(x){return x[0]===cat;});
+    lista.sort(function(a,b){return (a.g.faz+" "+a.g.pasto).localeCompare(b.g.faz+" "+b.g.pasto,"pt",{numeric:true});});
+    var tn=0,tl=0;
+    var linhas=lista.map(function(x,i){
+      var g=x.g, d=_identDoPasto(g.faz,g.pasto), r=d.r, cl=x.lote;
+      tn+=r.n;tl+=cl||0;
+      var dif=cl!=null&&cl!==r.n&&cat==="recria";
+      var f=encodeURIComponent(g.faz).replace(/'/g,"%27"), p=encodeURIComponent(g.pasto).replace(/'/g,"%27");
+      var corG=r.gmdMedio==null?"#999":(r.gmdMedio>=0.6?"#23432D":(r.gmdMedio>0?"#7A5F28":"#A32D2D"));
+      return '<tr onclick="if(event.target.tagName!==\'BUTTON\')abrirAnimaisLote(\''+f+'\',\''+p+'\')" style="cursor:pointer;background:'+(i%2?"#F7F4EC":"#fff")+';border-bottom:1px solid #EFEAD9">'+
+        '<td style="padding:7px 5px;font-weight:700;color:#23432D">'+_escAL(String(g.pasto).replace(/^(pasto|curral)\s*/i,""))+(umaFaz?'':'<div style="font-size:10px;color:#9a9a94;font-weight:400">'+_escAL(g.faz)+'</div>')+'</td>'+
+        '<td style="padding:7px 5px;text-align:center;font-weight:700">'+r.n+'</td>'+
+        '<td style="padding:7px 5px;text-align:center;'+(dif?'color:#A32D2D;font-weight:700':'color:#555')+'">'+(cl==null?'<span style="color:#B8944F">—</span>':cl)+'</td>'+
+        '<td style="padding:7px 5px;text-align:center">'+(r.pesoMedio?r.pesoMedio:'—')+'</td>'+
+        '<td style="padding:7px 5px;text-align:center;color:'+corG+';font-weight:600">'+(r.gmdMedio!=null?r.gmdMedio.toFixed(3):'—')+(r.comGmd?'<div style="font-size:10px;color:#9a9a94;font-weight:400">'+r.comGmd+' bois</div>':'')+'</td>'+
+        '<td style="padding:7px 5px;text-align:center;'+(r.abaixo?'color:#7A5F28;font-weight:700':'color:#999')+'">'+r.abaixo+'</td>'+
+        '<td style="padding:7px 5px;text-align:center;color:#555">'+(g.ultData?fmtData(g.ultData).slice(0,5):'—')+'</td>'+
+        '<td style="padding:7px 5px;text-align:center;white-space:nowrap"><button onclick="pdfPesagemPasto(\''+f+'\',\''+p+'\')" style="font-size:10.5px;padding:3px 7px;border:1px solid #B8944F;background:#fff;color:#7A5F28;border-radius:6px;cursor:pointer;font-weight:600">PDF</button></td></tr>';
+    }).join("");
+    return '<div id="ident-cat-'+cat+'" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px"><div style="font-size:13px;font-weight:700;color:'+(cat==="sem"?"#A32D2D":"#23432D")+'">'+c[1]+'</div><div style="font-size:11.5px;color:#7A7668">'+tn+' identificados · '+lista.length+' '+(c[2]==="curral"?"curral(is)":"pasto(s)")+'</div></div>'+
+      '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="background:'+(cat==="sem"?"#7A5F28":"#23432D")+';color:#F7F4EC">'+
+      [c[2]==="curral"?"Curral":"Pasto","Identif.","Lote","Peso (kg)","GMD","< 90%","Pesado",""].map(function(h,i){return '<th style="padding:7px 5px;text-align:'+(i?'center':'left')+';font-size:10.5px">'+h+'</th>';}).join("")+
+      '</tr></thead><tbody>'+linhas+
+      '<tr style="background:#E8EFE9;font-weight:700;border-top:2px solid #23432D"><td style="padding:7px 5px">Total</td><td style="padding:7px 5px;text-align:center">'+tn+'</td><td style="padding:7px 5px;text-align:center">'+(tl||"—")+'</td><td colspan="5"></td></tr>'+
+      '</tbody></table></div></div>';
+  }
+  el.innerHTML=(umaFaz?'<div style="font-size:12px;font-weight:700;color:#7A5F28;margin-bottom:6px">'+_escAL(grupos[ks[0]].faz)+'</div>':'')+cards+
+    _CAT_ID.filter(function(c){return porCat[c[0]].length;}).map(function(c){return tabela(c[0],porCat[c[0]]);}).join("")+
+    '<div style="font-size:11px;color:#7A7668;margin-top:2px">Toque no pasto ou curral para ver a lista de animais. Na recria e engorda, cabeças em vermelho: o lote não bate com os identificados — o botão <b>Acertar lotes pela pesagem</b> resolve.</div>';
 }
 
 /* PDF da pesagem individual de um pasto: KPIs, distribuicao de peso, GMD individual e a lista completa. */
@@ -24600,7 +24622,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-excl</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-categorias</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
