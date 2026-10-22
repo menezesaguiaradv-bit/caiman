@@ -437,7 +437,7 @@ Compartilhar</button></div>
 <div class="field"><label>Frete do animal (R$)</label><input id="s-frete" type="number" placeholder="0.00" step="0.01"></div>
 </div></div>
 <div class="sec" style="border-left:4px solid #B8944F">
-<div class="stitle" style="color:#23432D">Movimentação pela planilha <button onclick="abrirImportarMovimentacao()" style="background:#23432D;color:#F7F4EC;border:1px solid #23432D;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Importar movimentação</button></div>
+<div class="stitle" style="color:#23432D">Movimentação pela planilha <span style="display:inline-flex;gap:6px;flex-wrap:wrap"><button onclick="abrirImportarMovimentacao()" style="background:#23432D;color:#F7F4EC;border:1px solid #23432D;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Importar movimentação</button><button onclick="acertarLotesPelaPesagem()" style="background:#FBF8F0;color:#23432D;border:1px solid #B8944F;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Acertar lotes pela pesagem</button></span></div>
 <div style="font-size:12px;color:#555">Suba o arquivo da balança ou do leitor: cada boi vai para o pasto/curral da planilha, com a pesagem e o histórico. Você confere tudo antes de confirmar.</div>
 </div>
 <div class="sec">
@@ -6155,6 +6155,84 @@ function _movAplicar(ok,motivo){
   });
   setAnimais(todos);if(pesadas)setPesagensSisbov(pes);
   return {mov:mov,pesadas:pesadas,novos:novos};
+}
+
+/* 22/10/2026 (ele: "so seguir a planilha. Dentro de cada pasto tem que ter os animais identificados"):
+   acerta os LOTES pelos animais identificados. Para cada pasto/curral que tem animal com pesagem
+   individual recente (90 dias), o lote passa a ter exatamente o numero de identificados e ganha a
+   pesagem media (data mais comum). Dois lotes no mesmo pasto: fica o de mais cabecas, o outro vai a
+   zero com anotacao. Pasto sem lote: cria o lote (Recria, Nelore). Pastos sem pesagem individual
+   nao sao tocados. Mostra tudo antes e so grava com o OK. */
+function _planoLotesPelaPesagem(){
+  var lim=_kLocal(new Date(Date.now()-90*86400000));
+  var ult={};
+  getPesagensSisbov().forEach(function(p){if(!(p.peso>0)||!p.data)return;var u=ult[p.animalId];if(!u||p.data>u.data)ult[p.animalId]=p;});
+  var grupos={};
+  /* conta TODOS os identificados do pasto (inclusive quem entrou sem peso), mas so mexe no pasto
+     que teve pesagem individual recente - animal antigo solto num pasto nao cria lote */
+  getAnimais().forEach(function(a){
+    if(a.morto||a.encerrado||!a.pasto||!a.fazenda)return;
+    var faz=_movFazNome(a.fazenda), k=_fazCore(faz)+"|"+_pastoCore(a.pasto);
+    var g=grupos[k]||(grupos[k]={faz:faz,pasto:String(a.pasto).trim(),n:0,soma:0,np:0,datas:{},recente:false});
+    g.n++;
+    var u=ult[a.id];if(!u)return;
+    if(u.data>=lim)g.recente=true;
+    g.soma+=u.peso;g.np++;g.datas[u.data]=(g.datas[u.data]||0)+1;
+  });
+  Object.keys(grupos).forEach(function(k){if(!grupos[k].recente)delete grupos[k];});
+  var lotes=getLotes(), plano=[];
+  Object.keys(grupos).forEach(function(k){
+    var g=grupos[k], fc=_fazCore(g.faz);
+    var ls=lotes.filter(function(l){
+      if(l.vendido||_pastoCore(l.pasto)!==_pastoCore(g.pasto))return false;
+      var lf=_fazCore(l.fazenda);return !lf||lf===fc||lf.indexOf(fc)>=0||fc.indexOf(lf)>=0;
+    }).sort(function(a,b){return (parseInt(b.qtd)||0)-(parseInt(a.qtd)||0);});
+    var media=g.np?+(g.soma/g.np).toFixed(1):null;
+    var data=Object.keys(g.datas).sort(function(a,b){return (g.datas[b]-g.datas[a])||(a<b?1:-1);})[0]||null;
+    var princ=ls[0]||null, extras=ls.slice(1).filter(function(l){return (parseInt(l.qtd)||0)>0;});
+    var mudaPeso=!!(princ&&media&&data&&!(princ.ultimaPesagem&&princ.ultimaPesagem.data>=data)&&!(princ.dtE&&princ.dtE>=data));
+    if(princ&&(parseInt(princ.qtd)||0)===g.n&&!extras.length&&!mudaPeso)return;
+    plano.push({g:g,princ:princ,extras:extras,media:media,data:data,mudaPeso:mudaPeso});
+  });
+  plano.sort(function(a,b){return (a.g.faz+a.g.pasto).localeCompare(b.g.faz+b.g.pasto,"pt",{numeric:true});});
+  return plano;
+}
+function acertarLotesPelaPesagem(){
+  var plano=_planoLotesPelaPesagem();
+  if(!plano.length){alert("Os lotes já batem com os animais identificados.");return;}
+  var txt="Acertar "+plano.length+" lote(s) pelos animais identificados?\n";
+  plano.forEach(function(p){
+    var nome=p.g.faz+" / "+p.g.pasto;
+    if(!p.princ)txt+="\n• "+nome+": criar lote com "+p.g.n+" cab."+(p.media?" ("+p.media.toLocaleString("pt-BR")+" kg)":"");
+    else txt+="\n• "+nome+": "+(parseInt(p.princ.qtd)||0)+" → "+p.g.n+" cab."+(p.mudaPeso?" · pesagem "+p.media.toLocaleString("pt-BR")+" kg em "+fmtData(p.data):"");
+    p.extras.forEach(function(x){txt+="\n   outro lote no mesmo pasto ("+(parseInt(x.qtd)||0)+" cab.) → 0, juntado";});
+  });
+  if(!confirm(txt))return;
+  var lotes=getLotes(), hoje=todayStr();
+  plano.forEach(function(p){
+    if(!p.princ){
+      lotes.push({id:novoId(),tipo:"Recria",fazenda:p.g.faz,pasto:p.g.pasto,qtd:p.g.n,peso:p.media||0,dtE:p.data||hoje,resp:"",raca:"Nelore",
+        obs:"Criado pela pesagem individual (identificação eletrônica) em "+fmtData(hoje),valorBoi:0,precoKg:0,comissaoTotal:0,freteTotal:0,custoBoi:0,sexo:"",idade:0});
+      return;
+    }
+    var l=lotes.find(function(x){return x.id===p.princ.id;});if(!l)return;
+    l.qtd=p.g.n;
+    if(p.mudaPeso){
+      if(!l.pesagens)l.pesagens=[];
+      l.pesagens.push({data:p.data,peso:p.media,obs:"Média da pesagem individual (identificação eletrônica)",gmdReal:null,gmdIntervalo:null});
+      l.ultimaPesagem={data:p.data,peso:p.media,gmdReal:null,gmdIntervalo:null};
+    }
+    p.extras.forEach(function(e){
+      var x=lotes.find(function(y){return y.id===e.id;});if(!x)return;
+      x.qtd=0;x.obs=((x.obs?x.obs+" | ":"")+"Juntado ao lote "+(l.pasto||"")+" em "+fmtData(hoje)+" (pesagem individual)");
+    });
+  });
+  setLotes(lotes);
+  try{marcarPendente();}catch(e){}
+  try{renderLotes();}catch(e){}
+  try{renderPastos();}catch(e){}
+  try{_r(renderAnimais,"renderAnimais");}catch(e){}
+  try{toast("Lotes acertados pelos animais identificados: "+plano.length+".");}catch(e){alert("Lotes acertados: "+plano.length+".");}
 }
 
 /* Fila de movimentacao mandada pela Bia (planilha ou mensagem no WhatsApp).
@@ -23587,7 +23665,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.21-ponto</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-lotes</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
