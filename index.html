@@ -436,9 +436,10 @@ Compartilhar</button></div>
 <div class="field"><label>Comissão do animal (R$)</label><input id="s-comissao" type="number" placeholder="0.00" step="0.01"></div>
 <div class="field"><label>Frete do animal (R$)</label><input id="s-frete" type="number" placeholder="0.00" step="0.01"></div>
 </div></div>
-<div class="sec" style="border-left:4px solid #B8944F">
-<div class="stitle" style="color:#23432D">Movimentação pela planilha <span style="display:inline-flex;gap:6px;flex-wrap:wrap"><button onclick="abrirImportarMovimentacao()" style="background:#23432D;color:#F7F4EC;border:1px solid #23432D;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Importar movimentação</button><button onclick="acertarLotesPelaPesagem()" style="background:#FBF8F0;color:#23432D;border:1px solid #B8944F;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Acertar lotes pela pesagem</button></span></div>
-<div style="font-size:12px;color:#555">Suba o arquivo da balança ou do leitor: cada boi vai para o pasto/curral da planilha, com a pesagem e o histórico. Você confere tudo antes de confirmar.</div>
+<div class="sec" style="border-left:4px solid #B8944F;background:#FFFEFA">
+<div class="stitle" style="color:#23432D;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span>Pesagem individual por pasto <span style="font-weight:400;font-size:12px;color:#7A7668">recria e engorda</span></span><span style="display:inline-flex;gap:6px;flex-wrap:wrap"><button onclick="abrirImportarMovimentacao()" style="background:#23432D;color:#F7F4EC;border:1px solid #23432D;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Importar pesagem / movimentação</button><button onclick="acertarLotesPelaPesagem()" style="background:#FBF8F0;color:#23432D;border:1px solid #B8944F;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Acertar lotes pela pesagem</button></span></div>
+<div style="font-size:12px;color:#555;margin-bottom:10px">Suba a planilha da balança (pode ter várias abas e datas) ou mande para a Bia no WhatsApp: cada boi vai para o pasto/curral da planilha com a pesagem, e o <b>lote segue os bois</b> — muda de pasto ou vira semi/confinamento sozinho.</div>
+<div id="ident-resumo"></div>
 </div>
 <div class="sec">
 <div class="stitle">Animais cadastrados <span id="total-animais" style="font-weight:400;font-size:12px"></span><div style="display:flex;gap:6px"><button class="btn-s btn-sm" onclick="toggleImport()" style="display:inline-flex;align-items:center;gap:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Importar</button><button onclick="exportarSISBOV()" style="background:var(--v);color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>Exportar Excel</button></div></div>
@@ -5544,6 +5545,8 @@ function _chipFmt(t){
   return (d.length===15&&d===t)?d.slice(0,3)+" "+d.slice(3):t;
 }
 function _idAnimalHtml(a){
+  /* 22/10: boi so com identificacao eletronica (recria/engorda) nao mostra a linha "sem SISBOV" */
+  if(!a.sisbov&&a.eletro)return '<div class="al-id"><div class="al-chip" style="margin-top:0"><span class="al-lbl c">ID ELETRÔNICA</span>'+_escAL(_chipFmt(a.eletro))+'</div></div>';
   return '<div class="al-id"><div class="al-sis"><span class="al-lbl s">SISBOV</span>'+(a.sisbov?_sisbovHtml(a.sisbov):'<span class="al-falta">sem SISBOV</span>')+'</div>'+
     '<div class="al-chip"><span class="al-lbl c">ID ELETRÔNICA</span>'+(a.eletro?_escAL(_chipFmt(a.eletro)):'<span class="al-falta">sem identificação eletrônica</span>')+'</div></div>';
 }
@@ -5634,7 +5637,9 @@ function _alCss(){
     document.head.appendChild(css);
   }
 }
-var _animaisLoteAtual=null, _animaisLoteOrdem="sisbov";
+var _animaisLoteAtual=null, _animaisLoteOrdem="peso", _alFiltro="todos", _alTexto="";
+function alFiltrar(v){_alFiltro=v;renderAnimaisLote();}
+function alBuscarLista(v){_alTexto=v;var p=document.activeElement&&document.activeElement.id==="al-filtro-txt"?document.activeElement.selectionStart:null;renderAnimaisLote();var e=document.getElementById("al-filtro-txt");if(e){e.focus();if(p!=null)try{e.setSelectionRange(p,p);}catch(x){}}}
 function abrirAnimaisLote(fEnc,pEnc){
   _animaisLoteAtual={fazenda:decodeURIComponent(fEnc||""),pasto:decodeURIComponent(pEnc||"")};
   var m=document.getElementById("modal-animais-lote");
@@ -5677,8 +5682,18 @@ function renderAnimaisLote(){
     if(o==="peso")return (y.ph.hoje||0)-(x.ph.hoje||0);
     if(o==="pesoAsc")return (x.ph.hoje||0)-(y.ph.hoje||0);
     if(o==="gmd")return (y.ph.gmd==null?-99:y.ph.gmd)-(x.ph.gmd==null?-99:x.ph.gmd);
-    return String(x.a.sisbov||"").localeCompare(String(y.a.sisbov||""));
+    return String(x.a.sisbov||x.a.eletro||"").localeCompare(String(y.a.sisbov||y.a.eletro||""));
   });
+  /* 22/10: filtros e busca na lista (layout novo) */
+  var totLista=lista.length;
+  var nBaixo=lista.filter(function(x){return r.pesoMedio&&x.ph.hoje&&x.ph.hoje<r.pesoMedio*0.9;}).length;
+  var nSemPeso=lista.filter(function(x){return !x.ph.ultPeso;}).length;
+  var nSemGmd=lista.filter(function(x){return x.ph.gmd==null;}).length;
+  if(_alFiltro==="baixo")lista=lista.filter(function(x){return r.pesoMedio&&x.ph.hoje&&x.ph.hoje<r.pesoMedio*0.9;});
+  else if(_alFiltro==="sempeso")lista=lista.filter(function(x){return !x.ph.ultPeso;});
+  else if(_alFiltro==="semgmd")lista=lista.filter(function(x){return x.ph.gmd==null;});
+  var _q=_soDig(_alTexto);
+  if(_q)lista=lista.filter(function(x){return _soDig(x.a.eletro).indexOf(_q)>=0||_soDig(x.a.sisbov).indexOf(_q)>=0;});
   function card(t,v,sub){return '<div style="flex:1;min-width:110px;background:#F7F4EC;border:1px solid #E3DCC8;border-left:4px solid #B8944F;border-radius:8px;padding:8px 10px"><div style="font-size:10px;color:#7A7668;text-transform:uppercase;letter-spacing:.4px">'+t+'</div><div style="font-size:17px;font-weight:700;color:#23432D">'+v+'</div>'+(sub?'<div style="font-size:10px;color:#777">'+sub+'</div>':'')+'</div>';}
   function corG(g){return g==null?"#999":(g>=1?"#23432D":(g>0?"#7A5F28":"#A32D2D"));}
   var linhas=lista.map(function(x){
@@ -5697,16 +5712,18 @@ function renderAnimaisLote(){
         '<button class="mbtn" onclick="alHist('+a.id+')" title="Histórico" style="font-size:11px">🕘</button></td></tr>';
   }).join("");
   c.innerHTML=
-    '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px">'+
-      '<div><div style="font-size:17px;font-weight:700;color:#23432D">Animais identificados</div><div style="font-size:12px;color:#7A5F28;font-weight:600">'+_escAL(L.fazenda||"—")+' · '+_escAL(L.pasto||"—")+'</div></div>'+
-      '<button onclick="fecharAnimaisLote()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#666">✕</button></div>'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:-18px -18px 12px;padding:14px 18px;background:#23432D;border-radius:10px 10px 0 0">'+
+      '<div><div style="font-size:11px;color:#B8944F;font-weight:700;letter-spacing:.06em;text-transform:uppercase">Animais identificados</div><div style="font-size:19px;font-weight:700;color:#F7F4EC">'+_escAL(L.pasto||"—")+' <span style="font-size:12px;font-weight:500;color:#D9D2BD">· '+_escAL(L.fazenda||"—")+'</span></div></div>'+
+      '<div style="display:flex;gap:6px;align-items:center"><button onclick="pdfPesagemPasto()" style="font-size:12px;padding:6px 11px;border:1px solid #B8944F;background:#B8944F;color:#fff;border-radius:7px;cursor:pointer;font-weight:700">PDF</button>'+
+      '<button onclick="exportarAnimaisLote()" style="font-size:12px;padding:6px 11px;border:1px solid #D9D2BD;background:transparent;color:#F7F4EC;border-radius:7px;cursor:pointer;font-weight:600">Excel</button>'+
+      '<button onclick="fecharAnimaisLote()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#F7F4EC;padding:0 2px">✕</button></div></div>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'+
       card("Identificados",r.n,r.comPeso+" com peso")+
       card("Peso médio hoje",r.pesoMedio?r.pesoMedio+" kg":"—",r.min!=null?"de "+r.min.toFixed(0)+" a "+r.max.toFixed(0)+" kg":"")+
       card("GMD médio",r.gmdMedio!=null?r.gmdMedio.toFixed(3):"—",r.comGmd+" com 2+ pesagens")+
       card("Abaixo de 90% da média",r.abaixo,"candidatos a apartar")+
     '</div>'+
-    '<div class="al-entrada" style="margin-bottom:12px"><div style="background:#F7F4EC;border:1px solid #E3DCC8;border-radius:8px;padding:10px">'+
+    '<details'+(totLista?'':' open')+' style="margin-bottom:12px;border:1px solid #E3DCC8;border-radius:8px;background:#FFFEFA"><summary style="cursor:pointer;padding:9px 12px;font-size:13px;font-weight:700;color:#23432D">⚖️ Pesar no curral ou importar a planilha da balança</summary><div class="al-entrada" style="padding:0 10px 10px"><div style="background:#F7F4EC;border:1px solid #E3DCC8;border-radius:8px;padding:10px">'+
       '<div style="font-size:12px;font-weight:700;margin-bottom:6px;color:#23432D">Pesagem rápida no curral</div>'+
       '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end">'+
         '<div style="flex:2;min-width:220px"><label style="font-size:10px;color:#555;white-space:nowrap">SISBOV ou identificação eletrônica</label><input id="al-busca" inputmode="numeric" autocomplete="off" style="width:100%" onkeydown="if(event.key===\'Enter\'){event.preventDefault();var p=document.getElementById(\'al-peso\');if(p)p.focus();}"></div>'+
@@ -5720,17 +5737,21 @@ function renderAnimaisLote(){
         '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
           '<label style="font-size:12px;padding:6px 12px;border:1px solid #23432D;background:#23432D;color:#F7F4EC;border-radius:7px;cursor:pointer;font-weight:600">Escolher planilha<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarPesagemLote(this)"></label>'+
           '<button onclick="baixarModeloPesagemLote()" style="font-size:12px;padding:6px 12px;border:1px solid #B8944F;background:#fff;color:#7A5F28;border-radius:7px;cursor:pointer;font-weight:600">Baixar modelo</button>'+
-        '</div><div id="al-imp" style="font-size:12px;margin-top:6px"></div></div></div>'+
+        '</div><div id="al-imp" style="font-size:12px;margin-top:6px"></div></div></div></details>'+
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'+
+      [["todos","Todos",totLista],["baixo","Abaixo de 90%",nBaixo],["sempeso","Sem pesagem",nSemPeso],["semgmd","Sem GMD",nSemGmd]].map(function(f){var on=_alFiltro===f[0];
+        return '<button onclick="alFiltrar(\''+f[0]+'\')" style="font-size:12px;padding:5px 11px;border-radius:16px;cursor:pointer;font-weight:600;border:1px solid '+(on?'#23432D':'#E3DCC8')+';background:'+(on?'#23432D':'#fff')+';color:'+(on?'#F7F4EC':'#555')+'">'+f[1]+' <span style="opacity:.75">'+f[2]+'</span></button>';}).join("")+
+    '</div>'+
     '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">'+
-      '<select onchange="alOrdenar(this.value)" style="font-size:12px;padding:4px">'+
-        [["sisbov","Ordenar por SISBOV"],["peso","Mais pesados primeiro"],["pesoAsc","Mais leves primeiro"],["gmd","Maior GMD primeiro"]].map(function(op){return '<option value="'+op[0]+'"'+(o===op[0]?' selected':'')+'>'+op[1]+'</option>';}).join("")+
-      '</select>'+
-      '<button onclick="exportarAnimaisLote()" style="font-size:12px;padding:5px 10px;border:1px solid #B8944F;background:#fff;color:#7A5F28;border-radius:7px;cursor:pointer;font-weight:600">Exportar Excel</button></div>'+
+      '<input id="al-filtro-txt" value="'+_escAL(_alTexto)+'" placeholder="Buscar na lista (identificação ou SISBOV)" inputmode="numeric" oninput="alBuscarLista(this.value)" style="flex:1;min-width:180px;font-size:12px;padding:6px 8px;border:1px solid #E3DCC8;border-radius:7px">'+
+      '<select onchange="alOrdenar(this.value)" style="font-size:12px;padding:5px">'+
+        [["peso","Mais pesados primeiro"],["pesoAsc","Mais leves primeiro"],["gmd","Maior GMD primeiro"],["sisbov","Por identificação"]].map(function(op){return '<option value="'+op[0]+'"'+(o===op[0]?' selected':'')+'>'+op[1]+'</option>';}).join("")+
+      '</select></div>'+
     (lista.length?
-      '<div style="overflow-x:auto"><table id="al-tab" style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="text-align:left">'+
+      '<div style="overflow:auto;max-height:55vh;border:1px solid #E3DCC8;border-radius:8px"><table id="al-tab" style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="text-align:left;position:sticky;top:0;background:#F7F4EC;z-index:1;box-shadow:0 1px 0 #E3DCC8">'+
       '<th style="padding:6px 4px">Animal (SISBOV / identificação eletrônica)</th><th style="padding:6px 4px;text-align:right">Última pesagem</th><th style="padding:6px 4px;text-align:right">Peso hoje</th><th style="padding:6px 4px;text-align:right">GMD geral</th><th style="padding:6px 4px;text-align:right">GMD recente</th><th style="padding:6px 4px;text-align:center">Pes.</th><th></th></tr></thead><tbody>'+
       linhas+'</tbody></table></div><div style="font-size:10px;color:#999;margin-top:6px">* peso de hoje projetado pela última pesagem + GMD individual do animal. Linha dourada: abaixo de 90% da média do lote.</div>'
-      :'<div class="empty" style="padding:20px">Nenhum animal identificado neste lote. Pese pelo SISBOV ou pela identificação eletrônica acima, ou importe a planilha de apartação na tela SISBOV.</div>');
+      :(totLista?'<div class="empty" style="padding:20px">Nenhum animal neste filtro.</div>':'<div class="empty" style="padding:20px">Nenhum animal identificado neste pasto. Pese pela identificação eletrônica acima ou importe a planilha da balança.</div>'));
 }
 
 function _acharAnimalPorCodigo(cod){
@@ -5874,7 +5895,7 @@ function importarPesagemLote(input){
       if(chips)txt+="\n• "+chips+" identificação(ões) eletrônica(s) serão ligadas ao SISBOV";
       if(erros.length)txt+="\n• "+erros.length+" linha(s) com problema ficam de fora";
       if(!confirm(txt)){msg('<span style="color:#888">Importação cancelada.</span>');input.value="";return;}
-      var todos=getAnimais(), pes=getPesagensSisbov(), subst=0;
+      var todos=getAnimais(), pes=getPesagensSisbov(), subst=0, movesImp=[];
       plano.forEach(function(p){
         var a=p.a;
         if(!a){
@@ -5882,6 +5903,7 @@ function importarPesagemLote(input){
             peso:p.peso,dtE:p.data,produtor:(lote&&lote.produtor)||"",encerrado:false,
             historico:[{data:p.data,de:"—",para:faz+" / Pasto "+L.pasto,motivo:"Cadastro na pesagem do lote"}]};
           todos.push(a);
+          movesImp.push({id:a.id,de:null,para:{faz:faz,pasto:L.pasto},peso:p.peso,data:p.data});
         }else{
           var i=todos.findIndex(function(x){return x.id===a.id;});
           if(i>=0){
@@ -5889,6 +5911,7 @@ function importarPesagemLote(input){
             if(p.chip&&!t.eletro)t.eletro=p.chip;
             if(p.sis&&!t.sisbov)t.sisbov=p.sis;
             if(_pastoCore(t.pasto)!==_pastoCore(L.pasto)){
+              movesImp.push({id:t.id,de:{faz:t.fazenda||"",pasto:t.pasto||""},para:{faz:faz,pasto:L.pasto},peso:p.peso,data:p.data});
               if(!t.historico)t.historico=[];
               t.historico.push({data:p.data,de:(t.fazenda||"")+" / Pasto "+(t.pasto||"—"),para:faz+" / Pasto "+L.pasto,motivo:"Pesagem no lote"});
               t.fazenda=faz;t.pasto=L.pasto;
@@ -5902,9 +5925,10 @@ function importarPesagemLote(input){
         pes.push({id:novoId(),animalId:a.id,data:p.data,peso:p.peso,pasto:L.pasto,obs:"Importado no lote"});
       });
       setAnimais(todos);setPesagensSisbov(pes);
+      var nLotesImp=_lotesSeguemBois(movesImp,{},false).n+_acertarLotesDosPastos([_chPastoId(faz,L.pasto)]);
       input.value="";
       renderAnimaisLote();
-      msg('<span style="color:var(--v)">✓ '+plano.length+' pesagem(ns) importada(s)'+(novos?" · "+novos+" cadastrado(s)":"")+(movidos?" · "+movidos+" movido(s)":"")+(subst?" · "+subst+" substituída(s)":"")+'</span>'+
+      msg('<span style="color:var(--v)">✓ '+plano.length+' pesagem(ns) importada(s)'+(novos?" · "+novos+" cadastrado(s)":"")+(movidos?" · "+movidos+" movido(s)":"")+(subst?" · "+subst+" substituída(s)":"")+(nLotesImp?" · "+nLotesImp+" lote(s) acertado(s)":"")+'</span>'+
         (erros.length?'<div style="color:#C62828;font-size:11px;margin-top:3px">Ficaram de fora: '+_escAL(erros.slice(0,8).join("; "))+(erros.length>8?"…":"")+'</div>':''));
       try{_r(renderAnimais,"renderAnimais");}catch(e2){}
     }catch(err){msg('<span style="color:#C62828">Erro ao ler a planilha: '+_escAL(err.message)+'</span>');input.value="";}
@@ -5976,23 +6000,12 @@ function lerArquivoMovimentacao(input){
   reader.onload=function(e){
     try{
       var wb=XLSX.read(new Uint8Array(e.target.result),{type:"array"});
-      var rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:""});
-      var cab=_colunasMov(rows), c=cab.c, linhas=[];
-      for(var i=cab.ini;i<rows.length;i++){
-        var r=rows[i]||[];
-        var sis=c.sis>=0?_celTxt(r[c.sis]):"", chip=c.chip>=0?_celTxt(r[c.chip]):"";
-        if(c.cod>=0){var g=_celTxt(r[c.cod]);if(g){if(_ehSisbovTxt(g)){if(!sis)sis=g;}else if(!chip)chip=g;}}
-        var pTxt=c.peso>=0?_celTxt(r[c.peso]):"";
-        var peso=pTxt?(parseFloat(/,/.test(pTxt)?pTxt.replace(/\./g,"").replace(",","."):pTxt)||0):0;
-        var dest=c.dest>=0?_celTxt(r[c.dest]):"", faz=c.faz>=0?_celTxt(r[c.faz]):"";
-        var data=(c.data>=0&&r[c.data]!=="")?formatarData(r[c.data]):"";
-        if(!sis&&!chip&&!dest&&!peso)continue;
-        linhas.push({n:i+1,sis:sis,chip:chip,dest:dest,faz:faz,peso:peso,data:data});
-      }
+      /* 22/10: todas as abas, segundo grupo de colunas (repesagem), linhas de total fora, datas em ordem */
+      var lp=_linhasMovDaPlanilha(wb), linhas=lp.linhas, c={dest:lp.temDestino?1:-1,faz:lp.temFaz?1:-1};
       var mapa=_movMapa(), destinos={};
       linhas.forEach(function(l){
         var k=l.dest||"";
-        if(!destinos[k])destinos[k]={orig:k,n:0,pasto:k?((mapa[k]&&mapa[k].pasto)||k):"",faz:(mapa[k]&&mapa[k].faz)||""};
+        if(!destinos[k])destinos[k]={orig:k,n:0,pasto:k?((mapa[k]&&mapa[k].pasto)||k):"",faz:(mapa[k]&&mapa[k].faz)||"",tipo:""};
         destinos[k].n++;
       });
       _movImp={arquivo:file.name,linhas:linhas,destinos:destinos,temDestino:c.dest>=0,temFaz:c.faz>=0};
@@ -6019,34 +6032,72 @@ function _movPlano(){
   return _movPlanoDe(M,vs("movi-data")||todayStr(),vs("movi-faz"),!!(document.getElementById("movi-cad")||{}).checked);
 }
 function _movPlanoDe(M,dataPad,fazPad,cadastrar){
+  /* 22/10: o mesmo animal pode vir em datas diferentes (planilha com varias pesagens): cada data e um
+     passo, em ordem; o lugar do animal e acompanhado passo a passo. Mesmo animal na MESMA data com
+     dois destinos diferentes fica de fora. */
   var todos=getAnimais().filter(function(a){return !a.morto&&!a.encerrado;});
-  var plano=[], usados={};
-  M.linhas.forEach(function(l){
+  var plano=[], usados={}, loc={}, novosVistos={};
+  var linhas=M.linhas.slice().sort(function(x,y){return String(x.data||dataPad).localeCompare(String(y.data||dataPad))||(x.n-y.n);});
+  linhas.forEach(function(l){
     var it={l:l,status:"",obs:""};
     var dst=M.destinos[l.dest||""]||{};
     var pasto=(dst.pasto||"").trim();
     it.data=l.data||dataPad;
+    if(l.conflito){
+      var achC=_movAcharAnimal(todos,l.sis,l.chip), idC=achC.a?"a"+achC.a.id:"n"+(_soDig(l.sis)||_soDig(l.chip));
+      var atC=loc[idC]||(achC.a?{faz:achC.a.fazenda,pasto:achC.a.pasto}:null);
+      var outros=atC?l.conflito.filter(function(x){return _pastoCore(x)!==_pastoCore(atC.pasto);}):[];
+      outros=outros.filter(function(x,i){return outros.findIndex(function(y){return _pastoCore(y)===_pastoCore(x);})===i;});
+      if(outros.length!==1){it.status="erro";it.obs="na mesma data em pastos diferentes ("+l.conflito.join(", ")+")";plano.push(it);return;}
+      /* um dos pastos e onde o boi ja estava: o outro e o destino da apartacao */
+      dst=M.destinos[outros[0]]||{pasto:outros[0]};pasto=(dst.pasto||outros[0]).trim();it.obs="2 pastos na planilha: usei "+outros[0];
+    }
     if(!/^\d{4}-\d{2}-\d{2}$/.test(it.data)){it.status="erro";it.obs="data inválida ("+l.data+")";plano.push(it);return;}
     if(!l.sis&&!l.chip){it.status="erro";it.obs="sem SISBOV/identificação eletrônica";plano.push(it);return;}
     if(l.peso&&!(l.peso>=30&&l.peso<=1500)){it.status="erro";it.obs="peso "+l.peso;plano.push(it);return;}
     var ach=_movAcharAnimal(todos,l.sis,l.chip);
     it.a=ach.a;if(ach.comoFinal)it.obs="pelo final do SISBOV";
-    if(it.a&&usados[it.a.id]){it.status="erro";it.obs="animal repetido na planilha (linha "+usados[it.a.id]+")";plano.push(it);return;}
-    if(it.a)usados[it.a.id]=l.n;
-    var fazDest=_movFazNome(l.faz||dst.faz||fazPad||(it.a&&it.a.fazenda)||"");
+    var idk=it.a?"a"+it.a.id:"n"+(_soDig(l.sis)||_soDig(l.chip));
+    var uk=idk+"|"+it.data;
+    if(usados[uk]){it.status="erro";it.obs="animal repetido na mesma data (linha "+usados[uk]+")";plano.push(it);return;}
+    usados[uk]=l.n;
+    var atual=loc[idk]||(it.a?{faz:it.a.fazenda,pasto:it.a.pasto}:null);
+    var fazDest=_movFazNome(l.faz||dst.faz||fazPad||(atual&&atual.faz)||"");
     if(pasto)pasto=_pastoCanon(fazDest,pasto);
-    it.fazDest=fazDest;it.pastoDest=pasto;
-    if(!it.a){
+    it.fazDest=fazDest;it.pastoDest=pasto;it.idk=idk;it.de=atual?{faz:atual.faz,pasto:atual.pasto}:null;
+    if(!it.a&&!novosVistos[idk]){
       if(!cadastrar){it.status="erro";it.obs="não cadastrado";plano.push(it);return;}
       if(!pasto||!fazDest){it.status="erro";it.obs="não cadastrado e sem destino";plano.push(it);return;}
+      novosVistos[idk]=1;loc[idk]={faz:fazDest,pasto:pasto};
       it.status="novo";plano.push(it);return;
     }
-    var mesmo=!pasto||(_pastoCore(it.a.pasto)===_pastoCore(pasto)&&_fazCore(it.a.fazenda)===_fazCore(fazDest));
+    var mesmo=!pasto||(_pastoCore(atual.pasto)===_pastoCore(pasto)&&_fazCore(atual.faz)===_fazCore(fazDest));
     if(mesmo&&!l.peso){it.status="igual";it.obs=it.obs||"já está no destino";plano.push(it);return;}
     it.status=mesmo?"pesar":"mover";
+    if(!mesmo)loc[idk]={faz:fazDest,pasto:pasto};
     plano.push(it);
   });
   return plano;
+}
+/* 22/10: no card de cada destino, o que acontece com o LOTE (lote segue os bois) */
+function _movLoteDoDestinoHtml(k,d,ke,fazPad){
+  var M=_movImp;if(!M||!d.pasto)return "";
+  var ls=M.linhas.filter(function(l){return (l.dest||"")===k;});
+  var faz=d.faz||(ls.find(function(l){return l.faz;})||{}).faz||fazPad||"";
+  var todos=getAnimais(), oriTipo=null;
+  if(!faz||!oriTipo){
+    for(var i=0;i<ls.length&&i<40;i++){var r=_movAcharAnimal(todos,ls[i].sis,ls[i].chip);if(r.a){if(!faz)faz=r.a.fazenda;
+      var lo=getLotes().find(function(l){return !l.vendido&&_chPastoId(l.fazenda,l.pasto)===_chPastoId(r.a.fazenda,r.a.pasto);});if(lo){oriTipo=lo.tipo;break;}}}
+  }
+  faz=_movFazNome(faz);
+  if(!faz)return '<div style="font-size:10.5px;color:#999;margin-top:5px">Escolha a fazenda para ver o lote do destino.</div>';
+  var pc=_pastoCanon(faz,d.pasto), ch=_chPastoId(faz,pc);
+  var lotesD=getLotes().filter(function(l){return !l.vendido&&_chPastoId(l.fazenda,l.pasto)===ch&&(parseInt(l.qtd)||0)>0;});
+  if(lotesD.length)return '<div style="font-size:11px;color:#23432D;margin-top:5px;background:#E8EFE9;border-radius:5px;padding:4px 7px">Lote no destino: <b>'+lotesD.map(function(l){return _escAL(l.tipo||"")+" · "+(parseInt(l.qtd)||0)+" cab.";}).join(" + ")+'</b> — '+(lotesD.some(function(l){return _ehTipoId(l.tipo);})?'fica com os identificados':'soma os que entrarem')+'</div>';
+  var padrao=d.tipo||_tipoDestinoPadrao(faz,oriTipo);
+  return '<div style="font-size:11px;color:#7A5F28;margin-top:5px;background:#FBF8F0;border:1px dashed #B8944F;border-radius:5px;padding:5px 7px">Sem lote aqui. Se um lote inteiro vier, ele muda junto; senão crio lote de '+
+    '<select style="font-size:11px;padding:1px 3px" onchange="movTrocarDestino(\''+ke+'\',\'tipo\',this.value)">'+
+    ["Recria","Engorda a Pasto","Semi-Confinamento","Confinamento"].map(function(t){return '<option'+(padrao===t?' selected':'')+'>'+t+'</option>';}).join("")+'</select></div>';
 }
 function movTrocarDestino(k,campo,v){
   if(!_movImp)return;var d=_movImp.destinos[decodeURIComponent(k)];if(!d)return;
@@ -6084,7 +6135,7 @@ function renderImportarMovimentacao(manterFoco){
         '<div style="font-size:11px;color:#777">Na planilha: <b style="color:'+V+'">'+(k?_escAL(k):'(sem destino)')+'</b> · '+d.n+' animal(is)</div>'+
         '<div style="display:flex;gap:6px;margin-top:5px"><input id="movd-p-'+_escAL(ke)+'" value="'+_escAL(d.pasto)+'" placeholder="pasto/curral destino" style="flex:2;min-width:0" onchange="movTrocarDestino(\''+ke+'\',\'pasto\',this.value)">'+
         (M.temFaz?'':'<select style="flex:1;min-width:0" onchange="movTrocarDestino(\''+ke+'\',\'faz\',this.value)"><option value="">fazenda padrão</option>'+_MOV_FAZ.map(function(f){return '<option'+(d.faz===f?' selected':'')+'>'+f+'</option>';}).join("")+'</select>')+
-        '</div></div>';
+        '</div>'+_movLoteDoDestinoHtml(k,d,ke,fazPad)+'</div>';
     }).join("")+'</div>';
   var plano=_movPlano(), cont={mover:0,pesar:0,novo:0,igual:0,erro:0}, comPeso=0;
   plano.forEach(function(p){cont[p.status]++;if(p.status!=="erro"&&p.l.peso)comPeso++;});
@@ -6115,6 +6166,7 @@ function confirmarImportarMovimentacao(){
   var ok=plano.filter(function(p){return p.status==="mover"||p.status==="pesar"||p.status==="novo";});
   if(!ok.length)return;
   var res=_movAplicar(ok,"Importação de movimentação"), mov=res.mov, pesadas=res.pesadas, novos=res.novos;
+  var lr=_lotesDepoisDaImportacao(res,_tiposDosDestinos(plano,_movImp)), nLotes=lr.n;
   // lembra a troca de nome dos destinos (porteira da balanca -> pasto/curral)
   try{
     var mapa=_movMapa();
@@ -6126,22 +6178,32 @@ function confirmarImportarMovimentacao(){
   try{renderPastos();}catch(e){}
   _refrescarAnimaisLote();
   alerta("sisbov","Movimentação importada: "+mov+" movido(s), "+pesadas+" pesagem(ns)"+(novos?", "+novos+" cadastrado(s)":"")+".","ok");
-  alert("Movimentação importada:\n• "+mov+" animal(is) mudaram de lugar\n• "+pesadas+" pesagem(ns) gravada(s)"+(novos?"\n• "+novos+" animal(is) cadastrado(s)":""));
+  alert("Movimentação importada:\n• "+mov+" animal(is) mudaram de lugar\n• "+pesadas+" pesagem(ns) gravada(s)"+(novos?"\n• "+novos+" animal(is) cadastrado(s)":"")+(nLotes?"\n\nLotes:\n• "+lr.txt.slice(0,12).join("\n• ")+(lr.txt.length>12?"\n…":""):""));
 }
 function _movAplicar(ok,motivo){
-  var todos=getAnimais(), pes=getPesagensSisbov(), mov=0, pesadas=0, novos=0;
+  var todos=getAnimais(), pes=getPesagensSisbov(), mov=0, pesadas=0, novos=0, moves=[], criados={};
   ok.forEach(function(p){
-    var a;
-    if(p.status==="novo"){
-      a={id:novoId(),sisbov:p.l.sis,eletro:p.l.chip,fazenda:p.fazDest,pasto:p.pastoDest,sexo:"",cat:"",peso:p.l.peso||0,dtE:p.data,produtor:"",encerrado:false,
-        historico:[{data:p.data,de:"—",para:p.fazDest+" / Pasto "+p.pastoDest,motivo:"Cadastro: "+(motivo||"importação de movimentação")}]};
-      todos.push(a);novos++;
+    var a=null;
+    if(p.status==="novo"||(!p.a&&criados[p.idk])){
+      a=criados[p.idk];
+      if(!a){
+        a={id:novoId(),sisbov:p.l.sis,eletro:p.l.chip,fazenda:p.fazDest,pasto:p.pastoDest,sexo:"",cat:"",peso:p.l.peso||0,dtE:p.data,produtor:"",encerrado:false,
+          historico:[{data:p.data,de:"—",para:p.fazDest+" / Pasto "+p.pastoDest,motivo:"Cadastro: "+(motivo||"importação de movimentação")}]};
+        todos.push(a);novos++;criados[p.idk]=a;
+        moves.push({id:a.id,de:null,para:{faz:p.fazDest,pasto:p.pastoDest},peso:p.l.peso||0,data:p.data});
+      }else if(p.status==="mover"){
+        if(!a.historico)a.historico=[];
+        a.historico.push({data:p.data,de:(a.fazenda||"")+" / Pasto "+(a.pasto||"—"),para:p.fazDest+" / Pasto "+p.pastoDest,motivo:motivo||"Importação de movimentação"});
+        a.fazenda=p.fazDest;a.pasto=p.pastoDest;
+        moves.push({id:a.id,de:null,para:{faz:p.fazDest,pasto:p.pastoDest},peso:p.l.peso||0,data:p.data});
+      }
     }else{
       var i=todos.findIndex(function(x){return x.id===p.a.id;});if(i<0)return;
       a=todos[i];
       if(p.l.chip&&!a.eletro)a.eletro=p.l.chip;
       if(p.l.sis&&!a.sisbov&&_soDig(p.l.sis).length>=15)a.sisbov=p.l.sis;
       if(p.status==="mover"){
+        moves.push({id:a.id,de:{faz:a.fazenda||"",pasto:a.pasto||""},para:{faz:p.fazDest,pasto:p.pastoDest},peso:p.l.peso||0,data:p.data});
         if(!a.historico)a.historico=[];
         a.historico.push({data:p.data,de:(a.fazenda||"")+" / Pasto "+(a.pasto||"—"),para:p.fazDest+" / Pasto "+p.pastoDest,motivo:motivo||"Importação de movimentação"});
         a.fazenda=p.fazDest;a.pasto=p.pastoDest;mov++;
@@ -6154,71 +6216,134 @@ function _movAplicar(ok,motivo){
     }
   });
   setAnimais(todos);if(pesadas)setPesagensSisbov(pes);
-  return {mov:mov,pesadas:pesadas,novos:novos};
+  /* pastos so pesados (sem mudanca) tambem entram no acerto da recria/engorda */
+  var pesados=[];ok.forEach(function(p){if(p.status==="pesar"&&p.a)pesados.push(_chPastoId(p.a.fazenda,p.a.pasto));});
+  return {mov:mov,pesadas:pesadas,novos:novos,moves:moves,pesados:pesados};
+}
+/* tipo escolhido por destino na importacao -> {chave: tipo} */
+function _tiposDosDestinos(plano,M){
+  var t={};
+  plano.forEach(function(p){var d=M&&M.destinos&&M.destinos[p.l.dest||""];if(d&&d.tipo&&p.fazDest&&p.pastoDest)t[_chPastoId(p.fazDest,p.pastoDest)]=d.tipo;});
+  return t;
+}
+function _lotesDepoisDaImportacao(res,tipos){
+  var r=_lotesSeguemBois(res.moves,tipos,false);
+  var n2=res.pesados&&res.pesados.length?_acertarLotesDosPastos(res.pesados):0;
+  r.n+=n2;return r;
 }
 
-/* 22/10/2026 (ele: "so seguir a planilha. Dentro de cada pasto tem que ter os animais identificados"):
-   acerta os LOTES pelos animais identificados. Para cada pasto/curral que tem animal com pesagem
-   individual recente (90 dias), o lote passa a ter exatamente o numero de identificados e ganha a
-   pesagem media (data mais comum). Dois lotes no mesmo pasto: fica o de mais cabecas, o outro vai a
-   zero com anotacao. Pasto sem lote: cria o lote (Recria, Nelore). Pastos sem pesagem individual
-   nao sao tocados. Mostra tudo antes e so grava com o OK. */
-function _planoLotesPelaPesagem(){
-  var lim=_kLocal(new Date(Date.now()-90*86400000));
+/* 22/10/2026 (ele: "so seguir a planilha. Dentro de cada pasto tem que ter os animais identificados";
+   depois "vamos melhorar a identificacao dos animais da recria e da engorda"):
+   o LOTE de recria/engorda de cada pasto segue os animais identificados.
+   - Lote do pasto passa a ter exatamente o numero de identificados e ganha a pesagem media (data mais comum).
+   - Pasto com identificado e sem lote: cria o lote (Recria, Nelore).
+   - Dois lotes de recria/engorda no mesmo pasto: fica o que bate (ou o de mais cabecas); o outro vai a zero.
+   - So recria e engorda: semi, confinamento e UTI nunca sao tocados; pasto que tem lote de outro tipo
+     e nenhum de recria/engorda fica de fora (nao cria lote de recria dentro de curral).
+   Modo automatico (_acertarLotesDosPastos): roda sozinho depois de importar pesagem/movimentacao, so nos
+   pastos que a importacao mexeu (destino E origem). Pasto de origem que ficou sem nenhum identificado
+   vai a zero. Apagar lote so pelo botao, sempre com confirmacao. */
+var _TIPOS_ID=["Recria","Engorda a Pasto","Engorda"];
+function _ehTipoId(t){return _TIPOS_ID.indexOf(String(t||""))>=0;}
+function _chPastoId(faz,pasto){return _fazCore(_movFazNome(faz))+"|"+_pastoCore(pasto);}
+function _fazBate(a,b){var x=_fazCore(_movFazNome(a)),y=_fazCore(_movFazNome(b));return !x||!y||x===y||x.indexOf(y)>=0||y.indexOf(x)>=0;}
+function _gruposIdentificados(){
   var ult={};
   getPesagensSisbov().forEach(function(p){if(!(p.peso>0)||!p.data)return;var u=ult[p.animalId];if(!u||p.data>u.data)ult[p.animalId]=p;});
   var grupos={};
-  /* conta TODOS os identificados do pasto (inclusive quem entrou sem peso), mas so mexe no pasto
-     que teve pesagem individual recente - animal antigo solto num pasto nao cria lote */
   getAnimais().forEach(function(a){
     if(a.morto||a.encerrado||!a.pasto||!a.fazenda)return;
-    var faz=_movFazNome(a.fazenda), k=_fazCore(faz)+"|"+_pastoCore(a.pasto);
-    var g=grupos[k]||(grupos[k]={faz:faz,pasto:String(a.pasto).trim(),n:0,soma:0,np:0,datas:{},recente:false});
+    var faz=_movFazNome(a.fazenda), k=_chPastoId(faz,a.pasto);
+    var g=grupos[k]||(grupos[k]={k:k,faz:faz,pasto:String(a.pasto).trim(),n:0,soma:0,np:0,datas:{},ultData:""});
     g.n++;
     var u=ult[a.id];if(!u)return;
-    if(u.data>=lim)g.recente=true;
-    g.soma+=u.peso;g.np++;g.datas[u.data]=(g.datas[u.data]||0)+1;
+    g.soma+=u.peso;g.np++;g.datas[u.data]=(g.datas[u.data]||0)+1;if(u.data>g.ultData)g.ultData=u.data;
   });
-  Object.keys(grupos).forEach(function(k){if(!grupos[k].recente)delete grupos[k];});
-  var lotes=getLotes(), plano=[];
-  Object.keys(grupos).forEach(function(k){
-    var g=grupos[k], fc=_fazCore(g.faz);
-    var ls=lotes.filter(function(l){
-      if(l.vendido||_pastoCore(l.pasto)!==_pastoCore(g.pasto))return false;
-      var lf=_fazCore(l.fazenda);return !lf||lf===fc||lf.indexOf(fc)>=0||fc.indexOf(lf)>=0;
-    }).sort(function(a,b){return (parseInt(b.qtd)||0)-(parseInt(a.qtd)||0);});
+  return grupos;
+}
+/* chaves: lista de "fazenda|pasto" (modo automatico). Sem chaves: todos os pastos com pesagem individual
+   nos ultimos 90 dias (botao). */
+function _planoLotesPelaPesagem(chaves){
+  var grupos=_gruposIdentificados(), alvo={};
+  if(chaves&&chaves.length)chaves.forEach(function(k){alvo[k]=1;});
+  else{var lim=_kLocal(new Date(Date.now()-90*86400000));Object.keys(grupos).forEach(function(k){if(grupos[k].ultData>=lim)alvo[k]=1;});}
+  var lotes=getLotes().filter(function(l){return !l.vendido;}), plano=[];
+  Object.keys(alvo).forEach(function(k){
+    var g=grupos[k];
+    var noPasto=lotes.filter(function(l){return _chPastoId(l.fazenda,l.pasto)===k;});
+    var ls=noPasto.filter(function(l){return _ehTipoId(l.tipo);});
+    if(!ls.length&&noPasto.length)return;                    // curral/pasto de semi ou confinamento: nao e aqui
+    if(!g){                                                   // pasto de origem esvaziado pela importacao
+      ls.forEach(function(l){if((parseInt(l.qtd)||0)>0)plano.push({g:null,princ:l,extras:[],zerar:true,media:null,data:null,mudaPeso:false});});
+      return;
+    }
+    ls.sort(function(a,b){var ea=(parseInt(a.qtd)||0)===g.n?1:0, eb=(parseInt(b.qtd)||0)===g.n?1:0;return (eb-ea)||((parseInt(b.qtd)||0)-(parseInt(a.qtd)||0));});
     var media=g.np?+(g.soma/g.np).toFixed(1):null;
     var data=Object.keys(g.datas).sort(function(a,b){return (g.datas[b]-g.datas[a])||(a<b?1:-1);})[0]||null;
     var princ=ls[0]||null, extras=ls.slice(1).filter(function(l){return (parseInt(l.qtd)||0)>0;});
     var mudaPeso=!!(princ&&media&&data&&!(princ.ultimaPesagem&&princ.ultimaPesagem.data>=data)&&!(princ.dtE&&princ.dtE>=data));
     if(princ&&(parseInt(princ.qtd)||0)===g.n&&!extras.length&&!mudaPeso)return;
-    plano.push({g:g,princ:princ,extras:extras,media:media,data:data,mudaPeso:mudaPeso});
+    plano.push({g:g,princ:princ,extras:extras,zerar:false,media:media,data:data,mudaPeso:mudaPeso});
   });
-  plano.sort(function(a,b){return (a.g.faz+a.g.pasto).localeCompare(b.g.faz+b.g.pasto,"pt",{numeric:true});});
+  plano.sort(function(a,b){var x=a.g?a.g.faz+a.g.pasto:(a.princ.fazenda+a.princ.pasto), y=b.g?b.g.faz+b.g.pasto:(b.princ.fazenda+b.princ.pasto);return x.localeCompare(y,"pt",{numeric:true});});
   plano.grupos=grupos;
   return plano;
 }
-/* 22/10 (ele: "pode apagar os outros lotes da recria que nao estejam nessa planilha. Cada pasto tera uma
-   lista de todos os animais identificados"): lotes de RECRIA das fazendas que tiveram pesagem individual
-   e cujo pasto nao tem nenhum animal identificado, mais o lote duplicado de um pasto ja acertado. Semi,
-   confinamento e engorda nao entram. Sempre listados e confirmados antes de apagar. */
+function _aplicarPlanoLotes(plano){
+  var lotes=getLotes(), hoje=todayStr(), n=0;
+  plano.forEach(function(p){
+    if(!p.princ){
+      lotes.push({id:novoId(),tipo:"Recria",fazenda:p.g.faz,pasto:p.g.pasto,qtd:p.g.n,peso:p.media||0,dtE:p.data||hoje,resp:"",raca:"Nelore",
+        obs:"Criado pela pesagem individual (identificação eletrônica) em "+fmtData(hoje),valorBoi:0,precoKg:0,comissaoTotal:0,freteTotal:0,custoBoi:0,sexo:"",idade:0});
+      n++;return;
+    }
+    var l=lotes.find(function(x){return x.id===p.princ.id;});if(!l)return;
+    if(p.zerar){l.qtd=0;l.obs=((l.obs?l.obs+" | ":"")+"Sem animal identificado desde "+fmtData(hoje)+" (pesagem individual)");n++;return;}
+    l.qtd=p.g.n;
+    if(p.mudaPeso){
+      if(!l.pesagens)l.pesagens=[];
+      l.pesagens.push({data:p.data,peso:p.media,obs:"Média da pesagem individual (identificação eletrônica)",gmdReal:null,gmdIntervalo:null});
+      l.ultimaPesagem={data:p.data,peso:p.media,gmdReal:null,gmdIntervalo:null};
+    }
+    p.extras.forEach(function(e){
+      var x=lotes.find(function(y){return y.id===e.id;});if(!x)return;
+      x.qtd=0;x.obs=((x.obs?x.obs+" | ":"")+"Juntado ao lote "+(l.pasto||"")+" em "+fmtData(hoje)+" (pesagem individual)");
+    });
+    n++;
+  });
+  if(n){setLotes(lotes);try{marcarPendente();}catch(e){}}
+  return n;
+}
+function _rerenderLotesId(){
+  try{renderLotes();}catch(e){}try{renderLotesTipo("Recria","lista-recria");}catch(e){}try{renderPastos();}catch(e){}
+  try{_r(renderAnimais,"renderAnimais");}catch(e){}try{renderResumoIdentificados();}catch(e){}
+}
+/* automatico: depois de importar. Devolve quantos lotes mudaram. */
+function _acertarLotesDosPastos(chaves){
+  try{
+    var ks=[...new Set((chaves||[]).filter(Boolean))];if(!ks.length)return 0;
+    var n=_aplicarPlanoLotes(_planoLotesPelaPesagem(ks));
+    if(n)_rerenderLotesId();
+    return n;
+  }catch(e){console.warn("acerto automatico dos lotes:",e);return 0;}
+}
+/* lotes de RECRIA/ENGORDA das fazendas com pesagem individual cujo pasto nao tem nenhum identificado
+   (ou ficou zerado), mais o lote repetido de um pasto ja acertado. Sempre listados e confirmados. */
 function _lotesParaApagarPelaPesagem(){
-  var grupos=_planoLotesPelaPesagem().grupos||{}, fazOk={}, pastoOk={};
-  Object.keys(grupos).forEach(function(k){var g=grupos[k];fazOk[_fazCore(g.faz)]=1;pastoOk[k]=1;});
+  var grupos=_gruposIdentificados(), fazOk={}, lim=_kLocal(new Date(Date.now()-90*86400000));
+  Object.keys(grupos).forEach(function(k){if(grupos[k].ultData>=lim)fazOk[_fazCore(grupos[k].faz)]=1;});
   var porPasto={};
   getLotes().forEach(function(l){
-    if(l.vendido||l.tipo!=="Recria")return;
-    var fc=_fazCore(_movFazNome(l.fazenda));if(!fazOk[fc])return;
-    var k=fc+"|"+_pastoCore(l.pasto);(porPasto[k]=porPasto[k]||[]).push(l);
+    if(l.vendido||!_ehTipoId(l.tipo))return;
+    if(!fazOk[_fazCore(_movFazNome(l.fazenda))])return;
+    var k=_chPastoId(l.fazenda,l.pasto);(porPasto[k]=porPasto[k]||[]).push(l);
   });
   var out=[];
   Object.keys(porPasto).forEach(function(k){
-    var ls=porPasto[k];
-    if(!pastoOk[k]){ls.forEach(function(l){out.push({l:l,motivo:"sem animal identificado"});});return;}
+    var ls=porPasto[k], g=grupos[k];
+    if(!g){ls.forEach(function(l){out.push({l:l,motivo:"sem animal identificado"});});return;}
     if(ls.length>1){
-      /* fica o que ja bate com os identificados (o acertado); senao o de mais cabecas - mesmo criterio do acerto */
-      var n=grupos[k].n;
-      ls.sort(function(a,b){var ea=(parseInt(a.qtd)||0)===n?1:0, eb=(parseInt(b.qtd)||0)===n?1:0;return (eb-ea)||((parseInt(b.qtd)||0)-(parseInt(a.qtd)||0));});
+      ls.sort(function(a,b){var ea=(parseInt(a.qtd)||0)===g.n?1:0, eb=(parseInt(b.qtd)||0)===g.n?1:0;return (eb-ea)||((parseInt(b.qtd)||0)-(parseInt(a.qtd)||0));});
       ls.slice(1).forEach(function(l){out.push({l:l,motivo:"lote repetido no mesmo pasto"});});
     }
   });
@@ -6228,7 +6353,7 @@ function _apagarLotesPelaPesagem(){
   var lista=_lotesParaApagarPelaPesagem();
   if(!lista.length)return 0;
   var tot=lista.reduce(function(s,x){return s+(parseInt(x.l.qtd)||0);},0);
-  var txt="Apagar "+lista.length+" lote(s) de Recria que não estão na pesagem individual ("+tot+" cab. no cadastro)?\n";
+  var txt="Apagar "+lista.length+" lote(s) de recria/engorda que não estão na pesagem individual ("+tot+" cab. no cadastro)?\n";
   lista.forEach(function(x){txt+="\n• "+(x.l.fazenda||"")+" / "+(x.l.pasto||"")+": "+(parseInt(x.l.qtd)||0)+" cab."+(x.l.produtor?" ("+x.l.produtor+")":"")+" — "+x.motivo;});
   txt+="\n\nAs pesagens, tratos e mortes ligados a esses lotes também saem.";
   if(!confirm(txt))return 0;
@@ -6243,43 +6368,361 @@ function _apagarLotesPelaPesagem(){
 }
 function acertarLotesPelaPesagem(){
   var plano=_planoLotesPelaPesagem();
-  if(!plano.length){
-    var ap=_apagarLotesPelaPesagem();
-    if(ap){try{marcarPendente();}catch(e){}try{renderLotes();renderLotesTipo("Recria","lista-recria");}catch(e){}try{renderPastos();}catch(e){}try{toast(ap+" lote(s) apagado(s).");}catch(e){}}
-    else if(!_lotesParaApagarPelaPesagem().length)alert("Os lotes já batem com os animais identificados.");
-    return;
+  var mudou=0;
+  if(plano.length){
+    var txt="Acertar "+plano.length+" lote(s) de recria/engorda pelos animais identificados?\n";
+    plano.forEach(function(p){
+      if(p.zerar){txt+="\n• "+(p.princ.fazenda||"")+" / "+(p.princ.pasto||"")+": "+(parseInt(p.princ.qtd)||0)+" → 0 cab. (sem identificado)";return;}
+      var nome=p.g.faz+" / "+p.g.pasto;
+      if(!p.princ)txt+="\n• "+nome+": criar lote com "+p.g.n+" cab."+(p.media?" ("+p.media.toLocaleString("pt-BR")+" kg)":"");
+      else txt+="\n• "+nome+": "+(parseInt(p.princ.qtd)||0)+" → "+p.g.n+" cab."+(p.mudaPeso?" · pesagem "+p.media.toLocaleString("pt-BR")+" kg em "+fmtData(p.data):"");
+      p.extras.forEach(function(x){txt+="\n   outro lote no mesmo pasto ("+(parseInt(x.qtd)||0)+" cab.) será apagado em seguida";});
+    });
+    if(!confirm(txt))return;
+    mudou=_aplicarPlanoLotes(plano);
   }
-  var txt="Acertar "+plano.length+" lote(s) pelos animais identificados?\n";
-  plano.forEach(function(p){
-    var nome=p.g.faz+" / "+p.g.pasto;
-    if(!p.princ)txt+="\n• "+nome+": criar lote com "+p.g.n+" cab."+(p.media?" ("+p.media.toLocaleString("pt-BR")+" kg)":"");
-    else txt+="\n• "+nome+": "+(parseInt(p.princ.qtd)||0)+" → "+p.g.n+" cab."+(p.mudaPeso?" · pesagem "+p.media.toLocaleString("pt-BR")+" kg em "+fmtData(p.data):"");
-    p.extras.forEach(function(x){txt+="\n   outro lote no mesmo pasto ("+(parseInt(x.qtd)||0)+" cab.) será apagado em seguida";});
-  });
-  if(!confirm(txt))return;
+  var apagados=_apagarLotesPelaPesagem();
+  if(apagados)try{marcarPendente();}catch(e){}
+  if(!mudou&&!apagados){if(!plano.length&&!_lotesParaApagarPelaPesagem().length)alert("Os lotes já batem com os animais identificados.");return;}
+  _rerenderLotesId();
+  try{toast("Lotes acertados pelos animais identificados: "+mudou+(apagados?" · "+apagados+" apagado(s)":"")+".");}catch(e){alert("Lotes acertados: "+mudou+".");}
+}
+
+/* ===== 22/10/2026: o LOTE SEGUE OS BOIS =====
+   Ele: "quando tiver outra pesagem desses bois para o confinamento ou semi, quero que o app ja identifique
+   e mova o lote para o novo pasto ou novo curral. Isso vale tambem para manejo de bois do pasto: caso troque
+   determinado boi de pasto, o sistema ja identifica na planilha de importacao e ja atualiza."
+   Regras (rodam sozinhas depois de toda importacao de pesagem/movimentacao, no app e pela Bia):
+   1. Lote inteiro mudou (o pasto de origem ficou sem identificado e todos foram para UM destino que ainda
+      nao tem lote): o PROPRIO lote vai junto - troca fazenda/pasto, guarda o historico (histMov) e, se o
+      destino e de outro tipo (recria -> semi/confinamento), vira esse tipo como na "migracao" do app
+      (tipoOrigem, pesoE/dtE = pesagem media da entrada, dtEntradaConf, ultimaPesagem zerada).
+   2. Semi e confinamento (lote que nao e contado pelos identificados): origem perde as cabecas que sairam,
+      destino ganha as que entraram.
+   3. Destino sem lote (e que nao recebeu um lote inteiro): cria o lote do tipo escolhido no destino
+      (na importacao) ou do tipo padrao da fazenda, com peso medio e data da pesagem, produtor da origem.
+   4. Recria e engorda: o lote fica com o numero de identificados do pasto (_planoLotesPelaPesagem). */
+function _tipoDestinoPadrao(faz,tipoOrigem){
+  var ts={};
+  getLotes().forEach(function(l){if(!l.vendido&&(parseInt(l.qtd)||0)>0&&_fazBate(l.fazenda,faz)&&!/uti/i.test(String(l.pasto||""))&&l.tipo)ts[l.tipo]=1;});
+  var k=Object.keys(ts);
+  if(k.length===1)return k[0];                          // fazenda de um tipo so (Pinheiral = confinamento)
+  return tipoOrigem||"Recria";
+}
+function _modaDatas(ds){var c={},b=null;ds.forEach(function(d){if(!d)return;c[d]=(c[d]||0)+1;if(b==null||c[d]>c[b]||(c[d]===c[b]&&d>b))b=d;});return b;}
+/* moves: [{id, de:{faz,pasto}|null, para:{faz,pasto}, peso, data}] (um por animal que mudou ou foi cadastrado).
+   tipos: {chaveDestino: tipo} escolhido na importacao. dry=true so descreve. */
+function _lotesSeguemBois(moves,tipos,dry){
+  var res={n:0,txt:[]};
+  if(!moves||!moves.length)return res;
+  tipos=tipos||{};
+  /* um registro por animal: primeira origem -> ultimo destino (planilha com varias datas) */
+  var porAnimal={},ordem=[],toque={};
+  moves.forEach(function(m){toque[_chPastoId(m.para.faz,m.para.pasto)]=1;if(m.de)toque[_chPastoId(m.de.faz,m.de.pasto)]=1;});
+  moves.forEach(function(m){var a=porAnimal[m.id];if(!a){a=porAnimal[m.id]={id:m.id,de:m.de,para:m.para,peso:m.peso,data:m.data};ordem.push(a);}else{a.para=m.para;if(m.peso)a.peso=m.peso;if(m.data)a.data=m.data;}});
   var lotes=getLotes(), hoje=todayStr();
-  plano.forEach(function(p){
-    if(!p.princ){
-      lotes.push({id:novoId(),tipo:"Recria",fazenda:p.g.faz,pasto:p.g.pasto,qtd:p.g.n,peso:p.media||0,dtE:p.data||hoje,resp:"",raca:"Nelore",
-        obs:"Criado pela pesagem individual (identificação eletrônica) em "+fmtData(hoje),valorBoi:0,precoKg:0,comissaoTotal:0,freteTotal:0,custoBoi:0,sexo:"",idade:0});
+  var ativos=function(k){return lotes.filter(function(l){return !l.vendido&&_chPastoId(l.fazenda,l.pasto)===k;});};
+  var qt=function(l){return parseInt(l.qtd)||0;};
+  var sai={}, ent={};
+  ordem.forEach(function(m){
+    var d=_chPastoId(m.para.faz,m.para.pasto), o=m.de?_chPastoId(m.de.faz,m.de.pasto):null;
+    if(o===d)return;
+    var E=ent[d]||(ent[d]={k:d,faz:_movFazNome(m.para.faz),pasto:String(m.para.pasto).trim(),n:0,pesos:[],datas:[],origens:{}});
+    E.n++;if(m.peso>0)E.pesos.push(m.peso);E.datas.push(m.data);
+    if(o){sai[o]=(sai[o]||0)+1;E.origens[o]=(E.origens[o]||0)+1;}
+  });
+  var grupos=_gruposIdentificados(), mudouLote={};
+  var media=function(E){return E.pesos.length?+(E.pesos.reduce(function(s,x){return s+x;},0)/E.pesos.length).toFixed(1):null;};
+  /* 1) lote inteiro vai junto */
+  Object.keys(sai).forEach(function(o){
+    if(grupos[o]&&grupos[o].n>0)return;
+    var lo=ativos(o).filter(function(l){return qt(l)>0;});if(lo.length!==1)return;
+    var L=lo[0], ds=Object.keys(ent).filter(function(d){return ent[d].origens[o];});
+    if(ds.length!==1)return;
+    var E=ent[ds[0]];
+    if(E.feito||ativos(E.k).some(function(l){return qt(l)>0;}))return;
+    if(qt(L)>sai[o]+Math.max(2,Math.round(sai[o]*0.05)))return;   // o lote tinha bem mais boi que os identificados que sairam
+    var tipoNovo=tipos[E.k]||_tipoDestinoPadrao(E.faz,L.tipo), m=media(E), dt=_modaDatas(E.datas)||hoje;
+    var deTx=(L.fazenda||"")+" / "+(L.pasto||""), paraTx=E.faz+" / "+E.pasto;
+    res.txt.push("lote "+deTx+" foi para "+paraTx+(tipoNovo!==L.tipo?" e virou "+tipoNovo:"")+" ("+E.n+" cab.)");res.n++;
+    E.feito=true;mudouLote[L.id]=1;
+    if(dry)return;
+    if(!L.histMov)L.histMov=[];
+    L.histMov.push({data:dt,de:(L.tipo||"")+" — "+deTx,para:tipoNovo+" — "+paraTx,motivo:"Pesagem individual: o lote foi junto com os bois"});
+    L.fazenda=E.faz;L.pasto=E.pasto;L.qtd=E.n;
+    if(tipoNovo!==L.tipo){
+      L.tipoOrigem=L.tipo;L.tipo=tipoNovo;
+      if(m){L.pesoE=m;}L.dtE=dt;
+      if(tipoNovo==="Confinamento"||tipoNovo==="Semi-Confinamento")L.dtEntradaConf=dt;
+      L.ultimaPesagem=null;
+    }
+  });
+  /* 2) semi/confinamento: origem perde */
+  Object.keys(sai).forEach(function(o){
+    var lo=ativos(o).filter(function(l){return !mudouLote[l.id]&&!_ehTipoId(l.tipo)&&qt(l)>0;}).sort(function(a,b){return qt(b)-qt(a);});
+    if(!lo.length)return;
+    var L=lo[0], nv=Math.max(0,qt(L)-sai[o]);
+    res.txt.push((L.fazenda||"")+" / "+(L.pasto||"")+": "+qt(L)+" → "+nv+" cab. (saíram "+sai[o]+")");res.n++;
+    if(dry)return;
+    L.qtd=nv;if(!L.histMov)L.histMov=[];
+    L.histMov.push({data:hoje,de:(L.pasto||""),para:"—",motivo:"Pesagem individual: "+sai[o]+" boi(s) saíram para outro pasto/curral"});
+  });
+  /* 3) destinos */
+  Object.keys(ent).forEach(function(d){
+    var E=ent[d];if(E.feito)return;
+    var ld=ativos(d).filter(function(l){return !mudouLote[l.id];});
+    var nid=ld.filter(function(l){return !_ehTipoId(l.tipo);}).sort(function(a,b){return qt(b)-qt(a);});
+    if(nid.length&&!ld.some(function(l){return _ehTipoId(l.tipo);})){
+      var L=nid[0];
+      res.txt.push(E.faz+" / "+E.pasto+": "+qt(L)+" → "+(qt(L)+E.n)+" cab. (entraram "+E.n+")");res.n++;
+      if(dry)return;
+      L.qtd=qt(L)+E.n;if(!L.histMov)L.histMov=[];
+      L.histMov.push({data:_modaDatas(E.datas)||hoje,de:Object.keys(E.origens).join(", ")||"—",para:E.pasto,motivo:"Pesagem individual: entraram "+E.n+" boi(s)"});
       return;
     }
-    var l=lotes.find(function(x){return x.id===p.princ.id;});if(!l)return;
-    l.qtd=p.g.n;
-    if(p.mudaPeso){
-      if(!l.pesagens)l.pesagens=[];
-      l.pesagens.push({data:p.data,peso:p.media,obs:"Média da pesagem individual (identificação eletrônica)",gmdReal:null,gmdIntervalo:null});
-      l.ultimaPesagem={data:p.data,peso:p.media,gmdReal:null,gmdIntervalo:null};
-    }
+    if(ld.length)return;                                   // recria/engorda: passo 4
+    /* sem lote: cria */
+    var oriL=null,mx=0;
+    Object.keys(E.origens).forEach(function(o){var lo=ativos(o).filter(function(l){return !mudouLote[l.id];});if(lo.length&&E.origens[o]>mx){mx=E.origens[o];oriL=lo[0];}});
+    var tipo=tipos[d]||_tipoDestinoPadrao(E.faz,oriL?oriL.tipo:"Recria");
+    var nCab=_ehTipoId(tipo)&&grupos[d]?grupos[d].n:E.n, m=media(E), dt=_modaDatas(E.datas)||hoje;
+    res.txt.push("lote novo "+tipo+" em "+E.faz+" / "+E.pasto+" com "+nCab+" cab."+(m?" ("+Math.round(m)+" kg)":""));res.n++;
+    if(dry)return;
+    var orTx=Object.keys(E.origens).map(function(o){return o.split("|")[1]+": "+E.origens[o];}).join(", ");
+    var nl={id:novoId(),tipo:tipo,fazenda:E.faz,pasto:E.pasto,qtd:nCab,peso:m||0,dtE:dt,resp:"",raca:(oriL&&oriL.raca)||"Nelore",
+      obs:"Formado na pesagem individual de "+fmtData(dt)+(orTx?" (veio de "+orTx+")":""),valorBoi:0,precoKg:0,comissaoTotal:0,freteTotal:0,custoBoi:0,
+      sexo:(oriL&&oriL.sexo)||"",idade:0,produtor:(oriL&&oriL.produtor)||""};
+    if(m)nl.pesoE=m;
+    if(tipo==="Confinamento"||tipo==="Semi-Confinamento"){nl.dtEntradaConf=dt;if(oriL&&oriL.tipo&&oriL.tipo!==tipo)nl.tipoOrigem=oriL.tipo;}
+    lotes.push(nl);
   });
-  setLotes(lotes);
-  var apagados=_apagarLotesPelaPesagem();
-  try{marcarPendente();}catch(e){}
-  try{renderLotes();renderLotesTipo("Recria","lista-recria");}catch(e){}
-  try{renderPastos();}catch(e){}
-  try{_r(renderAnimais,"renderAnimais");}catch(e){}
-  try{toast("Lotes acertados pelos animais identificados: "+plano.length+(apagados?" · "+apagados+" apagado(s)":"")+".");}catch(e){alert("Lotes acertados: "+plano.length+".");}
+  if(!dry&&res.n){setLotes(lotes);try{marcarPendente();}catch(e){}}
+  /* 4) recria/engorda pelos identificados */
+  if(!dry){
+    var ks=Object.keys(toque);
+    var pl=_planoLotesPelaPesagem(ks);
+    var n4=_aplicarPlanoLotes(pl);
+    pl.forEach(function(p){if(p.zerar)res.txt.push((p.princ.fazenda||"")+" / "+(p.princ.pasto||"")+": ficou sem identificado → 0 cab.");else if(p.g)res.txt.push(p.g.faz+" / "+p.g.pasto+": "+(p.princ?(parseInt(p.princ.qtd)||0)+" → ":"lote novo com ")+p.g.n+" cab.");});
+    res.n+=n4;
+    if(res.n)_rerenderLotesId();
+  }
+  return res;
 }
+/* Le TODAS as abas da planilha (a da balanca vem com uma aba por pesagem) e tambem o segundo grupo de
+   colunas (PASTO/PESO/DATA repetidos = repesagem). Pula linha de total ("141 BOIS MEDIA") e data
+   absurda (ano < 2000 -> data mais comum da aba). */
+function _linhasMovDaPlanilha(wb){
+  var out=[], temDest=false, temFaz=false, n=0;
+  wb.SheetNames.forEach(function(nome){
+    var rows=XLSX.utils.sheet_to_json(wb.Sheets[nome],{header:1,defval:""});
+    if(!rows.length)return;
+    var cab=_colunasMov(rows), c=cab.c;
+    if(!cab.cab&&wb.SheetNames.length>1)return;          // aba sem cabecalho reconhecido numa planilha de varias abas
+    var c2=null;
+    if(cab.cab){
+      var hr=rows[cab.ini-1]||[], k={peso:-1,data:-1,dest:-1};
+      hr.forEach(function(v,j){
+        var h=_normIng(v);if(!h)return;
+        if(j>Math.max(c.peso,c.data,c.dest)){
+          if(k.peso<0&&/peso|weight|kg/.test(h))k.peso=j;
+          else if(k.data<0&&/data|date/.test(h))k.data=j;
+          else if(k.dest<0&&/pasto|curral|lote|destino/.test(h))k.dest=j;
+        }
+      });
+      if(k.peso>=0||k.dest>=0)c2=k;
+    }
+    if(c.dest>=0)temDest=true;if(c.faz>=0)temFaz=true;
+    var linhasAba=[];
+    function add(r,i,cp,cd,cdest,sec){
+      var sis=c.sis>=0?_celTxt(r[c.sis]):"", chip=c.chip>=0?_celTxt(r[c.chip]):"";
+      if(c.cod>=0){var g=_celTxt(r[c.cod]);if(g){if(_ehSisbovTxt(g)){if(!sis)sis=g;}else if(!chip)chip=g;}}
+      if(sis&&_soDig(sis).length<4)sis="";
+      if(chip&&_soDig(chip).length<4)chip="";               // "SEM CHIP", "141 BOIS MEDIA"
+      var pTxt=cp>=0?_celTxt(r[cp]):"";
+      var peso=pTxt?(parseFloat(/,/.test(pTxt)?pTxt.replace(/\./g,"").replace(",","."):pTxt)||0):0;
+      var dest=cdest>=0?_celTxt(r[cdest]):"", faz=c.faz>=0?_celTxt(r[c.faz]):"";
+      var data=(cd>=0&&r[cd]!=="")?formatarData(r[cd]):"";
+      if(!sis&&!chip)return;
+      if(!dest&&!peso)return;
+      linhasAba.push({n:++n,aba:nome,linha:i+1,sis:sis,chip:chip,dest:dest,faz:faz,peso:peso,data:data,sec:!!sec});
+    }
+    for(var i=cab.ini;i<rows.length;i++){
+      var r=rows[i]||[];
+      add(r,i,c.peso,c.data,c.dest);
+      if(c2)add(r,i,c2.peso,c2.data>=0?c2.data:c.data,c2.dest>=0?c2.dest:-1,true);
+    }
+    var moda=_modaDatas(linhasAba.map(function(l){return /^\d{4}/.test(l.data)&&+l.data.slice(0,4)>=2000?l.data:null;}));
+    linhasAba.forEach(function(l){if(l.data&&!(/^\d{4}/.test(l.data)&&+l.data.slice(0,4)>=2000))l.data=moda||"";});
+    out=out.concat(linhasAba);
+  });
+  /* mesma identificacao + mesma data repetida (aba crua + aba com destino): fica uma so */
+  var vistos={}, fim=[];
+  out.forEach(function(l){
+    var k=(_soDig(l.sis)||_soDig(l.chip))+"|"+(l.data||"");
+    var j=vistos[k];
+    if(j==null){vistos[k]=fim.length;fim.push(l);return;}
+    var a=fim[j];
+    /* o grupo de colunas principal de uma aba vale mais que a repesagem do lado (que costuma trazer o
+       pasto onde o boi foi pesado, nao para onde foi apartado) */
+    if(a.dest&&l.dest&&_pastoCore(a.dest)!==_pastoCore(l.dest)){
+      if(a.sec&&!l.sec){a.dest=l.dest;a.faz=l.faz||a.faz;a.sec=false;if(l.peso)a.peso=l.peso;}
+      else if(!a.sec&&l.sec){}
+      else a.conflito=(a.conflito||[a.dest]).concat([l.dest]);
+    }
+    if(!a.dest&&l.dest){a.dest=l.dest;if(!a.faz)a.faz=l.faz;a.sec=l.sec;}
+    if(!a.peso&&l.peso)a.peso=l.peso;
+  });
+  /* linha sem data (aba crua da balanca) de um boi que tem a mesma pesagem numa aba com data: sai */
+  var comData={};fim.forEach(function(l){if(l.data)comData[_soDig(l.sis)||_soDig(l.chip)]=1;});
+  fim=fim.filter(function(l){return l.data||!comData[_soDig(l.sis)||_soDig(l.chip)];});
+  fim.sort(function(a,b){return String(a.data||"").localeCompare(String(b.data||""))||(a.n-b.n);});
+  return {linhas:fim,temDestino:temDest,temFaz:temFaz};
+}
+
+/* ===== 22/10/2026: pesagem individual por pasto (recria e engorda) =====
+   Ele: "vamos melhorar a questao da identificacao dos animais da recria e da engorda" -> tela por pasto,
+   lote acerta sozinho, pesagem pela Bia e relatorio PDF. Aqui: o resumo de todos os pastos com animal
+   identificado (abre a lista do pasto) e o PDF do pasto, com graficos. Cores da marca: verde #23432D,
+   dourado #B8944F, creme #F7F4EC. */
+function _identDoPasto(faz,pasto){
+  var lista=animaisDoLote(faz,pasto).map(function(a){return {a:a,ph:pesoHojeAnimal(a)};});
+  return {lista:lista,r:_resumoAnimais(lista)};
+}
+function _cabecasLotesId(faz,pasto){
+  var k=_chPastoId(faz,pasto), n=0, achou=false;
+  getLotes().forEach(function(l){if(!l.vendido&&_ehTipoId(l.tipo)&&_chPastoId(l.fazenda,l.pasto)===k){n+=parseInt(l.qtd)||0;achou=true;}});
+  return achou?n:null;
+}
+function renderResumoIdentificados(){
+  var el=document.getElementById("ident-resumo");if(!el)return;
+  var grupos=_gruposIdentificados();
+  var ks=Object.keys(grupos).filter(function(k){return grupos[k].n>0;});
+  /* so pasto de recria/engorda (ou sem lote): curral do confinamento tem a tela dele */
+  var lotes=getLotes().filter(function(l){return !l.vendido;});
+  ks=ks.filter(function(k){var ls=lotes.filter(function(l){return _chPastoId(l.fazenda,l.pasto)===k;});return !ls.length||ls.some(function(l){return _ehTipoId(l.tipo);});});
+  if(!ks.length){el.innerHTML='<div class="empty" style="padding:14px">Nenhum pasto com animal identificado ainda. Importe a planilha da balança acima ou mande para a Bia no WhatsApp.</div>';return;}
+  ks.sort(function(a,b){var x=grupos[a],y=grupos[b];return (x.faz+" "+x.pasto).localeCompare(y.faz+" "+y.pasto,"pt",{numeric:true});});
+  var tot={n:0,lote:0}, umaFaz=ks.every(function(k){return _fazCore(grupos[k].faz)===_fazCore(grupos[ks[0]].faz);});
+  var linhas=ks.map(function(k,i){
+    var g=grupos[k], d=_identDoPasto(g.faz,g.pasto), r=d.r, cl=_cabecasLotesId(g.faz,g.pasto);
+    tot.n+=r.n;tot.lote+=cl||0;
+    var dif=cl!=null&&cl!==r.n;
+    var f=encodeURIComponent(g.faz).replace(/'/g,"%27"), p=encodeURIComponent(g.pasto).replace(/'/g,"%27");
+    var corG=r.gmdMedio==null?"#999":(r.gmdMedio>=0.6?"#23432D":(r.gmdMedio>0?"#7A5F28":"#A32D2D"));
+    return '<tr style="background:'+(i%2?"#F7F4EC":"#fff")+';border-bottom:1px solid #EFEAD9">'+
+      '<td style="padding:7px 8px;font-weight:700;color:#23432D;cursor:pointer" onclick="abrirAnimaisLote(\''+f+'\',\''+p+'\')">'+_escAL(String(g.pasto).replace(/^pasto\s*/i,""))+(umaFaz?'':'<div style="font-size:10px;color:#9a9a94;font-weight:400">'+_escAL(g.faz)+'</div>')+'</td>'+
+      '<td style="padding:7px 8px;text-align:center;font-weight:700">'+r.n+'</td>'+
+      '<td style="padding:7px 8px;text-align:center;'+(dif?'color:#A32D2D;font-weight:700':'color:#555')+'">'+(cl==null?'<span style="color:#B8944F">sem lote</span>':cl)+'</td>'+
+      '<td style="padding:7px 8px;text-align:center">'+(r.pesoMedio?r.pesoMedio+' kg':'—')+'</td>'+
+      '<td style="padding:7px 8px;text-align:center;color:'+corG+';font-weight:600">'+(r.gmdMedio!=null?r.gmdMedio.toFixed(3):'—')+(r.comGmd?'<div style="font-size:10px;color:#9a9a94;font-weight:400">'+r.comGmd+' bois</div>':'')+'</td>'+
+      '<td style="padding:7px 8px;text-align:center;'+(r.abaixo?'color:#7A5F28;font-weight:700':'color:#999')+'">'+r.abaixo+'</td>'+
+      '<td style="padding:7px 8px;text-align:center;color:#555">'+(g.ultData?fmtData(g.ultData):'—')+'</td>'+
+      '<td style="padding:7px 8px;text-align:center;white-space:nowrap">'+
+        '<button onclick="abrirAnimaisLote(\''+f+'\',\''+p+'\')" style="font-size:11px;padding:4px 9px;border:1px solid #23432D;background:#23432D;color:#F7F4EC;border-radius:6px;cursor:pointer;font-weight:600">Ver</button> '+
+        '<button onclick="pdfPesagemPasto(\''+f+'\',\''+p+'\')" style="font-size:11px;padding:4px 9px;border:1px solid #B8944F;background:#fff;color:#7A5F28;border-radius:6px;cursor:pointer;font-weight:600">PDF</button></td></tr>';
+  }).join("");
+  el.innerHTML=(umaFaz?'<div style="font-size:12px;font-weight:700;color:#7A5F28;margin-bottom:6px">'+_escAL(grupos[ks[0]].faz)+' · '+ks.length+' pasto(s)</div>':'')+'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px">'+
+    '<thead><tr style="background:#23432D;color:#F7F4EC">'+
+    ['Pasto','Identif.','No lote','Peso hoje','GMD','Abaixo 90%','Pesagem',''].map(function(h,i){return '<th style="padding:8px;text-align:'+(i?'center':'left')+';font-size:11px">'+h+'</th>';}).join("")+
+    '</tr></thead><tbody>'+linhas+
+    '<tr style="background:#E8EFE9;font-weight:700;border-top:2px solid #23432D"><td style="padding:8px">TOTAL</td><td style="padding:8px;text-align:center">'+tot.n+'</td><td style="padding:8px;text-align:center">'+tot.lote+'</td><td colspan="5"></td></tr>'+
+    '</tbody></table></div>'+
+    '<div style="font-size:11px;color:#7A7668;margin-top:6px">Toque no pasto para ver a lista de animais, pesar pela identificação eletrônica ou mover. Cabeças em vermelho: o lote não bate com os identificados — o botão <b>Acertar lotes pela pesagem</b> resolve.</div>';
+}
+
+/* PDF da pesagem individual de um pasto: KPIs, distribuicao de peso, GMD individual e a lista completa. */
+function pdfPesagemPasto(fEnc,pEnc){
+  if(typeof window.jspdf==="undefined"){alert("Biblioteca de PDF não carregada. Recarregue a página.");return;}
+  var faz=fEnc!=null?decodeURIComponent(fEnc):(_animaisLoteAtual&&_animaisLoteAtual.fazenda)||"";
+  var pasto=pEnc!=null?decodeURIComponent(pEnc):(_animaisLoteAtual&&_animaisLoteAtual.pasto)||"";
+  var d=_identDoPasto(faz,pasto), lista=d.lista, r=d.r;
+  if(!lista.length){alert("Nenhum animal identificado neste pasto.");return;}
+  var jsPDF=window.jspdf.jsPDF, doc=new jsPDF({unit:"mm",format:"a4"});
+  var VD=[35,67,45], OU=[184,148,79], CR=[247,244,236], CZ=[120,120,115];
+  var fk=function(v){return v==null?"—":Math.round(v).toLocaleString("pt-BR")+" kg";};
+  var f3=function(v){return v==null?"—":v.toFixed(3).replace(".",",");};
+  var ultData=lista.reduce(function(m,x){return x.ph.ultData&&x.ph.ultData>m?x.ph.ultData:m;},"");
+  var y=_pdfCabecalho(doc,"Pesagem individual — "+pasto);
+  doc.setFontSize(9);doc.setTextColor(CZ[0],CZ[1],CZ[2]);doc.setFont("helvetica","normal");
+  doc.text(faz+"  ·  última pesagem "+(ultData?fmtData(ultData):"—")+"  ·  peso de hoje projetado pelo GMD de cada animal",105,y-4,{align:"center"});
+  y+=2;
+  /* KPIs */
+  var cl=_cabecasLotesId(faz,pasto);
+  var kp=[["Identificados",String(r.n)],["Cabeças no lote",cl==null?"sem lote":String(cl)],["Peso médio hoje",fk(r.pesoMedio)],["GMD médio",f3(r.gmdMedio)],["Abaixo de 90%",String(r.abaixo)]];
+  var kw=(170-4*3)/5;
+  kp.forEach(function(k,i){
+    var x=20+i*(kw+3);
+    doc.setFillColor(CR[0],CR[1],CR[2]);doc.rect(x,y,kw,16,"F");
+    doc.setFillColor(OU[0],OU[1],OU[2]);doc.rect(x,y,1.2,16,"F");
+    doc.setFontSize(7);doc.setTextColor(CZ[0],CZ[1],CZ[2]);doc.setFont("helvetica","normal");doc.text(k[0].toUpperCase(),x+3,y+5);
+    doc.setFontSize(12);doc.setTextColor(VD[0],VD[1],VD[2]);doc.setFont("helvetica","bold");doc.text(k[1],x+3,y+12.5);
+  });
+  y+=23;
+  /* grafico de barras generico: itens [{rot,n}] */
+  function barras(y0,titulo,itens,cor,nota){
+    y0=_pdfSecao(doc,y0,titulo);
+    var h=42, x0=28, w=158, mx=Math.max.apply(null,itens.map(function(i){return i.n;}).concat([1]));
+    var bw=w/itens.length;
+    doc.setDrawColor(225,220,205);doc.setLineWidth(0.2);
+    for(var t=0;t<=4;t++){var yy=y0+h-h*t/4;doc.line(x0,yy,x0+w,yy);doc.setFontSize(6.5);doc.setTextColor(CZ[0],CZ[1],CZ[2]);doc.setFont("helvetica","normal");doc.text(String(Math.round(mx*t/4)),x0-2,yy+1,{align:"right"});}
+    itens.forEach(function(it,i){
+      var bh=h*it.n/mx, bx=x0+i*bw+bw*0.15;
+      if(it.n>0){doc.setFillColor(cor[0],cor[1],cor[2]);doc.rect(bx,y0+h-bh,bw*0.7,bh,"F");
+        doc.setFontSize(7);doc.setTextColor(VD[0],VD[1],VD[2]);doc.setFont("helvetica","bold");doc.text(String(it.n),bx+bw*0.35,y0+h-bh-1.2,{align:"center"});}
+      doc.setFontSize(6.5);doc.setTextColor(CZ[0],CZ[1],CZ[2]);doc.setFont("helvetica","normal");doc.text(it.rot,bx+bw*0.35,y0+h+4,{align:"center"});
+    });
+    if(nota){doc.setFontSize(7.5);doc.setTextColor(CZ[0],CZ[1],CZ[2]);doc.text(nota,105,y0+h+9,{align:"center"});}
+    return y0+h+14;
+  }
+  /* distribuicao de peso de hoje em faixas de 20 kg */
+  var pesos=lista.map(function(x){return x.ph.hoje;}).filter(function(v){return v>0;});
+  if(pesos.length){
+    var amp=Math.max.apply(null,pesos)-Math.min.apply(null,pesos), passo=amp<=80?10:20;
+    var lo=Math.floor(Math.min.apply(null,pesos)/passo)*passo, hi=Math.floor(Math.max.apply(null,pesos)/passo)*passo;
+    var fx=[];for(var v=lo;v<=hi;v+=passo)fx.push({rot:v+"–"+(v+passo-1),n:0,de:v});
+    pesos.forEach(function(p){var i=Math.floor((p-lo)/passo);if(fx[i])fx[i].n++;});
+    y=barras(y,"Distribuição do peso de hoje (kg)",fx,OU,"Média "+fk(r.pesoMedio)+" · de "+fk(r.min)+" a "+fk(r.max)+" · "+r.abaixo+" abaixo de 90% da média (candidatos a apartar)");
+  }
+  /* GMD individual */
+  var gs=lista.map(function(x){return x.ph.gmd;}).filter(function(v){return v!=null;});
+  if(gs.length){
+    var gf=[{rot:"< 0",n:0},{rot:"0 – 0,3",n:0},{rot:"0,3 – 0,6",n:0},{rot:"0,6 – 0,9",n:0},{rot:"0,9 – 1,2",n:0},{rot:"≥ 1,2",n:0}];
+    gs.forEach(function(g){gf[g<0?0:(g<0.3?1:(g<0.6?2:(g<0.9?3:(g<1.2?4:5))))].n++;});
+    gf[5].rot=">= 1,2";
+    y=barras(y,"GMD individual (kg/dia)",gf,VD,gs.length+" animais com 2 ou mais pesagens · GMD médio "+f3(r.gmdMedio));
+  }
+  /* lista completa, mais pesados primeiro */
+  if(y>235){doc.addPage();y=20;}
+  y=_pdfSecao(doc,y,"Animais ("+lista.length+") — mais pesados primeiro");
+  var ord=lista.slice().sort(function(a,b){return (b.ph.hoje||0)-(a.ph.hoje||0);});
+  var cols=[[22,"#","left"],[30,"IDENTIFICAÇÃO ELETRÔNICA","left"],[78,"SISBOV","left"],[128,"ÚLT. PESAGEM","right"],[150,"DATA","right"],[170,"PESO HOJE","right"],[188,"GMD","right"]];
+  function cab(){doc.setFontSize(7);doc.setTextColor(CZ[0],CZ[1],CZ[2]);doc.setFont("helvetica","bold");cols.forEach(function(c){doc.text(c[1],c[0],y,{align:c[2]});});y+=1.5;doc.setDrawColor(OU[0],OU[1],OU[2]);doc.setLineWidth(0.3);doc.line(20,y,190,y);y+=4;}
+  cab();
+  ord.forEach(function(x,i){
+    if(y>278){doc.addPage();y=20;cab();}
+    var baixo=r.pesoMedio&&x.ph.hoje&&x.ph.hoje<r.pesoMedio*0.9;
+    if(baixo){doc.setFillColor(CR[0],CR[1],CR[2]);doc.rect(20,y-3.4,170,4.8,"F");}
+    doc.setFontSize(7.8);doc.setFont("helvetica","normal");doc.setTextColor(40,40,40);
+    doc.text(String(i+1),22,y);
+    doc.text(x.a.eletro?_chipFmt(x.a.eletro):"—",30,y);
+    doc.text(x.a.sisbov?String(x.a.sisbov):"—",78,y);
+    doc.text(x.ph.ultPeso?Math.round(x.ph.ultPeso)+" kg":"—",128,y,{align:"right"});
+    doc.text(x.ph.ultData?fmtData(x.ph.ultData):"—",150,y,{align:"right"});
+    doc.setFont("helvetica","bold");doc.setTextColor(baixo?OU[0]:VD[0],baixo?OU[1]:VD[1],baixo?OU[2]:VD[2]);
+    doc.text(x.ph.hoje?Math.round(x.ph.hoje)+" kg":"—",170,y,{align:"right"});
+    doc.setFont("helvetica","normal");doc.setTextColor(40,40,40);
+    doc.text(f3(x.ph.gmd),188,y,{align:"right"});
+    y+=4.8;
+  });
+  y+=3;if(y<285){doc.setFontSize(7);doc.setTextColor(CZ[0],CZ[1],CZ[2]);doc.text("Faixa creme: abaixo de 90% do peso médio do pasto.",20,y);}
+  var np=doc.internal.getNumberOfPages();for(var pg=1;pg<=np;pg++){doc.setPage(pg);try{_pdfRodape(doc);}catch(e){}}
+  doc.save("Pesagem_"+String(pasto).replace(/[^\w-]+/g,"_")+"_"+todayStr()+".pdf");
+}
+(function(){
+  if(typeof renderAnimais!=="function")return;
+  var _orig=renderAnimais;
+  renderAnimais=function(){var r=_orig.apply(this,arguments);try{renderResumoIdentificados();}catch(e){console.warn("resumo identificados:",e);}return r;};
+})();
 
 /* Fila de movimentacao mandada pela Bia (planilha ou mensagem no WhatsApp).
    A Bia grava em EMPRESA::caiman_mov_fila; o app SO LE essa chave (fica fora da
@@ -6292,7 +6735,7 @@ function _aplicarFilaMovBia(){
   var feitos=_readLocal("caiman_mov_fila_feitos",[]);if(!Array.isArray(feitos))feitos=[];
   var novosItens=fila.filter(function(f){return f&&f.id&&feitos.indexOf(f.id)<0;});
   if(!novosItens.length)return null;
-  var tot={mov:0,pesadas:0,novos:0,fora:0};
+  var tot={mov:0,pesadas:0,novos:0,fora:0,lotes:0};
   novosItens.forEach(function(f){
     var linhas=(f.linhas||[]).map(function(l,i){return {n:i+1,sis:String(l.sis||""),chip:String(l.chip||""),dest:String(l.pasto||""),faz:String(l.faz||""),peso:+l.peso||0,data:String(l.data||"")};});
     var destinos={};
@@ -6300,15 +6743,21 @@ function _aplicarFilaMovBia(){
     var plano=_movPlanoDe({linhas:linhas,destinos:destinos},f.data||todayStr(),"",f.cadastrar!==false);
     var ok=plano.filter(function(p){return p.status==="mover"||p.status==="pesar"||p.status==="novo";});
     tot.fora+=plano.filter(function(p){return p.status==="erro";}).length;
-    if(ok.length){var r=_movAplicar(ok,"Bia (WhatsApp)");tot.mov+=r.mov;tot.pesadas+=r.pesadas;tot.novos+=r.novos;}
+    if(ok.length){
+      var r=_movAplicar(ok,"Bia (WhatsApp)");tot.mov+=r.mov;tot.pesadas+=r.pesadas;tot.novos+=r.novos;
+      /* tipo do lote novo mandado pela Bia ("semi", "confinamento" na legenda): {pasto: tipo} */
+      var tp={};if(f.tipos)plano.forEach(function(p){var t=f.tipos[p.l.dest]||f.tipos[p.pastoDest];if(t&&p.fazDest&&p.pastoDest)tp[_chPastoId(p.fazDest,p.pastoDest)]=t;});
+      var lr=_lotesDepoisDaImportacao(r,tp);tot.lotes=(tot.lotes||0)+lr.n;
+    }
     feitos.push(f.id);
   });
   localStorage.setItem("caiman_mov_fila_feitos",JSON.stringify(feitos.slice(-500)));
+
   if(tot.mov||tot.pesadas||tot.novos){try{marcarPendente();}catch(e){}}
   try{_r(renderAnimais,"renderAnimais");}catch(e){}
   try{renderPastos();}catch(e){}
   _refrescarAnimaisLote();
-  try{toast("Movimentação da Bia: "+tot.mov+" animal(is) mudaram de lugar, "+tot.pesadas+" pesagem(ns)"+(tot.novos?", "+tot.novos+" cadastrado(s)":"")+(tot.fora?" · "+tot.fora+" linha(s) não aplicada(s)":"")+".");}catch(e){}
+  try{toast("Movimentação da Bia: "+tot.mov+" animal(is) mudaram de lugar, "+tot.pesadas+" pesagem(ns)"+(tot.novos?", "+tot.novos+" cadastrado(s)":"")+(tot.lotes?", "+tot.lotes+" lote(s) acertado(s)":"")+(tot.fora?" · "+tot.fora+" linha(s) não aplicada(s)":"")+".");}catch(e){}
   return tot;
 }
 
@@ -23713,7 +24162,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-cocho</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-ident</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
