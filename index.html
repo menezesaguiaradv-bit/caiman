@@ -439,6 +439,7 @@ Compartilhar</button></div>
 <div class="sec" style="border-left:4px solid #B8944F;background:#FFFEFA">
 <div class="stitle" style="color:#23432D;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span>Pesagem individual por pasto <span style="font-weight:400;font-size:12px;color:#7A7668">recria e engorda</span></span><span style="display:inline-flex;gap:6px;flex-wrap:wrap"><button onclick="abrirImportarMovimentacao()" style="background:#23432D;color:#F7F4EC;border:1px solid #23432D;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Importar pesagem / movimentação</button><button onclick="acertarLotesPelaPesagem()" style="background:#FBF8F0;color:#23432D;border:1px solid #B8944F;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Acertar lotes pela pesagem</button></span></div>
 <div style="font-size:12px;color:#555;margin-bottom:10px">Suba a planilha da balança (pode ter várias abas e datas) ou mande para a Bia no WhatsApp: cada boi vai para o pasto/curral da planilha com a pesagem, e o <b>lote segue os bois</b> — muda de pasto ou vira semi/confinamento sozinho.</div>
+<div style="position:relative;margin-bottom:10px"><input id="ident-busca" inputmode="numeric" autocomplete="off" placeholder="🔎 Pesquisar boi pela identificação eletrônica ou SISBOV (pode ser o final do número)" oninput="renderBuscaAnimalGeral()" style="width:100%;font-size:13px;padding:9px 11px;border:1px solid #B8944F;border-radius:8px;background:#fff"><div id="ident-busca-res"></div></div>
 <div id="ident-resumo"></div>
 </div>
 <div class="sec">
@@ -5637,7 +5638,8 @@ function _alCss(){
     document.head.appendChild(css);
   }
 }
-var _animaisLoteAtual=null, _animaisLoteOrdem="peso", _alFiltro="todos", _alTexto="";
+var _animaisLoteAtual=null, _animaisLoteOrdem="peso", _alFiltro="todos", _alTexto="", _alListaOculta=false;
+function alMostrarLista(v){_alListaOculta=!v;renderAnimaisLote();}
 function alFiltrar(v){_alFiltro=v;renderAnimaisLote();}
 function alBuscarLista(v){_alTexto=v;var p=document.activeElement&&document.activeElement.id==="al-filtro-txt"?document.activeElement.selectionStart:null;renderAnimaisLote();var e=document.getElementById("al-filtro-txt");if(e){e.focus();if(p!=null)try{e.setSelectionRange(p,p);}catch(x){}}}
 function abrirAnimaisLote(fEnc,pEnc){
@@ -5653,8 +5655,9 @@ function abrirAnimaisLote(fEnc,pEnc){
   _alCss();
   m.innerHTML='<div class="modal"><div id="al-corpo"></div></div>';
   m.style.display="flex";
+  _alListaOculta=false;_alTexto="";
+  try{_alAplicarTamanho();}catch(e){}
   renderAnimaisLote();
-  setTimeout(function(){var i=document.getElementById("al-busca");if(i)i.focus();},50);
 }
 function fecharAnimaisLote(){
   var m=document.getElementById("modal-animais-lote");if(m)m.style.display="none";
@@ -5700,7 +5703,7 @@ function renderAnimaisLote(){
     var a=x.a,ph=x.ph;
     var baixo=r.pesoMedio&&ph.hoje&&ph.hoje<r.pesoMedio*0.9;
     return '<tr'+(baixo?' class="al-baixo"':'')+' style="border-bottom:1px solid #E3DCC8">'+
-      '<td style="padding:8px 4px">'+_idAnimalHtml(a)+'</td>'+
+      '<td style="padding:8px 4px;cursor:pointer" onclick="abrirVidaAnimal('+a.id+')" title="Ver a vida do boi">'+_idAnimalHtml(a)+'<div style="font-size:10px;color:#B8944F;font-weight:700;margin-top:2px">ver vida do boi ›</div></td>'+
       '<td style="padding:6px 4px;text-align:right">'+(ph.ultPeso?ph.ultPeso.toFixed(0)+' kg<div style="font-size:10px;color:#999">'+fmtData(ph.ultData)+'</div>':'—')+'</td>'+
       '<td style="padding:6px 4px;text-align:right;font-weight:700">'+(ph.hoje?ph.hoje.toFixed(0)+' kg'+(ph.projetado?'<span title="projetado pelo GMD individual" style="color:#999">*</span>':''):'—')+(baixo?'<div style="font-size:10px;color:#7A5F28;font-weight:600">abaixo da média</div>':'')+'</td>'+
       '<td style="padding:6px 4px;text-align:right;color:'+corG(ph.gmd)+'">'+(ph.gmd!=null?ph.gmd.toFixed(3):'—')+'</td>'+
@@ -5709,12 +5712,12 @@ function renderAnimaisLote(){
       '<td style="padding:6px 4px;white-space:nowrap;text-align:right">'+
         '<button class="mbtn" onclick="alPesar('+a.id+')" title="Pesar" style="font-size:11px">⚖️</button> '+
         '<button class="mbtn" onclick="alMover('+a.id+')" title="Mover" style="font-size:11px">↔</button> '+
-        '<button class="mbtn" onclick="alHist('+a.id+')" title="Histórico" style="font-size:11px">🕘</button></td></tr>';
+        '<button class="mbtn" onclick="abrirVidaAnimal('+a.id+')" title="Vida do boi (todas as pesagens)" style="font-size:11px">📈</button></td></tr>';
   }).join("");
   c.innerHTML=
     '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:-18px -18px 12px;padding:14px 18px;background:#23432D;border-radius:10px 10px 0 0">'+
       '<div><div style="font-size:11px;color:#B8944F;font-weight:700;letter-spacing:.06em;text-transform:uppercase">Animais identificados</div><div style="font-size:19px;font-weight:700;color:#F7F4EC">'+_escAL(L.pasto||"—")+' <span style="font-size:12px;font-weight:500;color:#D9D2BD">· '+_escAL(L.fazenda||"—")+'</span></div></div>'+
-      '<div style="display:flex;gap:6px;align-items:center"><button onclick="pdfPesagemPasto()" style="font-size:12px;padding:6px 11px;border:1px solid #B8944F;background:#B8944F;color:#fff;border-radius:7px;cursor:pointer;font-weight:700">PDF</button>'+
+      '<div style="display:flex;gap:6px;align-items:center"><button onclick="alAlternarTamanho()" title="'+(_alGrande?'Janela menor':'Tela cheia')+'" style="font-size:14px;padding:4px 9px;border:1px solid #D9D2BD;background:transparent;color:#F7F4EC;border-radius:7px;cursor:pointer">'+(_alGrande?'⤡':'⤢')+'</button><button onclick="pdfPesagemPasto()" style="font-size:12px;padding:6px 11px;border:1px solid #B8944F;background:#B8944F;color:#fff;border-radius:7px;cursor:pointer;font-weight:700">PDF</button>'+
       '<button onclick="exportarAnimaisLote()" style="font-size:12px;padding:6px 11px;border:1px solid #D9D2BD;background:transparent;color:#F7F4EC;border-radius:7px;cursor:pointer;font-weight:600">Excel</button>'+
       '<button onclick="fecharAnimaisLote()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#F7F4EC;padding:0 2px">✕</button></div></div>'+
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'+
@@ -5748,9 +5751,11 @@ function renderAnimaisLote(){
         [["peso","Mais pesados primeiro"],["pesoAsc","Mais leves primeiro"],["gmd","Maior GMD primeiro"],["sisbov","Por identificação"]].map(function(op){return '<option value="'+op[0]+'"'+(o===op[0]?' selected':'')+'>'+op[1]+'</option>';}).join("")+
       '</select></div>'+
     (lista.length?
-      '<div style="overflow:auto;max-height:55vh;border:1px solid #E3DCC8;border-radius:8px"><table id="al-tab" style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="text-align:left;position:sticky;top:0;background:#F7F4EC;z-index:1;box-shadow:0 1px 0 #E3DCC8">'+
+      (_alListaOculta?'<div style="text-align:center;padding:10px"><button onclick="alMostrarLista(true)" style="font-size:12px;padding:7px 14px;border:1px solid #23432D;background:#23432D;color:#F7F4EC;border-radius:7px;cursor:pointer;font-weight:700">Mostrar os '+lista.length+' animais ▾</button></div>':
+      '<div style="text-align:right;margin-bottom:4px"><button onclick="alMostrarLista(false)" style="font-size:11px;padding:3px 9px;border:1px solid #E3DCC8;background:#fff;color:#7A7668;border-radius:6px;cursor:pointer">Recolher lista ▴</button></div>'+
+      '<div style="overflow:auto;'+(_alGrande?'':'max-height:55vh;')+'border:1px solid #E3DCC8;border-radius:8px"><table id="al-tab" style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="text-align:left;position:sticky;top:0;background:#F7F4EC;z-index:1;box-shadow:0 1px 0 #E3DCC8">'+
       '<th style="padding:6px 4px">Animal (SISBOV / identificação eletrônica)</th><th style="padding:6px 4px;text-align:right">Última pesagem</th><th style="padding:6px 4px;text-align:right">Peso hoje</th><th style="padding:6px 4px;text-align:right">GMD geral</th><th style="padding:6px 4px;text-align:right">GMD recente</th><th style="padding:6px 4px;text-align:center">Pes.</th><th></th></tr></thead><tbody>'+
-      linhas+'</tbody></table></div><div style="font-size:10px;color:#999;margin-top:6px">* peso de hoje projetado pela última pesagem + GMD individual do animal. Linha dourada: abaixo de 90% da média do lote.</div>'
+      linhas+'</tbody></table></div><div style="font-size:10px;color:#999;margin-top:6px">* peso de hoje projetado pela última pesagem + GMD individual do animal. Linha dourada: abaixo de 90% da média do lote. Toque no boi para ver a vida dele.</div>')
       :(totLista?'<div class="empty" style="padding:20px">Nenhum animal neste filtro.</div>':'<div class="empty" style="padding:20px">Nenhum animal identificado neste pasto. Pese pela identificação eletrônica acima ou importe a planilha da balança.</div>'));
 }
 
@@ -6723,6 +6728,131 @@ function pdfPesagemPasto(fEnc,pEnc){
   var _orig=renderAnimais;
   renderAnimais=function(){var r=_orig.apply(this,arguments);try{renderResumoIdentificados();}catch(e){console.warn("resumo identificados:",e);}return r;};
 })();
+
+/* ===== 22/10/2026: busca de animal, janela grande/pequena e a VIDA DO BOI =====
+   Ele: "coloque uma forma de pesquisar os animais, e poder diminuir e aumentar a janela dos animais,
+   para ver todos os animais ou nao. Gostaria de ver a vida inteira do boi tambem, de aparecer todas as
+   pesagens. Se clicasse nele, aparecia a vida inteira dele, com grafico em linha." */
+var _alGrande=false;
+function alAlternarTamanho(){_alGrande=!_alGrande;_alAplicarTamanho();renderAnimaisLote();}
+function _alAplicarTamanho(){
+  var m=document.getElementById("modal-animais-lote");if(!m)return;
+  var d=m.querySelector(".modal");if(!d)return;
+  if(_alGrande){d.style.maxWidth="100%";d.style.width="100%";d.style.maxHeight="100vh";d.style.height="100vh";d.style.borderRadius="0";m.style.padding="0";}
+  else{d.style.maxWidth="";d.style.width="";d.style.maxHeight="";d.style.height="";d.style.borderRadius="";m.style.padding="";}
+}
+/* busca em todos os animais (identificacao eletronica, SISBOV, final do numero) */
+function _buscarAnimais(q,max){
+  var d=_soDig(q), t=String(q||"").trim().toUpperCase();
+  if(!d&&t.length<2)return [];
+  return getAnimais().filter(function(a){
+    if(a.morto)return false;
+    var e=_soDig(a.eletro), s=_soDig(a.sisbov);
+    return d?(e.indexOf(d)>=0||s.indexOf(d)>=0):(String(a.sisbov||"").toUpperCase().indexOf(t)>=0||String(a.eletro||"").toUpperCase().indexOf(t)>=0);
+  }).slice(0,max||30);
+}
+function renderBuscaAnimalGeral(){
+  var el=document.getElementById("ident-busca-res"), inp=document.getElementById("ident-busca");if(!el||!inp)return;
+  var q=inp.value;
+  if(!_soDig(q)&&String(q||"").trim().length<2){el.innerHTML="";return;}
+  var r=_buscarAnimais(q,30);
+  if(!r.length){el.innerHTML='<div style="font-size:12px;color:#999;padding:6px 2px">Nenhum animal com esse número.</div>';return;}
+  el.innerHTML='<div style="border:1px solid #E3DCC8;border-radius:8px;overflow:hidden;margin-top:6px">'+r.map(function(a,i){
+    var ph=pesoHojeAnimal(a);
+    return '<div onclick="abrirVidaAnimal('+a.id+')" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;background:'+(i%2?'#F7F4EC':'#fff')+';border-bottom:1px solid #EFEAD9">'+
+      '<div>'+_idAnimalHtml(a)+'<div style="font-size:11px;color:#7A5F28;margin-top:2px">'+_escAL((a.fazenda||"—")+" · "+(a.pasto||"—"))+(a.encerrado?' · <span style="color:#A32D2D">encerrado</span>':'')+'</div></div>'+
+      '<div style="text-align:right;white-space:nowrap"><div style="font-weight:700;color:#23432D">'+(ph.hoje?Math.round(ph.hoje)+' kg':'—')+'</div><div style="font-size:10.5px;color:#999">'+(ph.gmd!=null?'GMD '+ph.gmd.toFixed(3):(ph.nPes+' pesagem(ns)'))+' ›</div></div></div>';
+  }).join("")+'</div>'+(r.length===30?'<div style="font-size:11px;color:#999;margin-top:4px">Mostrando os 30 primeiros; digite mais números.</div>':'');
+}
+/* a vida do boi: todas as pesagens, GMD de cada periodo, por onde passou, grafico em linha */
+function abrirVidaAnimal(id){
+  var a=getAnimais().find(function(x){return String(x.id)===String(id);});
+  if(!a){alert("Animal não encontrado.");return;}
+  var m=document.getElementById("modal-vida-animal");
+  if(!m){
+    m=document.createElement("div");m.id="modal-vida-animal";m.className="modal-overlay";
+    m.style.cssText="display:none;z-index:450;padding:8px";
+    m.onclick=function(e){if(e.target===m)m.style.display="none";};
+    document.body.appendChild(m);
+  }
+  _alCss();
+  var V="#23432D",D="#B8944F",DE="#7A5F28",CR="#F7F4EC",BD="#E3DCC8";
+  var pes=getPesagensSisbov().filter(function(p){return String(p.animalId)===String(a.id)&&p.peso>0&&p.data;})
+    .sort(function(x,y){return x.data<y.data?-1:(x.data>y.data?1:0);});
+  /* entrada sem pesagem registrada vira o primeiro ponto */
+  if(a.peso>0&&a.dtE&&!pes.some(function(p){return p.data===a.dtE;})&&(!pes.length||a.dtE<pes[0].data))pes.unshift({data:a.dtE,peso:+a.peso,pasto:"",obs:"Entrada"});
+  var ph=pesoHojeAnimal(a);
+  var hist=(a.historico||[]).slice().sort(function(x,y){return String(x.data).localeCompare(String(y.data));});
+  /* pasto em cada data: o da pesagem, senao o do historico ate aquela data */
+  function pastoEm(dt){var p=a.pasto||"";for(var i=hist.length-1;i>=0;i--){if(String(hist[i].data)<=dt){p=String(hist[i].para||"").replace(/^.*\/\s*(Pasto\s+)?/i,"");return p;}}return hist.length?String(hist[0].de||"").replace(/^.*\/\s*(Pasto\s+)?/i,""):p;}
+  var linhas=pes.map(function(p,i){
+    var ant=i?pes[i-1]:null, dias=ant?diasEntre(ant.data,p.data):null, g=ant&&dias>0?(p.peso-ant.peso)/dias:null;
+    return {data:p.data,peso:p.peso,pasto:p.pasto||pastoEm(p.data),dias:dias,ganho:ant?p.peso-ant.peso:null,gmd:g,obs:p.obs||""};
+  });
+  var p0=linhas[0], pN=linhas[linhas.length-1];
+  var diasTot=p0&&pN?diasEntre(p0.data,pN.data):0, gTot=diasTot>0?(pN.peso-p0.peso)/diasTot:null;
+  var f3=function(v){return v==null?"—":v.toFixed(3).replace(".",",");};
+  function card(t,v,sub){return '<div style="flex:1;min-width:120px;background:'+CR+';border:1px solid '+BD+';border-left:4px solid '+D+';border-radius:8px;padding:8px 10px"><div style="font-size:10px;color:#7A7668;text-transform:uppercase">'+t+'</div><div style="font-size:18px;font-weight:700;color:'+V+'">'+v+'</div>'+(sub?'<div style="font-size:10.5px;color:#7A7668">'+sub+'</div>':'')+'</div>';}
+  var h='<div class="modal" style="max-width:760px;width:100%;max-height:calc(100vh - 16px);overflow:auto;padding:0;background:#FFFEFA">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:14px 18px;background:'+V+'">'+
+      '<div><div style="font-size:11px;color:'+D+';font-weight:700;letter-spacing:.06em;text-transform:uppercase">Vida do boi</div>'+
+      '<div style="font-size:18px;font-weight:700;color:'+CR+'">'+_escAL(a.eletro?_chipFmt(a.eletro):(a.sisbov||"—"))+'</div>'+
+      '<div style="font-size:12px;color:#D9D2BD">'+(a.sisbov&&a.eletro?'SISBOV '+_escAL(a.sisbov)+' · ':'')+_escAL((a.fazenda||"—")+" · "+(a.pasto||"—"))+(a.encerrado?' · encerrado':'')+'</div></div>'+
+      '<button onclick="document.getElementById(\'modal-vida-animal\').style.display=\'none\'" style="background:none;border:none;font-size:24px;cursor:pointer;color:'+CR+'">✕</button></div>'+
+    '<div style="padding:14px 18px">'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'+
+      card("Peso hoje",ph.hoje?Math.round(ph.hoje)+" kg":"—",ph.projetado?"projetado pelo GMD":(ph.ultData?"pesado em "+fmtData(ph.ultData):""))+
+      card("Ganho total",p0&&pN&&linhas.length>1?Math.round(pN.peso-p0.peso)+" kg":"—",diasTot?diasTot+" dias":"")+
+      card("GMD da vida",f3(gTot),linhas.length+" pesagem(ns)")+
+      card("GMD último período",f3(linhas.length>1?pN.gmd:null),linhas.length>1&&pN.dias?pN.dias+" dias":"")+
+    '</div>'+
+    '<div style="font-size:12px;font-weight:700;color:'+V+';margin:4px 0 6px">Peso ao longo da vida</div>'+
+    _graficoVidaSvg(linhas,ph)+
+    '<div style="font-size:12px;font-weight:700;color:'+V+';margin:14px 0 6px">Todas as pesagens</div>'+
+    (linhas.length?'<div style="overflow-x:auto;border:1px solid '+BD+';border-radius:8px"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:'+CR+'">'+
+      ['Data','Pasto/curral','Peso','Ganho','Dias','GMD do período'].map(function(t,i){return '<th style="padding:7px;text-align:'+(i<2?'left':'right')+';color:'+DE+';font-size:11px">'+t+'</th>';}).join("")+'</tr></thead><tbody>'+
+      linhas.slice().reverse().map(function(l,i){
+        var cg=l.gmd==null?"#999":(l.gmd>=0.6?V:(l.gmd>0?DE:"#A32D2D"));
+        return '<tr style="border-top:1px solid #EFEAD9'+(i%2?';background:#FBF8F0':'')+'"><td style="padding:7px;font-weight:600">'+fmtData(l.data)+(l.obs==="Entrada"?' <span style="font-size:10px;color:'+DE+'">entrada</span>':'')+'</td>'+
+          '<td style="padding:7px;color:#555">'+_escAL(l.pasto||"—")+'</td><td style="padding:7px;text-align:right;font-weight:700;color:'+V+'">'+Math.round(l.peso)+' kg</td>'+
+          '<td style="padding:7px;text-align:right">'+(l.ganho==null?'—':(l.ganho>0?'+':'')+Math.round(l.ganho)+' kg')+'</td><td style="padding:7px;text-align:right;color:#777">'+(l.dias==null?'—':l.dias)+'</td>'+
+          '<td style="padding:7px;text-align:right;font-weight:700;color:'+cg+'">'+f3(l.gmd)+'</td></tr>';
+      }).join("")+'</tbody></table></div>':'<div class="empty" style="padding:14px">Nenhuma pesagem registrada.</div>')+
+    (hist.length?'<div style="font-size:12px;font-weight:700;color:'+V+';margin:14px 0 6px">Por onde passou</div><div style="border-left:3px solid '+D+';padding-left:12px">'+
+      hist.slice().reverse().map(function(x){return '<div style="margin-bottom:8px"><div style="font-size:11px;color:'+DE+';font-weight:700">'+(x.data?fmtData(x.data):"—")+'</div><div style="font-size:12.5px;color:#333">'+_escAL((x.de||"—")+" → "+(x.para||"—"))+'</div>'+(x.motivo?'<div style="font-size:11px;color:#888">'+_escAL(x.motivo)+'</div>':'')+'</div>';}).join("")+'</div>':'')+
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap">'+
+      '<button onclick="alPesar('+a.id+')" style="font-size:12px;padding:7px 13px;border:1px solid '+V+';background:'+V+';color:'+CR+';border-radius:7px;cursor:pointer;font-weight:700">⚖️ Pesar</button>'+
+      '<button onclick="alMover('+a.id+')" style="font-size:12px;padding:7px 13px;border:1px solid '+D+';background:#fff;color:'+DE+';border-radius:7px;cursor:pointer;font-weight:700">↔ Mover</button></div>'+
+    '</div></div>';
+  m.innerHTML=h;m.style.display="flex";
+}
+/* grafico em linha (SVG): peso de cada pesagem (verde, pontos dourados) e o projetado ate hoje (tracejado) */
+function _graficoVidaSvg(linhas,ph){
+  if(!linhas.length)return '<div class="empty" style="padding:14px">Sem pesagem para desenhar.</div>';
+  var pts=linhas.map(function(l){return {d:l.data,p:l.peso};});
+  var hoje=todayStr(), proj=ph&&ph.projetado&&ph.hoje&&pts.length&&hoje>pts[pts.length-1].d?{d:hoje,p:ph.hoje}:null;
+  var todos=pts.concat(proj?[proj]:[]);
+  var t=function(d){return new Date(d+"T12:00:00").getTime();};
+  var x0=t(todos[0].d), x1=t(todos[todos.length-1].d);if(x1===x0)x1=x0+86400000;
+  var vs=todos.map(function(q){return q.p;}), lo=Math.min.apply(null,vs), hi=Math.max.apply(null,vs);
+  var pad=Math.max(10,(hi-lo)*0.15);lo=Math.floor((lo-pad)/10)*10;hi=Math.ceil((hi+pad)/10)*10;
+  var W=700,H=230,L=46,R=16,T=14,B=30;
+  var X=function(d){return L+(t(d)-x0)/(x1-x0)*(W-L-R);}, Y=function(p){return T+(hi-p)/(hi-lo)*(H-T-B);};
+  var g='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;background:#FFFEFA;border:1px solid #E3DCC8;border-radius:8px">';
+  for(var i=0;i<=4;i++){var v=lo+(hi-lo)*i/4, y=Y(v);g+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y+'" y2="'+y+'" stroke="#EFEAD9"/><text x="'+(L-6)+'" y="'+(y+4)+'" font-size="11" fill="#8a857a" text-anchor="end">'+Math.round(v)+'</text>';}
+  /* datas no eixo: primeira, ultima e as do meio se couber */
+  var marcas=pts.length<=6?pts.map(function(q){return q.d;}):[pts[0].d,pts[Math.floor(pts.length/2)].d,pts[pts.length-1].d];
+  if(proj)marcas.push(proj.d);
+  marcas.forEach(function(d){g+='<text x="'+X(d)+'" y="'+(H-10)+'" font-size="10.5" fill="#8a857a" text-anchor="middle">'+fmtData(d).slice(0,5)+'</text>';});
+  if(pts.length>1)g+='<polyline fill="none" stroke="#23432D" stroke-width="2.5" stroke-linejoin="round" points="'+pts.map(function(q){return X(q.d)+","+Y(q.p);}).join(" ")+'"/>';
+  if(proj){var u=pts[pts.length-1];g+='<line x1="'+X(u.d)+'" y1="'+Y(u.p)+'" x2="'+X(proj.d)+'" y2="'+Y(proj.p)+'" stroke="#B8944F" stroke-width="2" stroke-dasharray="6 5"/>'+
+    '<circle cx="'+X(proj.d)+'" cy="'+Y(proj.p)+'" r="4.5" fill="#FFFEFA" stroke="#B8944F" stroke-width="2"/><text x="'+(X(proj.d)-6)+'" y="'+(Y(proj.p)-9)+'" font-size="11" fill="#7A5F28" text-anchor="end" font-weight="700">hoje ~'+Math.round(proj.p)+'</text>';}
+  pts.forEach(function(q,i){
+    g+='<circle cx="'+X(q.d)+'" cy="'+Y(q.p)+'" r="5" fill="#B8944F" stroke="#FFFEFA" stroke-width="2"><title>'+fmtData(q.d)+': '+Math.round(q.p)+' kg</title></circle>';
+    if(pts.length<=8||i===0||i===pts.length-1)g+='<text x="'+X(q.d)+'" y="'+(Y(q.p)-10)+'" font-size="11" fill="#23432D" text-anchor="middle" font-weight="700">'+Math.round(q.p)+'</text>';
+  });
+  return g+'</svg>'+(proj?'<div style="font-size:10.5px;color:#999;margin-top:3px">Linha verde: pesagens. Tracejado dourado: projeção até hoje pelo GMD do boi.</div>':'');
+}
 
 /* Fila de movimentacao mandada pela Bia (planilha ou mensagem no WhatsApp).
    A Bia grava em EMPRESA::caiman_mov_fila; o app SO LE essa chave (fica fora da
@@ -24162,7 +24292,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-ident</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-vida</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
