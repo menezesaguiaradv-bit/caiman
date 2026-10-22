@@ -357,22 +357,9 @@ Compartilhar</button></div>
   <div id="dash-alertas-lista" style="margin-top:10px;display:flex;flex-direction:column;gap:8px"></div>
 </div>
 <div class="sec" style="margin-bottom:20px">
-<div class="stitle" style="display:flex;align-items:center;gap:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>Boi Gordo — B3 (BGI)</div>
+<div class="stitle" style="display:flex;align-items:center;gap:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>Boi Gordo — B3, CEPEA e Datagro</div>
 <div style="overflow:hidden;border-radius:8px">
-<!-- TradingView Widget BEGIN -->
-<div class="tradingview-widget-container">
-<div class="tradingview-widget-container__widget"></div>
-<script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
-{
-  "symbol": "BMFBOVESPA:BGI1!",
-  "width": "100%",
-  "locale": "br",
-  "colorTheme": "light",
-  "isTransparent": true
-}
-</script>
-</div>
-<!-- TradingView Widget END -->
+<div id="mercado-boi"><div style="font-size:12px;color:#999;padding:10px">Carregando cotações…</div></div>
 </div>
 </div>
 <div style="font-size:12px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.7px;margin-bottom:12px">Identificação Animal</div>
@@ -17804,6 +17791,69 @@ function ncxNotaN(r){if(!r)return null;const v=parseFloat(String(r.nota).replace
 function ncxMudaDia(n){const el=document.getElementById("ncx-data");el.value=addDias(el.value||todayStr(),n);renderNotaCocho();}
 let _ncxBaixando=false;
 /* Busca a chave direto no Supabase ao abrir a aba: nao depende do Sync completo. */
+/* ===== 22/10/2026: MERCADO DO BOI NO DASHBOARD =====
+   O widget do TradingView (iframe) nao abre no app Android ("Pagina da Web nao disponivel").
+   Troquei por um cartao proprio com os dados que o robo ja grava no Supabase:
+   caiman_arroba_futuros (curva BGI da B3), caiman_arroba_cepea (indicador) e caiman_datagro (SP). */
+var _mbBaixando=false;
+async function mercadoBoiBaixar(){
+  if(_mbBaixando||!SB_URL)return;_mbBaixando=true;
+  try{
+    var h=await _hdrAuth();delete h["Content-Type"];
+    var ids=["caiman_arroba_futuros","caiman_arroba_cepea","caiman_datagro"].map(function(k){return '"EMPRESA::'+k+'"';}).join(",");
+    var r=await fetch(SB_URL.replace(/\/+$/,"")+"/rest/v1/dados_v2?id=in.("+encodeURIComponent(ids)+")&select=id,dados",{headers:h});
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    var l=await r.json();
+    (l||[]).forEach(function(x){if(x&&x.dados)try{localStorage.setItem(String(x.id).replace("EMPRESA::",""),x.dados);}catch(e){}});
+  }catch(e){}
+  finally{_mbBaixando=false;}
+  renderMercadoBoi();
+}
+function _mbLer(k){try{return JSON.parse(localStorage.getItem(k)||"null");}catch(e){return null;}}
+function _mbR(v){return "R$ "+Number(v).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});}
+function _mbData(d){d=String(d||"");return d.length>=10?d.slice(8,10)+"/"+d.slice(5,7):d;}
+var _MB_MES=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+function _mbLinhaSvg(pts,cor,rot){
+  /* pts:[[rotulo,valor]] ; grafico de linha simples, 2px, com rotulo no primeiro e ultimo ponto */
+  if(!pts||pts.length<2)return '<div style="font-size:11px;color:#999">Sem dados suficientes.</div>';
+  var W=320,H=120,pl=8,pr=8,pt=18,pb=20;
+  var vs=pts.map(function(p){return p[1];}),mn=Math.min.apply(null,vs),mx=Math.max.apply(null,vs);
+  if(mx-mn<1){mx+=1;mn-=1;}var pad=(mx-mn)*0.12;mn-=pad;mx+=pad;
+  function X(i){return pl+(W-pl-pr)*i/(pts.length-1);}function Y(v){return pt+(H-pt-pb)*(1-(v-mn)/(mx-mn));}
+  var d=pts.map(function(p,i){return (i?"L":"M")+X(i).toFixed(1)+" "+Y(p[1]).toFixed(1);}).join(" ");
+  var n=pts.length-1,s='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block" role="img" aria-label="'+rot+'">';
+  s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+(H-pb)+'" y2="'+(H-pb)+'" stroke="#E3DCC8"/>';
+  s+='<path d="'+d+'" fill="none" stroke="'+cor+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+  pts.forEach(function(p,i){s+='<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(p[1]).toFixed(1)+'" r="7" fill="transparent"><title>'+p[0]+': '+_mbR(p[1])+'</title></circle>';});
+  [0,n].forEach(function(i){s+='<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(pts[i][1]).toFixed(1)+'" r="3.5" fill="'+cor+'" stroke="#fff" stroke-width="1.5"/>'+
+    '<text x="'+X(i).toFixed(1)+'" y="'+(Y(pts[i][1])-7).toFixed(1)+'" font-size="10" fill="#333" font-weight="700" text-anchor="'+(i?"end":"start")+'">'+pts[i][1].toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+'</text>'+
+    '<text x="'+X(i).toFixed(1)+'" y="'+(H-6)+'" font-size="10" fill="#7A7668" text-anchor="'+(i?"end":"start")+'">'+pts[i][0]+'</text>';});
+  return s+'</svg>';
+}
+function renderMercadoBoi(){
+  var el=document.getElementById("mercado-boi");if(!el)return;
+  var V="#23432D",D="#B8944F",BD="#E3DCC8";
+  var fu=_mbLer("caiman_arroba_futuros"),ce=_mbLer("caiman_arroba_cepea"),dg=_mbLer("caiman_datagro");
+  var cs=(fu&&fu.contratos||[]).filter(function(c){return c&&c.preco>0;});
+  var hoje=todayStr().slice(0,7);
+  var prox=cs.filter(function(c){return String(c.mes)>=hoje;})[0]||cs[0];
+  var dgs=(dg&&dg.sp||[]).filter(function(x){return x&&x[1]>0;});
+  var dgU=dgs.length?dgs[dgs.length-1]:null;
+  if(!prox&&!ce&&!dgU){el.innerHTML='<div style="font-size:12px;color:#999;padding:10px">Ainda não há cotações gravadas pelo robô.</div>';return;}
+  function tile(t,v,sub){return '<div style="flex:1;min-width:120px;background:#F7F4EC;border:1px solid '+BD+';border-left:4px solid '+D+';border-radius:8px;padding:8px 11px"><div style="font-size:10px;color:#7A7668;text-transform:uppercase;letter-spacing:.4px">'+t+'</div><div style="font-size:19px;font-weight:700;color:'+V+'">'+v+'</div><div style="font-size:10.5px;color:#7A7668">'+sub+'</div></div>';}
+  var h='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">';
+  if(prox)h+=tile("B3 · "+prox.codigo,_mbR(prox.preco),"vencimento "+_MB_MES[parseInt(String(prox.mes).slice(5,7))-1]+"/"+String(prox.mes).slice(2,4)+(fu.lido_em?" · lido "+new Date(fu.lido_em).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):""));
+  if(ce&&ce.valor)h+=tile("Indicador CEPEA",_mbR(ce.valor),"de "+_mbData(ce.data)+" · R$/@ SP à vista");
+  if(dgU)h+=tile("Datagro SP",_mbR(dgU[1]),"de "+_mbData(dgU[0]));
+  h+='</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px">';
+  if(cs.length>1)h+='<div><div style="font-size:11.5px;font-weight:700;color:'+V+';margin-bottom:4px">Curva futura B3 (R$/@ por vencimento)</div>'+_mbLinhaSvg(cs.map(function(c){return [_MB_MES[parseInt(String(c.mes).slice(5,7))-1]+"/"+String(c.mes).slice(2,4),c.preco];}),V,"Curva futura do boi gordo na B3")+'</div>';
+  var hist=(ce&&ce.historico||[]).filter(function(x){return x&&x.valor>0;}).slice(-30);
+  if(hist.length>1)h+='<div><div style="font-size:11.5px;font-weight:700;color:'+V+';margin-bottom:4px">CEPEA — últimos '+hist.length+' pregões</div>'+_mbLinhaSvg(hist.map(function(x){return [_mbData(x.data),x.valor];}),D,"Historico do indicador CEPEA")+'</div>';
+  else if(dgs.length>1)h+='<div><div style="font-size:11.5px;font-weight:700;color:'+V+';margin-bottom:4px">Datagro SP — últimos 30 dias</div>'+_mbLinhaSvg(dgs.slice(-30).map(function(x){return [_mbData(x[0]),x[1]];}),D,"Historico Datagro SP")+'</div>';
+  h+='</div>';
+  if(prox&&ce&&ce.valor){var b=prox.preco-ce.valor;h+='<div style="font-size:11.5px;color:#555;margin-top:8px">Base (B3 '+prox.codigo+' − CEPEA): <b style="color:'+V+'">'+(b>=0?"+":"−")+_mbR(Math.abs(b))+'</b> por @</div>';}
+  el.innerHTML=h;
+}
 async function ncxBaixar(avisar){
   if(_ncxBaixando||!SB_URL)return; _ncxBaixando=true;
   const st=document.getElementById("ncx-status");
@@ -23368,6 +23418,8 @@ function renderAbates(){
 }
 
 function atualizarDashboard(){
+  /* cotacoes do boi: mostra o que esta no aparelho e baixa de novo a cada 30 min */
+  try{renderMercadoBoi();if(!window._mbUlt||Date.now()-window._mbUlt>1800000){window._mbUlt=Date.now();mercadoBoiBaixar();}}catch(e){}
   try{renderResumoRebanho();}catch(e){}
 
   let animais=getAnimais(),lotes=getLotes(),abates=getAbates();
@@ -24690,7 +24742,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-baixa</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-mercado</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
