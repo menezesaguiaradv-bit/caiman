@@ -7163,8 +7163,18 @@ function _aplicarFilaMovBia(){
   var feitos=_readLocal("caiman_mov_fila_feitos",[]);if(!Array.isArray(feitos))feitos=[];
   var novosItens=fila.filter(function(f){return f&&f.id&&feitos.indexOf(f.id)<0;});
   if(!novosItens.length)return null;
-  var tot={mov:0,pesadas:0,novos:0,fora:0,lotes:0};
+  var tot={mov:0,pesadas:0,novos:0,fora:0,lotes:0,excl:0};
   novosItens.forEach(function(f){
+    /* 22/10: item de EXCLUSAO (ele: "pode deletar esses da caiman"): tira os animais pelo id, com as
+       pesagens, pelo caminho normal do app (a exclusao sobe no sync pela fila de exclusoes) */
+    if(Array.isArray(f.excluir)&&f.excluir.length){
+      var ex={};f.excluir.forEach(function(x){ex[String(x)]=1;});
+      var antes=getAnimais(), depois=antes.filter(function(a){return !ex[String(a.id)];});
+      if(depois.length!==antes.length){
+        setAnimais(depois);tot.excl+=antes.length-depois.length;
+        setPesagensSisbov(getPesagensSisbov().filter(function(x){return !ex[String(x.animalId)];}));
+      }
+    }
     var linhas=(f.linhas||[]).map(function(l,i){return {n:i+1,sis:String(l.sis||""),chip:String(l.chip||""),dest:String(l.pasto||""),faz:String(l.faz||""),peso:+l.peso||0,data:String(l.data||"")};});
     var destinos={};
     linhas.forEach(function(l){var k=l.dest;if(!destinos[k])destinos[k]={orig:k,n:0,pasto:k,faz:""};destinos[k].n++;});
@@ -7181,11 +7191,11 @@ function _aplicarFilaMovBia(){
   });
   localStorage.setItem("caiman_mov_fila_feitos",JSON.stringify(feitos.slice(-500)));
 
-  if(tot.mov||tot.pesadas||tot.novos){try{marcarPendente();}catch(e){}}
+  if(tot.mov||tot.pesadas||tot.novos||tot.excl){try{marcarPendente();}catch(e){}}
   try{_r(renderAnimais,"renderAnimais");}catch(e){}
   try{renderPastos();}catch(e){}
   _refrescarAnimaisLote();
-  try{toast("Movimentação da Bia: "+tot.mov+" animal(is) mudaram de lugar, "+tot.pesadas+" pesagem(ns)"+(tot.novos?", "+tot.novos+" cadastrado(s)":"")+(tot.lotes?", "+tot.lotes+" lote(s) acertado(s)":"")+(tot.fora?" · "+tot.fora+" linha(s) não aplicada(s)":"")+".");}catch(e){}
+  try{toast("Movimentação da Bia: "+tot.mov+" animal(is) mudaram de lugar, "+tot.pesadas+" pesagem(ns)"+(tot.novos?", "+tot.novos+" cadastrado(s)":"")+(tot.excl?", "+tot.excl+" excluído(s)":"")+(tot.lotes?", "+tot.lotes+" lote(s) acertado(s)":"")+(tot.fora?" · "+tot.fora+" linha(s) não aplicada(s)":"")+".");}catch(e){}
   return tot;
 }
 
@@ -24590,7 +24600,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-cheia</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-excl</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
