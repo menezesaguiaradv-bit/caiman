@@ -6250,8 +6250,8 @@ function _tiposDosDestinos(plano,M){
   plano.forEach(function(p){var d=M&&M.destinos&&M.destinos[p.l.dest||""];if(d&&d.tipo&&p.fazDest&&p.pastoDest)t[_chPastoId(p.fazDest,p.pastoDest)]=d.tipo;});
   return t;
 }
-function _lotesDepoisDaImportacao(res,tipos){
-  var r=_lotesSeguemBois(res.moves,tipos,false);
+function _lotesDepoisDaImportacao(res,tipos,op){
+  var r=_lotesSeguemBois(res.moves,tipos,false,op);
   var n2=res.pesados&&res.pesados.length?_acertarLotesDosPastos(res.pesados):0;
   r.n+=n2;return r;
 }
@@ -6459,7 +6459,8 @@ function _tipoDestinoPadrao(faz,tipoOrigem){
 function _modaDatas(ds){var c={},b=null;ds.forEach(function(d){if(!d)return;c[d]=(c[d]||0)+1;if(b==null||c[d]>c[b]||(c[d]===c[b]&&d>b))b=d;});return b;}
 /* moves: [{id, de:{faz,pasto}|null, para:{faz,pasto}, peso, data}] (um por animal que mudou ou foi cadastrado).
    tipos: {chaveDestino: tipo} escolhido na importacao. dry=true so descreve. */
-function _lotesSeguemBois(moves,tipos,dry){
+function _lotesSeguemBois(moves,tipos,dry,op){
+  op=op||{};
   var res={n:0,txt:[]};
   if(!moves||!moves.length)return res;
   tipos=tipos||{};
@@ -6504,8 +6505,8 @@ function _lotesSeguemBois(moves,tipos,dry){
       L.ultimaPesagem=null;
     }
   });
-  /* 2) semi/confinamento: origem perde */
-  Object.keys(sai).forEach(function(o){
+  /* 2) semi/confinamento: origem perde (correcao de cadastro nao mexe: o lote ja estava certo) */
+  if(!op.correcao)Object.keys(sai).forEach(function(o){
     var lo=ativos(o).filter(function(l){return !mudouLote[l.id]&&!_ehTipoId(l.tipo)&&qt(l)>0;}).sort(function(a,b){return qt(b)-qt(a);});
     if(!lo.length)return;
     var L=lo[0], nv=Math.max(0,qt(L)-sai[o]);
@@ -6514,8 +6515,8 @@ function _lotesSeguemBois(moves,tipos,dry){
     L.qtd=nv;if(!L.histMov)L.histMov=[];
     L.histMov.push({data:hoje,de:(L.pasto||""),para:"—",motivo:"Pesagem individual: "+sai[o]+" boi(s) saíram para outro pasto/curral"});
   });
-  /* 3) destinos */
-  Object.keys(ent).forEach(function(d){
+  /* 3) destinos (correcao de cadastro: o boi ja estava contado no lote do destino) */
+  if(!op.correcao)Object.keys(ent).forEach(function(d){
     var E=ent[d];if(E.feito)return;
     var ld=ativos(d).filter(function(l){return !mudouLote[l.id];});
     var nid=ld.filter(function(l){return !_ehTipoId(l.tipo);}).sort(function(a,b){return qt(b)-qt(a);});
@@ -7226,10 +7227,12 @@ function _aplicarFilaMovBia(){
     var ok=plano.filter(function(p){return p.status==="mover"||p.status==="pesar"||p.status==="novo";});
     tot.fora+=plano.filter(function(p){return p.status==="erro";}).length;
     if(ok.length){
-      var r=_movAplicar(ok,"Bia (WhatsApp)");tot.mov+=r.mov;tot.pesadas+=r.pesadas;tot.novos+=r.novos;
+      var r=_movAplicar(ok,f.correcao?"Correção de cadastro (boi é do confinamento)":"Bia (WhatsApp)");tot.mov+=r.mov;tot.pesadas+=r.pesadas;tot.novos+=r.novos;
       /* tipo do lote novo mandado pela Bia ("semi", "confinamento" na legenda): {pasto: tipo} */
       var tp={};if(f.tipos)plano.forEach(function(p){var t=f.tipos[p.l.dest]||f.tipos[p.pastoDest];if(t&&p.fazDest&&p.pastoDest)tp[_chPastoId(p.fazDest,p.pastoDest)]=t;});
-      var lr=_lotesDepoisDaImportacao(r,tp);tot.lotes=(tot.lotes||0)+lr.n;
+      /* f.correcao: o boi estava cadastrado no lugar errado (ex.: os 46 do 10B que sao do B5) - muda o boi,
+         a recria/engorda acerta pelos identificados, semi/confinamento nao somam */
+      var lr=_lotesDepoisDaImportacao(r,tp,{correcao:!!f.correcao});tot.lotes=(tot.lotes||0)+lr.n;
     }
     feitos.push(f.id);
   });
@@ -24646,7 +24649,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-conf</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-corr</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
