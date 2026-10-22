@@ -16809,6 +16809,8 @@ let _ncxRaw=null,_ncxArr=[],_ncxIdx={};
 function ncxLeituras(){
   let raw=null; try{raw=localStorage.getItem("caiman_leitura_cocho")||"[]";}catch(e){raw="[]";}
   if(raw!==_ncxRaw){_ncxRaw=raw;_ncxIdx={};try{_ncxArr=JSON.parse(raw)||[];}catch(e){_ncxArr=[];}
+    /* 22/10: "REMOVE_NOTE" e a nota APAGADA no Saicon (operador tirou a leitura) - nao e nota, conta como sem nota */
+    _ncxArr=_ncxArr.filter(function(r){return r&&!/REMOVE/i.test(String(r.nota||""));});
     _ncxArr.forEach(function(r){const k=r.data+"|"+ncxNorm(r.lote);(_ncxIdx[k]=_ncxIdx[k]||[]).push(r);});
     Object.keys(_ncxIdx).forEach(function(k){_ncxIdx[k].sort(function(a,b){return (a.slot||1)-(b.slot||1);});});}
   return _ncxArr;
@@ -23711,7 +23713,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-recria</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-cocho</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
