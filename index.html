@@ -357,7 +357,7 @@ Compartilhar</button></div>
   <div id="dash-alertas-lista" style="margin-top:10px;display:flex;flex-direction:column;gap:8px"></div>
 </div>
 <div class="sec" style="margin-bottom:20px">
-<div class="stitle" style="display:flex;align-items:center;gap:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>Boi Gordo — B3, CEPEA e Datagro</div>
+<div class="stitle" style="display:flex;align-items:center;gap:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>Boi Gordo — B3 e Datagro</div>
 <div style="overflow:hidden;border-radius:8px">
 <div id="mercado-boi"><div style="font-size:12px;color:#999;padding:10px">Carregando cotações…</div></div>
 </div>
@@ -17839,19 +17839,22 @@ function renderMercadoBoi(){
   var prox=cs.filter(function(c){return String(c.mes)>=hoje;})[0]||cs[0];
   var dgs=(dg&&dg.sp||[]).filter(function(x){return x&&x[1]>0;});
   var dgU=dgs.length?dgs[dgs.length-1]:null;
-  if(!prox&&!ce&&!dgU){el.innerHTML='<div style="font-size:12px;color:#999;padding:10px">Ainda não há cotações gravadas pelo robô.</div>';return;}
+  /* 22/10: ele pediu o Datagro MS no lugar do CEPEA (e o preco que vale para o boi dele) */
+  var dms=(dg&&dg.ms||[]).filter(function(x){return x&&x[1]>0;});
+  var dmU=dms.length?dms[dms.length-1]:null;
+  if(!prox&&!dmU&&!dgU){el.innerHTML='<div style="font-size:12px;color:#999;padding:10px">Ainda não há cotações gravadas pelo robô.</div>';return;}
   function tile(t,v,sub){return '<div style="flex:1;min-width:120px;background:#F7F4EC;border:1px solid '+BD+';border-left:4px solid '+D+';border-radius:8px;padding:8px 11px"><div style="font-size:10px;color:#7A7668;text-transform:uppercase;letter-spacing:.4px">'+t+'</div><div style="font-size:19px;font-weight:700;color:'+V+'">'+v+'</div><div style="font-size:10.5px;color:#7A7668">'+sub+'</div></div>';}
   var h='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">';
   if(prox)h+=tile("B3 · "+prox.codigo,_mbR(prox.preco),"vencimento "+_MB_MES[parseInt(String(prox.mes).slice(5,7))-1]+"/"+String(prox.mes).slice(2,4)+(fu.lido_em?" · lido "+new Date(fu.lido_em).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):""));
-  if(ce&&ce.valor)h+=tile("Indicador CEPEA",_mbR(ce.valor),"de "+_mbData(ce.data)+" · R$/@ SP à vista");
+  if(dmU)h+=tile("Datagro MS",_mbR(dmU[1]),"de "+_mbData(dmU[0])+" · R$/@ à vista");
   if(dgU)h+=tile("Datagro SP",_mbR(dgU[1]),"de "+_mbData(dgU[0]));
   h+='</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px">';
   if(cs.length>1)h+='<div><div style="font-size:11.5px;font-weight:700;color:'+V+';margin-bottom:4px">Curva futura B3 (R$/@ por vencimento)</div>'+_mbLinhaSvg(cs.map(function(c){return [_MB_MES[parseInt(String(c.mes).slice(5,7))-1]+"/"+String(c.mes).slice(2,4),c.preco];}),V,"Curva futura do boi gordo na B3")+'</div>';
-  var hist=(ce&&ce.historico||[]).filter(function(x){return x&&x.valor>0;}).slice(-30);
-  if(hist.length>1)h+='<div><div style="font-size:11.5px;font-weight:700;color:'+V+';margin-bottom:4px">CEPEA — últimos '+hist.length+' pregões</div>'+_mbLinhaSvg(hist.map(function(x){return [_mbData(x.data),x.valor];}),D,"Historico do indicador CEPEA")+'</div>';
+  var hist=dms.slice(-30);
+  if(hist.length>1)h+='<div><div style="font-size:11.5px;font-weight:700;color:'+V+';margin-bottom:4px">Datagro MS — últimos '+hist.length+' pregões</div>'+_mbLinhaSvg(hist.map(function(x){return [_mbData(x[0]),x[1]];}),D,"Historico Datagro MS")+'</div>';
   else if(dgs.length>1)h+='<div><div style="font-size:11.5px;font-weight:700;color:'+V+';margin-bottom:4px">Datagro SP — últimos 30 dias</div>'+_mbLinhaSvg(dgs.slice(-30).map(function(x){return [_mbData(x[0]),x[1]];}),D,"Historico Datagro SP")+'</div>';
   h+='</div>';
-  if(prox&&ce&&ce.valor){var b=prox.preco-ce.valor;h+='<div style="font-size:11.5px;color:#555;margin-top:8px">Base (B3 '+prox.codigo+' − CEPEA): <b style="color:'+V+'">'+(b>=0?"+":"−")+_mbR(Math.abs(b))+'</b> por @</div>';}
+  if(prox&&dmU){var b=prox.preco-dmU[1];h+='<div style="font-size:11.5px;color:#555;margin-top:8px">Base (B3 '+prox.codigo+' − Datagro MS): <b style="color:'+V+'">'+(b>=0?"+":"−")+_mbR(Math.abs(b))+'</b> por @</div>';}
   el.innerHTML=h;
 }
 async function ncxBaixar(avisar){
@@ -24742,7 +24745,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-mercado</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-mercado2</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
