@@ -5704,7 +5704,7 @@ function renderAnimaisLote(){
     var a=x.a,ph=x.ph;
     var baixo=r.pesoMedio&&ph.hoje&&ph.hoje<r.pesoMedio*0.9;
     return '<tr'+(baixo?' class="al-baixo"':'')+' style="border-bottom:1px solid #E3DCC8">'+
-      '<td style="padding:8px 4px;cursor:pointer" onclick="abrirVidaAnimal('+a.id+')" title="Ver a vida do boi">'+_idAnimalHtml(a)+'<div style="font-size:10px;color:#B8944F;font-weight:700;margin-top:2px">ver vida do boi ›</div></td>'+
+      '<td style="padding:8px 4px;cursor:pointer" onclick="abrirVidaAnimal('+a.id+')" title="Ver a vida do boi">'+_idAnimalHtml(a)+'<div style="font-size:10px;color:#B8944F;font-weight:700;margin-top:2px">ver vida do boi ›'+(function(){var c=_carenciaAtiva(medicacoesDoAnimal(a));return c?' <span style="color:#A32D2D">💉 carência até '+fmtData(c.ate).slice(0,5)+'</span>':'';})()+'</div></td>'+
       '<td style="padding:6px 4px;text-align:right">'+(ph.ultPeso?ph.ultPeso.toFixed(0)+' kg<div style="font-size:10px;color:#999">'+fmtData(ph.ultData)+'</div>':'—')+'</td>'+
       '<td style="padding:6px 4px;text-align:right;font-weight:700">'+(ph.hoje?ph.hoje.toFixed(0)+' kg'+(ph.projetado?'<span title="projetado pelo GMD individual" style="color:#999">*</span>':''):'—')+(baixo?'<div style="font-size:10px;color:#7A5F28;font-weight:600">abaixo da média</div>':'')+'</td>'+
       '<td style="padding:6px 4px;text-align:right;color:'+corG(ph.gmd)+'">'+(ph.gmd!=null?ph.gmd.toFixed(3):'—')+'</td>'+
@@ -5750,7 +5750,7 @@ function renderAnimaisLote(){
       '<input id="al-filtro-txt" value="'+_escAL(_alTexto)+'" placeholder="Buscar na lista (identificação ou SISBOV)" inputmode="numeric" oninput="alBuscarLista(this.value)" style="flex:1;min-width:180px;font-size:12px;padding:6px 8px;border:1px solid #E3DCC8;border-radius:7px">'+
       '<select onchange="alOrdenar(this.value)" style="font-size:12px;padding:5px">'+
         [["peso","Mais pesados primeiro"],["pesoAsc","Mais leves primeiro"],["gmd","Maior GMD primeiro"],["sisbov","Por identificação"]].map(function(op){return '<option value="'+op[0]+'"'+(o===op[0]?' selected':'')+'>'+op[1]+'</option>';}).join("")+
-      '</select></div>'+
+      '</select><button onclick="medicarPastoAtual()" style="font-size:12px;padding:6px 11px;border:1px solid #B8944F;background:#fff;color:#7A5F28;border-radius:7px;cursor:pointer;font-weight:700">💉 Medicar o pasto</button></div>'+
     (lista.length?
       (_alListaOculta?'<div style="text-align:center;padding:10px"><button onclick="alMostrarLista(true)" style="font-size:12px;padding:7px 14px;border:1px solid #23432D;background:#23432D;color:#F7F4EC;border-radius:7px;cursor:pointer;font-weight:700">Mostrar os '+lista.length+' animais ▾</button></div>':
       '<div style="text-align:right;margin-bottom:4px"><button onclick="alMostrarLista(false)" style="font-size:11px;padding:3px 9px;border:1px solid #E3DCC8;background:#fff;color:#7A7668;border-radius:6px;cursor:pointer">Recolher lista ▴</button></div>'+
@@ -6820,10 +6820,12 @@ function abrirVidaAnimal(id){
           '<td style="padding:7px;text-align:right">'+(l.ganho==null?'—':(l.ganho>0?'+':'')+Math.round(l.ganho)+' kg')+'</td><td style="padding:7px;text-align:right;color:#777">'+(l.dias==null?'—':l.dias)+'</td>'+
           '<td style="padding:7px;text-align:right;font-weight:700;color:'+cg+'">'+f3(l.gmd)+'</td></tr>';
       }).join("")+'</tbody></table></div>':'<div class="empty" style="padding:14px">Nenhuma pesagem registrada.</div>')+
+    _medicacoesHtml(a)+
     (hist.length?'<div style="font-size:12px;font-weight:700;color:'+V+';margin:14px 0 6px">Por onde passou</div><div style="border-left:3px solid '+D+';padding-left:12px">'+
       hist.slice().reverse().map(function(x){return '<div style="margin-bottom:8px"><div style="font-size:11px;color:'+DE+';font-weight:700">'+(x.data?fmtData(x.data):"—")+'</div><div style="font-size:12.5px;color:#333">'+_escAL((x.de||"—")+" → "+(x.para||"—"))+'</div>'+(x.motivo?'<div style="font-size:11px;color:#888">'+_escAL(x.motivo)+'</div>':'')+'</div>';}).join("")+'</div>':'')+
     '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap">'+
       '<button onclick="alPesar('+a.id+')" style="font-size:12px;padding:7px 13px;border:1px solid '+V+';background:'+V+';color:'+CR+';border-radius:7px;cursor:pointer;font-weight:700">⚖️ Pesar</button>'+
+      '<button onclick="abrirMedicar(['+a.id+'])" style="font-size:12px;padding:7px 13px;border:1px solid '+D+';background:#fff;color:'+DE+';border-radius:7px;cursor:pointer;font-weight:700">💉 Medicar</button>'+
       '<button onclick="alMover('+a.id+')" style="font-size:12px;padding:7px 13px;border:1px solid '+D+';background:#fff;color:'+DE+';border-radius:7px;cursor:pointer;font-weight:700">↔ Mover</button></div>'+
     '</div></div></div>';
   m.innerHTML=h;m.style.display="flex";
@@ -6854,6 +6856,162 @@ function _graficoVidaSvg(linhas,ph){
     if(pts.length<=8||i===0||i===pts.length-1)g+='<text x="'+X(q.d)+'" y="'+(Y(q.p)-10)+'" font-size="11" fill="#23432D" text-anchor="middle" font-weight="700">'+Math.round(q.p)+'</text>';
   });
   return g+'</svg>'+(proj?'<div style="font-size:10.5px;color:#999;margin-top:3px">Linha verde: pesagens. Tracejado dourado: projeção até hoje pelo GMD do boi.</div>':'');
+}
+
+/* ===== 22/10/2026: MEDICACAO INDIVIDUAL =====
+   Ele: "quero que coloque tambem toda a medicacao que o gado tomou de forma individual".
+   Usa o mesmo cadastro da tela Sanidade (caiman_sanidade). Um registro vale para o boi quando:
+   - foi aplicado nele (alvo "sisbov", alvoId = id do animal);
+   - foi aplicado no pasto/curral com a lista de quem estava la (campo "animais", gravado pelo
+     "Medicar o pasto" daqui em diante);
+   - e registro antigo de LOTE: vale se o boi estava naquele pasto/curral na data (pelo historico).
+   Campos novos: dose, via, carencia (dias) e dataCarencia (liberado para abate a partir de). */
+function _onde(a,dt){
+  /* fazenda/pasto do boi numa data, pelo historico de movimentacao */
+  var h=(a.historico||[]).slice().sort(function(x,y){return String(x.data).localeCompare(String(y.data));});
+  function parte(t){t=String(t||"");var i=t.indexOf("/");return i<0?{faz:"",pasto:t.trim()}:{faz:t.slice(0,i).trim(),pasto:t.slice(i+1).replace(/^\s*(Pasto|Curral)\s+/i,"").trim()};}
+  for(var i=h.length-1;i>=0;i--)if(String(h[i].data)<=dt){var p=parte(h[i].para);if(p.pasto&&p.pasto!=="—")return p;}
+  if(h.length){var d=parte(h[0].de);if(d.pasto&&d.pasto!=="—")return d;var q=parte(h[0].para);if(q.pasto)return q;}
+  return {faz:a.fazenda||"",pasto:a.pasto||""};
+}
+function _sanLugar(r){
+  if(r.alvoPasto)return {faz:r.alvoFaz||"",pasto:r.alvoPasto};
+  var m=String(r.alvoNome||"").match(/—\s*(.*?)\s*\/\s*(?:Pasto|Curral)?\s*(.+)$/i);
+  if(m)return {faz:m[1],pasto:m[2]};
+  var l=getLotes().find(function(x){return String(x.id)===String(r.alvoId);});
+  return l?{faz:l.fazenda||"",pasto:l.pasto||""}:null;
+}
+function medicacoesDoAnimal(a){
+  var out=[];
+  getSanidade().forEach(function(r){
+    if(!r||!r.data)return;
+    var como="";
+    if(r.alvo==="sisbov"){if(String(r.alvoId)===String(a.id))como="individual";}
+    else if(Array.isArray(r.animais)){if(r.animais.map(String).indexOf(String(a.id))>=0)como="pasto";}
+    else{
+      var lg=_sanLugar(r);if(lg){var o=_onde(a,r.data);
+        if(_pastoCore(o.pasto)===_pastoCore(lg.pasto)&&(!lg.faz||!o.faz||_fazBate(o.faz,lg.faz)))como="lote";}
+    }
+    if(como)out.push({r:r,como:como});
+  });
+  out.sort(function(x,y){return String(y.r.data).localeCompare(String(x.r.data));});
+  return out;
+}
+function _carenciaAtiva(meds){
+  var hoje=todayStr(), fim=null, prod="";
+  meds.forEach(function(m){var d=m.r.dataCarencia;if(d&&d>=hoje&&(!fim||d>fim)){fim=d;prod=nomeTipoSan(m.r.tipo);}});
+  return fim?{ate:fim,prod:prod}:null;
+}
+function _somarDias(d,n){var x=new Date(d+"T12:00:00");x.setDate(x.getDate()+n);return _kLocal(x);}
+/* produtos ja usados (sugestao no campo) */
+function _produtosSanidade(){
+  var s={};getSanidade().forEach(function(r){if(r.tipo)s[nomeTipoSan(r.tipo)]=1;});
+  ["Vacina - Aftosa","Vacina - Clostridioses","Vermífugo 1%","Vermífugo 3.5%","Antibiótico","Anti-inflamatório","Carrapaticida","Mosquicida","Vitamina ADE"].forEach(function(p){s[p]=1;});
+  return Object.keys(s).sort();
+}
+/* 22/10: PROTOCOLO dele: Vermifugo 1% ou 3,5% (qual foi e o nome do produto), brinco de mosca, Pour On,
+   vacina de pneumonia e vacina contra cisticercose. Marca o que foi aplicado, com o nome do produto; o app
+   lembra o ultimo produto de cada item. "Outro" serve para tratamento fora do protocolo. */
+var PROTOCOLO_SAN=[
+  {k:"verm",nome:"Vermífugo",conc:true},
+  {k:"brinco",nome:"Brinco de mosca"},
+  {k:"pouron",nome:"Pour On"},
+  {k:"pneumo",nome:"Vacina de Pneumonia"},
+  {k:"cisti",nome:"Vacina contra Cisticercose"},
+  {k:"outro",nome:"Outro medicamento",livre:true}
+];
+function _ultProd(k){try{return (JSON.parse(localStorage.getItem("caiman_san_ultprod")||"{}")||{})[k]||"";}catch(e){return "";}}
+function _gravaUltProd(k,v){try{var o=JSON.parse(localStorage.getItem("caiman_san_ultprod")||"{}")||{};o[k]=v;localStorage.setItem("caiman_san_ultprod",JSON.stringify(o));}catch(e){}}
+function abrirMedicar(ids,ctx){
+  var m=document.getElementById("modal-medicar");
+  if(!m){m=document.createElement("div");m.id="modal-medicar";m.className="modal-overlay";m.style.cssText="display:none;z-index:500;padding:0";
+    m.onclick=function(e){if(e.target===m)m.style.display="none";};document.body.appendChild(m);}
+  window._medIds=ids;window._medCtx=ctx||null;
+  var V="#23432D",CR="#F7F4EC",D="#B8944F",DE="#7A5F28";
+  var tit=ctx?("Medicar o pasto "+ctx.pasto+" — "+ids.length+" boi"+(ids.length!==1?"s":"")):"Medicar o boi";
+  var inp='font-size:13px;padding:7px;border:1px solid #E3DCC8;border-radius:7px;width:100%;box-sizing:border-box';
+  var itens=PROTOCOLO_SAN.map(function(it){
+    var ult=_ultProd(it.k);
+    return '<div style="border:1px solid #E3DCC8;border-radius:8px;padding:9px 10px;background:#fff">'+
+      '<label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:'+V+';cursor:pointer"><input type="checkbox" id="med-on-'+it.k+'" style="width:20px;height:20px" onchange="document.getElementById(\'med-det-'+it.k+'\').style.display=this.checked?\'grid\':\'none\'"> '+it.nome+'</label>'+
+      '<div id="med-det-'+it.k+'" style="display:none;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'+
+        (it.conc?'<div style="grid-column:1/3;display:flex;gap:14px;font-size:13px"><label><input type="radio" name="med-conc" value="vermifugo1" checked> 1%</label><label><input type="radio" name="med-conc" value="vermifugo35"> 3,5%</label></div>':'')+
+        (it.livre?'<div style="grid-column:1/3"><input id="med-nome-'+it.k+'" placeholder="O que foi aplicado (ex.: antibiótico)" style="'+inp+'"></div>':'')+
+        '<div style="grid-column:1/3"><input id="med-prod-'+it.k+'" value="'+_escAL(ult)+'" placeholder="Nome do produto (marca)" style="'+inp+'"></div>'+
+        '<div><input id="med-dose-'+it.k+'" placeholder="Dose (ex.: 10 ml)" style="'+inp+'"></div>'+
+        '<div><input id="med-car-'+it.k+'" type="number" min="0" inputmode="numeric" placeholder="Carência (dias)" style="'+inp+'"></div>'+
+      '</div></div>';
+  }).join("");
+  m.innerHTML='<div class="modal" style="max-width:100%;width:100%;height:100vh;max-height:100vh;border-radius:0;overflow:auto;padding:0;background:#FFFEFA"><div style="max-width:640px;margin:0 auto">'+
+    '<div style="padding:13px 16px;background:'+V+';color:'+CR+';font-weight:700;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:2">💉 '+_escAL(tit)+'<button onclick="document.getElementById(\'modal-medicar\').style.display=\'none\'" style="background:none;border:none;color:'+CR+';font-size:22px;cursor:pointer">✕</button></div>'+
+    '<div style="padding:14px 16px">'+
+      '<div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap"><div style="flex:1;min-width:150px"><label style="font-size:11px;color:#555">Data do manejo</label><input id="med-data" type="date" value="'+todayStr()+'" style="'+inp+'"></div>'+
+      '<div style="flex:2;min-width:200px"><label style="font-size:11px;color:#555">Observação (opcional)</label><input id="med-obs" placeholder="Ex.: manejo de entrada, tratamento" style="'+inp+'"></div></div>'+
+      '<div style="font-size:12px;font-weight:700;color:'+DE+';margin-bottom:6px">Protocolo — marque o que foi aplicado</div>'+
+      '<div style="display:grid;gap:8px">'+itens+'</div>'+
+    '</div><div style="padding:0 16px 18px;display:flex;justify-content:flex-end;gap:8px">'+
+      '<button onclick="document.getElementById(\'modal-medicar\').style.display=\'none\'" style="font-size:13px;padding:9px 14px;border:1px solid #E3DCC8;background:#fff;border-radius:7px;cursor:pointer">Cancelar</button>'+
+      '<button onclick="salvarMedicacao()" style="font-size:14px;padding:9px 18px;border:1px solid '+V+';background:'+V+';color:'+CR+';border-radius:7px;cursor:pointer;font-weight:700">Gravar</button></div></div></div>';
+  m.style.display="flex";
+}
+function salvarMedicacao(){
+  var data=vs("med-data"), obs=(document.getElementById("med-obs").value||"").trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(data)){alert("Informe a data.");return;}
+  var ids=window._medIds||[], ctx=window._medCtx, reg=getSanidade(), feitos=[];
+  var alvoBase;
+  if(ctx){
+    var lt=getLotes().find(function(l){return !l.vendido&&_chPastoId(l.fazenda,l.pasto)===_chPastoId(ctx.faz,ctx.pasto);});
+    alvoBase={alvo:lt?lt.tipo:"pasto",alvoId:lt?lt.id:0,alvoNome:(lt?(lt.tipo||"")+" — ":"Pasto — ")+(ctx.faz||"")+" / "+ctx.pasto,alvoFaz:ctx.faz,alvoPasto:ctx.pasto,animais:ids.slice()};
+  }else{
+    var a=getAnimais().find(function(x){return String(x.id)===String(ids[0]);});if(!a)return;
+    alvoBase={alvo:"sisbov",alvoId:a.id,alvoNome:"SISBOV "+(a.sisbov||a.eletro||"?")};
+  }
+  for(var i=0;i<PROTOCOLO_SAN.length;i++){
+    var it=PROTOCOLO_SAN[i];
+    if(!document.getElementById("med-on-"+it.k).checked)continue;
+    var prod=(document.getElementById("med-prod-"+it.k).value||"").trim();
+    var tipo=it.nome;
+    if(it.conc){var r=document.querySelector('input[name="med-conc"]:checked');tipo=r?r.value:"vermifugo1";}
+    if(it.livre){tipo=(document.getElementById("med-nome-"+it.k).value||"").trim();if(!tipo){alert("Diga o que foi aplicado em \"Outro medicamento\".");return;}}
+    if(!prod&&!it.livre){alert("Informe o nome do produto de "+(it.conc?"Vermífugo":it.nome)+".");return;}
+    var car=parseInt(vs("med-car-"+it.k))||0, dose=(document.getElementById("med-dose-"+it.k).value||"").trim();
+    var rec=Object.assign({id:novoId(),tipo:tipo,produto:prod,data:data,dose:dose,carencia:car,dataCarencia:car>0?_somarDias(data,car):"",obs:obs,reverDias:0,dataRever:""},alvoBase);
+    if(it.conc){rec.reverDias=90;rec.dataRever=_somarDias(data,90);}   // vermifugo: alerta de reaplicacao no Dashboard (90 dias, como na tela Sanidade)
+    if(alvoBase.animais)rec.animais=alvoBase.animais.slice();
+    reg.push(rec);feitos.push(nomeTipoSan(tipo)+(prod?" ("+prod+")":""));
+    if(prod)_gravaUltProd(it.k,prod);
+  }
+  if(!feitos.length){alert("Marque pelo menos um item do protocolo.");return;}
+  setSanidade(reg);
+  try{marcarPendente();}catch(e){}
+  document.getElementById("modal-medicar").style.display="none";
+  try{_r(renderSanidade,"renderSanidade");}catch(e){}
+  try{toast("💉 Gravado"+(ctx?" para "+ids.length+" boi(s) do pasto "+ctx.pasto:"")+": "+feitos.join(", ")+".");}catch(e){}
+  if(!ctx)abrirVidaAnimal(ids[0]);else try{renderAnimaisLote();}catch(e){}
+}
+function medicarPastoAtual(){
+  var L=_animaisLoteAtual;if(!L)return;
+  var ids=animaisDoLote(L.fazenda,L.pasto).map(function(a){return a.id;});
+  if(!ids.length){alert("Nenhum animal identificado neste pasto.");return;}
+  abrirMedicar(ids,{faz:_movFazNome(L.fazenda),pasto:L.pasto});
+}
+/* bloco da vida do boi */
+function _medicacoesHtml(a){
+  var meds=medicacoesDoAnimal(a), V="#23432D",D="#B8944F",DE="#7A5F28",BD="#E3DCC8",hoje=todayStr();
+  var car=_carenciaAtiva(meds);
+  var h='<div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 6px"><div style="font-size:12px;font-weight:700;color:'+V+'">Medicações e vacinas ('+meds.length+')</div>'+
+    '<button onclick="abrirMedicar(['+a.id+'])" style="font-size:12px;padding:5px 11px;border:1px solid '+D+';background:#fff;color:'+DE+';border-radius:7px;cursor:pointer;font-weight:700">💉 Medicar</button></div>';
+  if(car)h+='<div style="background:#FBEAEA;border:1px solid #E0B4B4;color:#A32D2D;border-radius:8px;padding:8px 10px;font-size:12.5px;font-weight:700;margin-bottom:8px">⚠ Em carência ('+_escAL(car.prod)+'): liberado para abate a partir de '+fmtData(car.ate)+'</div>';
+  if(!meds.length)return h+'<div class="empty" style="padding:12px">Nenhuma medicação registrada para este boi.</div>';
+  return h+'<div style="overflow-x:auto;border:1px solid '+BD+';border-radius:8px"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#F7F4EC">'+
+    ['Data','Medicamento / vacina','Dose · via','Carência até','Como'].map(function(t){return '<th style="padding:7px;text-align:left;color:'+DE+';font-size:11px">'+t+'</th>';}).join("")+'</tr></thead><tbody>'+
+    meds.map(function(m,i){var r=m.r, emCar=r.dataCarencia&&r.dataCarencia>=hoje;
+      var como=m.como==="individual"?'<span style="color:'+V+';font-weight:700">só ele</span>':(m.como==="pasto"?'pasto '+_escAL(r.alvoPasto||""):'lote '+_escAL((_sanLugar(r)||{}).pasto||""));
+      return '<tr style="border-top:1px solid #EFEAD9'+(i%2?';background:#FBF8F0':'')+'"><td style="padding:7px;font-weight:600;white-space:nowrap">'+fmtData(r.data)+'</td>'+
+        '<td style="padding:7px">'+_escAL(nomeTipoSan(r.tipo))+(r.produto?' <b style="color:#23432D">— '+_escAL(r.produto)+'</b>':'')+(r.obs?'<div style="font-size:10.5px;color:#888">'+_escAL(r.obs)+'</div>':'')+'</td>'+
+        '<td style="padding:7px;color:#555">'+_escAL([r.dose,r.via].filter(Boolean).join(" · ")||"—")+'</td>'+
+        '<td style="padding:7px;'+(emCar?'color:#A32D2D;font-weight:700':'color:#777')+'">'+(r.dataCarencia?fmtData(r.dataCarencia):'—')+'</td>'+
+        '<td style="padding:7px;font-size:11px;color:#777">'+como+'</td></tr>';}).join("")+'</tbody></table></div>';
 }
 
 /* Fila de movimentacao mandada pela Bia (planilha ou mensagem no WhatsApp).
@@ -18522,7 +18680,7 @@ function tocarAlerta(){
 
 function nomeTipoSan(t){
   if(t==="vermifugo1")return "Vermífugo 1%";
-  if(t==="vermifugo35")return "Vermífugo 3.5%";
+  if(t==="vermifugo35")return "Vermífugo 3,5%";
   if(t==="vermifugo")return "Vermífugo";
   return t;
 }
@@ -18643,7 +18801,7 @@ function renderSanidade(){
       return '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #f3f3f3">'+
         '<span style="color:#888;font-size:12px;width:78px;flex-shrink:0">'+fmtData(r.data)+'</span>'+
         '<div style="font-size:13px;flex:1;min-width:0">'+
-          '<span style="font-weight:600">'+nomeTipoSan(r.tipo)+'</span>'+reverTxt+
+          '<span style="font-weight:600">'+nomeTipoSan(r.tipo)+(r.produto?' — '+r.produto:'')+'</span>'+(r.animais?'<span style="color:#888;font-size:12px"> · '+r.animais.length+' boi(s) identificados</span>':'')+reverTxt+
           (r.obs?'<span style="color:#999;font-size:12px"> · '+r.obs+'</span>':'')+
         '</div>'+
         '<button onclick="excluirSanidade('+r.id+')" title="Excluir" style="background:none;border:none;color:#C62828;cursor:pointer;flex-shrink:0;font-size:14px">&times;</button>'+
@@ -24294,7 +24452,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-sisbov</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-medic</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
