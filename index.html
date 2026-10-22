@@ -5973,7 +5973,7 @@ function _colunasMov(rows){
       else if(c.data<0&&/data|date|^dia\b/.test(h))c.data=j;
       else if(c.faz<0&&/fazenda|farm/.test(h))c.faz=j;
       else if(/destino/.test(h)&&!/fazenda/.test(h)){c.dest=j;achouDestino=true;}
-      else if(!achouDestino&&c.dest<0&&/pasto|curral|lote|piquete|draft|apart|porteira|gate|sort/.test(h))c.dest=j;
+      else if(!achouDestino&&c.dest<0&&/pasto|curral|lote|piquete|baia|draft|apart|porteira|gate|sort/.test(h))c.dest=j;
       else if(c.cod<0&&/^id$|animal|identif|codigo/.test(h))c.cod=j;
     });
     if(c.sis>=0||c.chip>=0||c.cod>=0)return {c:c,ini:i+1,cab:true};
@@ -6474,8 +6474,8 @@ function _lotesSeguemBois(moves,tipos,dry){
   ordem.forEach(function(m){
     var d=_chPastoId(m.para.faz,m.para.pasto), o=m.de?_chPastoId(m.de.faz,m.de.pasto):null;
     if(o===d)return;
-    var E=ent[d]||(ent[d]={k:d,faz:_movFazNome(m.para.faz),pasto:String(m.para.pasto).trim(),n:0,pesos:[],datas:[],origens:{}});
-    E.n++;if(m.peso>0)E.pesos.push(m.peso);E.datas.push(m.data);
+    var E=ent[d]||(ent[d]={k:d,faz:_movFazNome(m.para.faz),pasto:String(m.para.pasto).trim(),n:0,nMov:0,pesos:[],datas:[],origens:{}});
+    E.n++;if(m.de)E.nMov++;if(m.peso>0)E.pesos.push(m.peso);E.datas.push(m.data);
     if(o){sai[o]=(sai[o]||0)+1;E.origens[o]=(E.origens[o]||0)+1;}
   });
   var grupos=_gruposIdentificados(), mudouLote={};
@@ -6520,11 +6520,14 @@ function _lotesSeguemBois(moves,tipos,dry){
     var ld=ativos(d).filter(function(l){return !mudouLote[l.id];});
     var nid=ld.filter(function(l){return !_ehTipoId(l.tipo);}).sort(function(a,b){return qt(b)-qt(a);});
     if(nid.length&&!ld.some(function(l){return _ehTipoId(l.tipo);})){
+      /* 22/10: boi CADASTRADO agora (sem origem) num curral/pasto de semi ou confinamento ja estava contado no
+         lote - e so a identificacao chegando. So soma quem veio de outro pasto/curral. */
+      if(!E.nMov)return;
       var L=nid[0];
-      res.txt.push(E.faz+" / "+E.pasto+": "+qt(L)+" → "+(qt(L)+E.n)+" cab. (entraram "+E.n+")");res.n++;
+      res.txt.push(E.faz+" / "+E.pasto+": "+qt(L)+" → "+(qt(L)+E.nMov)+" cab. (entraram "+E.nMov+")");res.n++;
       if(dry)return;
-      L.qtd=qt(L)+E.n;if(!L.histMov)L.histMov=[];
-      L.histMov.push({data:_modaDatas(E.datas)||hoje,de:Object.keys(E.origens).join(", ")||"—",para:E.pasto,motivo:"Pesagem individual: entraram "+E.n+" boi(s)"});
+      L.qtd=qt(L)+E.nMov;if(!L.histMov)L.histMov=[];
+      L.histMov.push({data:_modaDatas(E.datas)||hoje,de:Object.keys(E.origens).join(", ")||"—",para:E.pasto,motivo:"Pesagem individual: entraram "+E.nMov+" boi(s)"});
       return;
     }
     if(ld.length)return;                                   // recria/engorda: passo 4
@@ -6578,7 +6581,22 @@ function _linhasMovDaPlanilha(wb){
       });
       if(k.peso>=0||k.dest>=0)c2=k;
     }
-    if(c.dest>=0)temDest=true;if(c.faz>=0)temFaz=true;
+    /* 22/10 (planilha do confinamento): varios blocos lado a lado, cada um com a sua coluna de identificacao */
+    var grupos=[];
+    if(cab.cab){
+      var hr0=rows[cab.ini-1]||[], idCols=[];
+      hr0.forEach(function(v,j){var h=_normIng(v);if(h&&/chip|eid|eletr|rfid|transp|sisbov|brinco/.test(h))idCols.push(j);});
+      if(idCols.length>1){
+        idCols.forEach(function(j0,gi){
+          var fim=gi+1<idCols.length?idCols[gi+1]:hr0.length, g={id:j0,peso:-1,data:-1,dest:-1};
+          for(var j=j0+1;j<fim;j++){var h=_normIng(hr0[j]);if(!h)continue;
+            if(g.peso<0&&/peso|weight|kg/.test(h))g.peso=j;else if(g.data<0&&/data|date/.test(h))g.data=j;else if(g.dest<0&&/pasto|curral|lote|baia|destino|piquete/.test(h))g.dest=j;}
+          grupos.push(g);
+        });
+        c2=null;
+      }
+    }
+    if(c.dest>=0||grupos.some(function(g){return g.dest>=0;}))temDest=true;if(c.faz>=0)temFaz=true;
     var linhasAba=[];
     function add(r,i,cp,cd,cdest,sec){
       var sis=c.sis>=0?_celTxt(r[c.sis]):"", chip=c.chip>=0?_celTxt(r[c.chip]):"";
@@ -6595,8 +6613,12 @@ function _linhasMovDaPlanilha(wb){
     }
     for(var i=cab.ini;i<rows.length;i++){
       var r=rows[i]||[];
-      add(r,i,c.peso,c.data,c.dest);
-      if(c2)add(r,i,c2.peso,c2.data>=0?c2.data:c.data,c2.dest>=0?c2.dest:-1,true);
+      if(grupos.length){
+        grupos.forEach(function(g){var rr=r.slice();rr[c.chip>=0?c.chip:(c.sis>=0?c.sis:c.cod)]=r[g.id];if(c.sis>=0&&c.sis!==g.id)rr[c.sis]="";add(rr,i,g.peso,g.data,g.dest);});
+      }else{
+        add(r,i,c.peso,c.data,c.dest);
+        if(c2)add(r,i,c2.peso,c2.data>=0?c2.data:c.data,c2.dest>=0?c2.dest:-1,true);
+      }
     }
     var moda=_modaDatas(linhasAba.map(function(l){return /^\d{4}/.test(l.data)&&+l.data.slice(0,4)>=2000?l.data:null;}));
     linhasAba.forEach(function(l){if(l.data&&!(/^\d{4}/.test(l.data)&&+l.data.slice(0,4)>=2000))l.data=moda||"";});
@@ -23427,6 +23449,8 @@ function formatarData(v){
   if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.slice(0,10);
   const m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
   if(m)return (m[3].length===2?"20"+m[3]:m[3])+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0");
+  const m2=s.match(/^(\d{1,2})\/(\d{2})(\d{4})$/);           // "16/092026" (faltou a barra)
+  if(m2)return m2[3]+"-"+m2[2]+"-"+m2[1].padStart(2,"0");
   return s;
 }
 function confirmarImportacao(){
@@ -24622,7 +24646,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-categorias</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-conf</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
