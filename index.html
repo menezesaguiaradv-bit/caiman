@@ -6195,17 +6195,66 @@ function _planoLotesPelaPesagem(){
     plano.push({g:g,princ:princ,extras:extras,media:media,data:data,mudaPeso:mudaPeso});
   });
   plano.sort(function(a,b){return (a.g.faz+a.g.pasto).localeCompare(b.g.faz+b.g.pasto,"pt",{numeric:true});});
+  plano.grupos=grupos;
   return plano;
+}
+/* 22/10 (ele: "pode apagar os outros lotes da recria que nao estejam nessa planilha. Cada pasto tera uma
+   lista de todos os animais identificados"): lotes de RECRIA das fazendas que tiveram pesagem individual
+   e cujo pasto nao tem nenhum animal identificado, mais o lote duplicado de um pasto ja acertado. Semi,
+   confinamento e engorda nao entram. Sempre listados e confirmados antes de apagar. */
+function _lotesParaApagarPelaPesagem(){
+  var grupos=_planoLotesPelaPesagem().grupos||{}, fazOk={}, pastoOk={};
+  Object.keys(grupos).forEach(function(k){var g=grupos[k];fazOk[_fazCore(g.faz)]=1;pastoOk[k]=1;});
+  var porPasto={};
+  getLotes().forEach(function(l){
+    if(l.vendido||l.tipo!=="Recria")return;
+    var fc=_fazCore(_movFazNome(l.fazenda));if(!fazOk[fc])return;
+    var k=fc+"|"+_pastoCore(l.pasto);(porPasto[k]=porPasto[k]||[]).push(l);
+  });
+  var out=[];
+  Object.keys(porPasto).forEach(function(k){
+    var ls=porPasto[k];
+    if(!pastoOk[k]){ls.forEach(function(l){out.push({l:l,motivo:"sem animal identificado"});});return;}
+    if(ls.length>1){
+      /* fica o que ja bate com os identificados (o acertado); senao o de mais cabecas - mesmo criterio do acerto */
+      var n=grupos[k].n;
+      ls.sort(function(a,b){var ea=(parseInt(a.qtd)||0)===n?1:0, eb=(parseInt(b.qtd)||0)===n?1:0;return (eb-ea)||((parseInt(b.qtd)||0)-(parseInt(a.qtd)||0));});
+      ls.slice(1).forEach(function(l){out.push({l:l,motivo:"lote repetido no mesmo pasto"});});
+    }
+  });
+  return out;
+}
+function _apagarLotesPelaPesagem(){
+  var lista=_lotesParaApagarPelaPesagem();
+  if(!lista.length)return 0;
+  var tot=lista.reduce(function(s,x){return s+(parseInt(x.l.qtd)||0);},0);
+  var txt="Apagar "+lista.length+" lote(s) de Recria que não estão na pesagem individual ("+tot+" cab. no cadastro)?\n";
+  lista.forEach(function(x){txt+="\n• "+(x.l.fazenda||"")+" / "+(x.l.pasto||"")+": "+(parseInt(x.l.qtd)||0)+" cab."+(x.l.produtor?" ("+x.l.produtor+")":"")+" — "+x.motivo;});
+  txt+="\n\nAs pesagens, tratos e mortes ligados a esses lotes também saem.";
+  if(!confirm(txt))return 0;
+  var ids={};lista.forEach(function(x){ids[x.l.id]=1;});
+  var _lerL=function(k){try{return JSON.parse(localStorage.getItem(k)||"[]")||[];}catch(e){return[];}};
+  setLotes(getLotes().filter(function(l){return !ids[l.id];}));
+  ["caiman_pesagens","caiman_tratos","caiman_mortes_lote"].forEach(function(k){
+    var v=_lerL(k), f=v.filter(function(x){return !ids[x.loteId];});
+    if(f.length!==v.length)localStorage.setItem(k,JSON.stringify(f));
+  });
+  return lista.length;
 }
 function acertarLotesPelaPesagem(){
   var plano=_planoLotesPelaPesagem();
-  if(!plano.length){alert("Os lotes já batem com os animais identificados.");return;}
+  if(!plano.length){
+    var ap=_apagarLotesPelaPesagem();
+    if(ap){try{marcarPendente();}catch(e){}try{renderLotes();renderLotesTipo("Recria","lista-recria");}catch(e){}try{renderPastos();}catch(e){}try{toast(ap+" lote(s) apagado(s).");}catch(e){}}
+    else if(!_lotesParaApagarPelaPesagem().length)alert("Os lotes já batem com os animais identificados.");
+    return;
+  }
   var txt="Acertar "+plano.length+" lote(s) pelos animais identificados?\n";
   plano.forEach(function(p){
     var nome=p.g.faz+" / "+p.g.pasto;
     if(!p.princ)txt+="\n• "+nome+": criar lote com "+p.g.n+" cab."+(p.media?" ("+p.media.toLocaleString("pt-BR")+" kg)":"");
     else txt+="\n• "+nome+": "+(parseInt(p.princ.qtd)||0)+" → "+p.g.n+" cab."+(p.mudaPeso?" · pesagem "+p.media.toLocaleString("pt-BR")+" kg em "+fmtData(p.data):"");
-    p.extras.forEach(function(x){txt+="\n   outro lote no mesmo pasto ("+(parseInt(x.qtd)||0)+" cab.) → 0, juntado";});
+    p.extras.forEach(function(x){txt+="\n   outro lote no mesmo pasto ("+(parseInt(x.qtd)||0)+" cab.) será apagado em seguida";});
   });
   if(!confirm(txt))return;
   var lotes=getLotes(), hoje=todayStr();
@@ -6222,17 +6271,14 @@ function acertarLotesPelaPesagem(){
       l.pesagens.push({data:p.data,peso:p.media,obs:"Média da pesagem individual (identificação eletrônica)",gmdReal:null,gmdIntervalo:null});
       l.ultimaPesagem={data:p.data,peso:p.media,gmdReal:null,gmdIntervalo:null};
     }
-    p.extras.forEach(function(e){
-      var x=lotes.find(function(y){return y.id===e.id;});if(!x)return;
-      x.qtd=0;x.obs=((x.obs?x.obs+" | ":"")+"Juntado ao lote "+(l.pasto||"")+" em "+fmtData(hoje)+" (pesagem individual)");
-    });
   });
   setLotes(lotes);
+  var apagados=_apagarLotesPelaPesagem();
   try{marcarPendente();}catch(e){}
-  try{renderLotes();}catch(e){}
+  try{renderLotes();renderLotesTipo("Recria","lista-recria");}catch(e){}
   try{renderPastos();}catch(e){}
   try{_r(renderAnimais,"renderAnimais");}catch(e){}
-  try{toast("Lotes acertados pelos animais identificados: "+plano.length+".");}catch(e){alert("Lotes acertados: "+plano.length+".");}
+  try{toast("Lotes acertados pelos animais identificados: "+plano.length+(apagados?" · "+apagados+" apagado(s)":"")+".");}catch(e){alert("Lotes acertados: "+plano.length+".");}
 }
 
 /* Fila de movimentacao mandada pela Bia (planilha ou mensagem no WhatsApp).
@@ -23665,7 +23711,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-lotes</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-recria</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
