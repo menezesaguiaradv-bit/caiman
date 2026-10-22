@@ -377,7 +377,7 @@ Compartilhar</button></div>
 </div>
 <div style="font-size:12px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.7px;margin-bottom:12px">Identificação Animal</div>
 <div class="dmod" style="margin-bottom:24px">
-<div class="mcard mc-s" onclick="irPara('sisbov')"><div class="micon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div><h3>SISBOV / ID Eletrônica</h3><p>Cadastre e gerencie a identificação oficial de cada animal.</p><div class="mstats"><span class="mst msv" id="ms-animais">0 animais</span></div><span class="marrow">→</span></div>
+<div class="mcard mc-s" onclick="irPara('sisbov')"><div class="micon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div><h3>SISBOV / ID Eletrônica</h3><p>Pesagem individual por pasto, vida de cada boi, importação da balança e cadastro.</p><div class="mstats"><span class="mst msv" id="ms-animais">0 animais</span></div><span class="marrow">→</span></div>
 <div class="mcard mc-p" onclick="irPara('pastos')"><h3>Pastos</h3><p>Visualize animais por pasto e movimente entre fazendas.</p><div class="mstats"><span class="mst msv" id="ms-pastos">0 pastos</span></div><span class="marrow">→</span></div>
 </div>
 <div style="font-size:12px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.7px;margin-bottom:12px">Operações</div>
@@ -420,7 +420,13 @@ Compartilhar</button></div>
 <div class="main">
 <div class="ptitle" style="display:flex;align-items:center;gap:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg> SISBOV / ID Eletrônica</div><div class="psub-h">Cadastro e gestão de identificação animal</div>
 <div id="alert-sisbov" class="alert"></div>
-<div class="sec">
+<div class="sec" style="border-left:4px solid #B8944F;background:#FFFEFA">
+<div class="stitle" style="color:#23432D;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span>Pesagem individual por pasto <span style="font-weight:400;font-size:12px;color:#7A7668">recria e engorda</span></span><span style="display:inline-flex;gap:6px;flex-wrap:wrap"><button onclick="abrirImportarMovimentacao()" style="background:#23432D;color:#F7F4EC;border:1px solid #23432D;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Importar pesagem / movimentação</button><button onclick="acertarLotesPelaPesagem()" style="background:#FBF8F0;color:#23432D;border:1px solid #B8944F;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Acertar lotes pela pesagem</button></span></div>
+<div style="font-size:12px;color:#555;margin-bottom:10px">Suba a planilha da balança (pode ter várias abas e datas) ou mande para a Bia no WhatsApp: cada boi vai para o pasto/curral da planilha com a pesagem, e o <b>lote segue os bois</b> — muda de pasto ou vira semi/confinamento sozinho.</div>
+<div style="position:relative;margin-bottom:10px"><input id="ident-busca" inputmode="numeric" autocomplete="off" placeholder="🔎 Pesquisar boi pela identificação eletrônica ou SISBOV (pode ser o final do número)" oninput="renderBuscaAnimalGeral()" style="width:100%;font-size:13px;padding:9px 11px;border:1px solid #B8944F;border-radius:8px;background:#fff"><div id="ident-busca-res"></div></div>
+<div id="ident-resumo"></div>
+</div>
+<details class="sec" style="padding-top:10px"><summary style="cursor:pointer;font-size:14px;font-weight:700;color:#23432D;padding:4px 0 8px">+ Cadastrar um animal à mão</summary>
 <div class="stitle">Cadastrar novo animal <button class="btn-p btn-sm" onclick="salvarAnimal()">+ Cadastrar</button></div>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
 <div class="field"><label>SISBOV</label><input id="s-sisbov" placeholder="076.1234.5678.9012"></div>
@@ -435,13 +441,8 @@ Compartilhar</button></div>
 <div class="field"><label>Preço do kg do boi (R$)</label><input id="s-precoc" type="number" placeholder="0.00" step="0.01"></div>
 <div class="field"><label>Comissão do animal (R$)</label><input id="s-comissao" type="number" placeholder="0.00" step="0.01"></div>
 <div class="field"><label>Frete do animal (R$)</label><input id="s-frete" type="number" placeholder="0.00" step="0.01"></div>
-</div></div>
-<div class="sec" style="border-left:4px solid #B8944F;background:#FFFEFA">
-<div class="stitle" style="color:#23432D;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span>Pesagem individual por pasto <span style="font-weight:400;font-size:12px;color:#7A7668">recria e engorda</span></span><span style="display:inline-flex;gap:6px;flex-wrap:wrap"><button onclick="abrirImportarMovimentacao()" style="background:#23432D;color:#F7F4EC;border:1px solid #23432D;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Importar pesagem / movimentação</button><button onclick="acertarLotesPelaPesagem()" style="background:#FBF8F0;color:#23432D;border:1px solid #B8944F;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Acertar lotes pela pesagem</button></span></div>
-<div style="font-size:12px;color:#555;margin-bottom:10px">Suba a planilha da balança (pode ter várias abas e datas) ou mande para a Bia no WhatsApp: cada boi vai para o pasto/curral da planilha com a pesagem, e o <b>lote segue os bois</b> — muda de pasto ou vira semi/confinamento sozinho.</div>
-<div style="position:relative;margin-bottom:10px"><input id="ident-busca" inputmode="numeric" autocomplete="off" placeholder="🔎 Pesquisar boi pela identificação eletrônica ou SISBOV (pode ser o final do número)" oninput="renderBuscaAnimalGeral()" style="width:100%;font-size:13px;padding:9px 11px;border:1px solid #B8944F;border-radius:8px;background:#fff"><div id="ident-busca-res"></div></div>
-<div id="ident-resumo"></div>
-</div>
+</div></details>
+
 <div class="sec">
 <div class="stitle">Animais cadastrados <span id="total-animais" style="font-weight:400;font-size:12px"></span><div style="display:flex;gap:6px"><button class="btn-s btn-sm" onclick="toggleImport()" style="display:inline-flex;align-items:center;gap:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Importar</button><button onclick="exportarSISBOV()" style="background:var(--v);color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>Exportar Excel</button></div></div>
 <div id="import-area" class="imp-area">
@@ -24293,7 +24294,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-grande</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.22-sisbov</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
