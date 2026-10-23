@@ -17852,11 +17852,13 @@ function renderMercadoBoi(){
   if(prox)h+=tile("B3 · "+prox.codigo,_mbR(prox.preco),"vencimento "+_MB_MES[parseInt(String(prox.mes).slice(5,7))-1]+"/"+String(prox.mes).slice(2,4)+(fu.lido_em?" · lido "+new Date(fu.lido_em).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):""));
   if(dmU)h+=tile("Datagro MS",_mbR(dmU[1]),"de "+_mbData(dmU[0])+" · R$/@ à vista");
   if(dgU)h+=tile("Datagro SP",_mbR(dgU[1]),"de "+_mbData(dgU[0]));
-  h+='</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px">';
-  if(cs.length>1)h+='<div><div style="font-size:11.5px;font-weight:700;color:'+V+';margin-bottom:4px">Curva futura B3 (R$/@ por vencimento)'+(dmU?' e spot MS':'')+'</div>'+_mbLinhaSvg((dmU?[["spot",dmU[1]]]:[]).concat(cs.map(function(c){return [_MB_MES[parseInt(String(c.mes).slice(5,7))-1]+"/"+String(c.mes).slice(2,4),c.preco];})),V,"Curva futura do boi gordo na B3 com o spot do MS",!!dmU)+'</div>';
+  /* 23/10: os 3 graficos lado a lado (B3 com spot, Datagro MS, Datagro SP) */
+  h+='</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px">';
+  if(cs.length>1)h+='<div><div style="font-size:11.5px;font-weight:700;color:'+V+';margin-bottom:4px">Curva B3'+(dmU?' e spot MS':'')+' (R$/@)</div>'+_mbLinhaSvg((dmU?[["spot",dmU[1]]]:[]).concat(cs.map(function(c){return [_MB_MES[parseInt(String(c.mes).slice(5,7))-1]+"/"+String(c.mes).slice(2,4),c.preco];})),V,"Curva futura do boi gordo na B3 com o spot do MS",!!dmU)+'</div>';
   var hist=dms.slice(-30);
   if(hist.length>1)h+='<div><div style="font-size:11.5px;font-weight:700;color:'+V+';margin-bottom:4px">Datagro MS — últimos '+hist.length+' pregões</div>'+_mbLinhaSvg(hist.map(function(x){return [_mbData(x[0]),x[1]];}),D,"Historico Datagro MS")+'</div>';
-  else if(dgs.length>1)h+='<div><div style="font-size:11.5px;font-weight:700;color:'+V+';margin-bottom:4px">Datagro SP — últimos 30 dias</div>'+_mbLinhaSvg(dgs.slice(-30).map(function(x){return [_mbData(x[0]),x[1]];}),D,"Historico Datagro SP")+'</div>';
+  var hsp=dgs.slice(-30);
+  if(hsp.length>1)h+='<div><div style="font-size:11.5px;font-weight:700;color:'+V+';margin-bottom:4px">Datagro SP — últimos '+hsp.length+' pregões</div>'+_mbLinhaSvg(hsp.map(function(x){return [_mbData(x[0]),x[1]];}),"#7A5F28","Historico Datagro SP")+'</div>';
   h+='</div>';
   if(prox&&dmU){var b=prox.preco-dmU[1];h+='<div style="font-size:11.5px;color:#555;margin-top:8px">Base (B3 '+prox.codigo+' − Datagro MS): <b style="color:'+V+'">'+(b>=0?"+":"−")+_mbR(Math.abs(b))+'</b> por @</div>';}
   el.innerHTML=h;
@@ -24749,7 +24751,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.23-mercado4</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.23-mercado5</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
