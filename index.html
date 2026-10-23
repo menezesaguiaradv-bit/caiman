@@ -17813,7 +17813,7 @@ function _mbLer(k){try{return JSON.parse(localStorage.getItem(k)||"null");}catch
 function _mbR(v){return "R$ "+Number(v).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});}
 function _mbData(d){d=String(d||"");return d.length>=10?d.slice(8,10)+"/"+d.slice(5,7):d;}
 var _MB_MES=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
-function _mbLinhaSvg(pts,cor,rot){
+function _mbLinhaSvg(pts,cor,rot,spot){
   /* pts:[[rotulo,valor]] ; grafico de linha simples, 2px, com rotulo no primeiro e ultimo ponto */
   if(!pts||pts.length<2)return '<div style="font-size:11px;color:#999">Sem dados suficientes.</div>';
   var W=320,H=120,pl=8,pr=8,pt=18,pb=20;
@@ -17828,7 +17828,8 @@ function _mbLinhaSvg(pts,cor,rot){
   /* 23/10: o valor em destaque e o ATUAL (ultimo ponto); o primeiro fica pequeno e cinza, abaixo da linha, para nao ser lido como o preco de hoje */
   [0,n].forEach(function(i){var fmt=pts[i][1].toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
     s+='<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(pts[i][1]).toFixed(1)+'" r="'+(i?4:3)+'" fill="'+(i?cor:"#B5AE9C")+'" stroke="#fff" stroke-width="1.5"/>'+
-    (i?'<text x="'+X(i).toFixed(1)+'" y="'+(Y(pts[i][1])-8).toFixed(1)+'" font-size="12" fill="#1f241f" font-weight="700" text-anchor="end">'+fmt+'</text>'
+    (!i&&spot?'<circle cx="'+X(0).toFixed(1)+'" cy="'+Y(pts[0][1]).toFixed(1)+'" r="5.5" fill="#B8944F" stroke="#fff" stroke-width="2"/><text x="'+(X(0)+8).toFixed(1)+'" y="'+Math.min(H-pb-3,Y(pts[0][1])+15).toFixed(1)+'" font-size="12" fill="#7A5F28" font-weight="700" text-anchor="start">Spot '+fmt+'</text>'
+      :i?'<text x="'+X(i).toFixed(1)+'" y="'+(Y(pts[i][1])-8).toFixed(1)+'" font-size="12" fill="#1f241f" font-weight="700" text-anchor="end">'+fmt+'</text>'
       :'<text x="'+(X(i)+4).toFixed(1)+'" y="'+Math.min(H-pb-4,Y(pts[i][1])+14).toFixed(1)+'" font-size="9.5" fill="#9A968A" text-anchor="start">'+fmt+'</text>')+
     '<text x="'+X(i).toFixed(1)+'" y="'+(H-6)+'" font-size="10" fill="#7A7668" text-anchor="'+(i?"end":"start")+'">'+pts[i][0]+'</text>';});
   return s+'</svg>';
@@ -17852,7 +17853,7 @@ function renderMercadoBoi(){
   if(dmU)h+=tile("Datagro MS",_mbR(dmU[1]),"de "+_mbData(dmU[0])+" · R$/@ à vista");
   if(dgU)h+=tile("Datagro SP",_mbR(dgU[1]),"de "+_mbData(dgU[0]));
   h+='</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px">';
-  if(cs.length>1)h+='<div><div style="font-size:11.5px;font-weight:700;color:'+V+';margin-bottom:4px">Curva futura B3 (R$/@ por vencimento)</div>'+_mbLinhaSvg(cs.map(function(c){return [_MB_MES[parseInt(String(c.mes).slice(5,7))-1]+"/"+String(c.mes).slice(2,4),c.preco];}),V,"Curva futura do boi gordo na B3")+'</div>';
+  if(cs.length>1)h+='<div><div style="font-size:11.5px;font-weight:700;color:'+V+';margin-bottom:4px">Curva futura B3 (R$/@ por vencimento)'+(dmU?' e spot MS':'')+'</div>'+_mbLinhaSvg((dmU?[["spot",dmU[1]]]:[]).concat(cs.map(function(c){return [_MB_MES[parseInt(String(c.mes).slice(5,7))-1]+"/"+String(c.mes).slice(2,4),c.preco];})),V,"Curva futura do boi gordo na B3 com o spot do MS",!!dmU)+'</div>';
   var hist=dms.slice(-30);
   if(hist.length>1)h+='<div><div style="font-size:11.5px;font-weight:700;color:'+V+';margin-bottom:4px">Datagro MS — últimos '+hist.length+' pregões</div>'+_mbLinhaSvg(hist.map(function(x){return [_mbData(x[0]),x[1]];}),D,"Historico Datagro MS")+'</div>';
   else if(dgs.length>1)h+='<div><div style="font-size:11.5px;font-weight:700;color:'+V+';margin-bottom:4px">Datagro SP — últimos 30 dias</div>'+_mbLinhaSvg(dgs.slice(-30).map(function(x){return [_mbData(x[0]),x[1]];}),D,"Historico Datagro SP")+'</div>';
@@ -24748,7 +24749,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.23-mercado3</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.23-mercado4</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
