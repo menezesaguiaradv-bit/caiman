@@ -16047,7 +16047,21 @@ function exportarTratosDiaPdf(data,dataF,filtroLote){
            (_periodo?("  -  "+fmtData(data)+" a "+fmtData(dataF)):""),20,y+5);
   doc.text("Projeto Confinamento - Fazenda Pinheiral",190,y+5,{align:"right"});
 
-  doc.save(_periodo ? ("Tratos_"+data+"_a_"+dataF+".pdf") : ("Tratos_"+data+".pdf"));
+  _pdfBaixarNomeado(doc,_periodo ? ("Tratos_"+data+"_a_"+dataF+".pdf") : ("Tratos_"+data+".pdf"));
+}
+/* 23/10/2026: o PDF de tratos chegava no celular como "download_29.pdf". O doc.save do jsPDF
+   entrega um blob sem nome em alguns aparelhos; aqui o arquivo vai como File com o nome e o
+   link com download=nome, que e o que o gerenciador de downloads le. */
+function _pdfBaixarNomeado(doc,nome){
+  try{
+    const blob=doc.output("blob");
+    const arq=new File([blob],nome,{type:"application/pdf"});
+    const url=URL.createObjectURL(arq);
+    const a=document.createElement("a");
+    a.href=url;a.download=nome;a.type="application/pdf";a.style.display="none";
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(url);},10000);
+  }catch(e){doc.save(nome);}
 }
 
 function verTratosDia(data){
@@ -19983,7 +19997,7 @@ async function _pdfEntregar(doc,nomeArq){
       console.log("share:",e.message);
     }
   }
-  doc.save(nomeArq);
+  _pdfBaixarNomeado(doc,nomeArq);
 }
 
 function _pdfDocPaisagem(){
@@ -20236,7 +20250,7 @@ function gerarPDFTrato(){
   y=_pdfTabelaTratos(doc,y,tratos,lotes);
   
   _pdfRodape(doc);
-  _pdfEntregar(doc,"Relatorio_Tratos_"+todayStr()+".pdf");
+  _pdfEntregar(doc,"Tratos_"+todayStr()+".pdf");
 }
 
 function _pdfTabelaTratos(doc,y,tratos,lotes){
@@ -24751,7 +24765,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.23-mercado5</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.23-tratos</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
