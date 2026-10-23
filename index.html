@@ -5452,7 +5452,7 @@ function gmdSazonal(){
 
 function gmdUltimoPeriodo(animalId){
   // GMD entre a penultima e a ultima pesagem (desempenho recente).
-  var pes=getPesagensSisbov().filter(function(p){return p.animalId===animalId&&p.peso>0&&p.data;});
+  var pes=_pesDoAnimal(animalId);
   if(pes.length<2)return null;
   pes.sort(function(a,b){return new Date(a.data)-new Date(b.data);});
   var penult=pes[pes.length-2], ult=pes[pes.length-1];
@@ -5468,7 +5468,7 @@ function gmdUltimoPeriodo(animalId){
 function gmdAnimalIndividual(animalId){
   // GMD individual a partir das pesagens SISBOV do animal.
   // Usa a primeira e a ultima pesagem (ganho total / dias total).
-  var pes=getPesagensSisbov().filter(function(p){return p.animalId===animalId&&p.peso>0&&p.data;});
+  var pes=_pesDoAnimal(animalId);
   if(pes.length<2)return null; // precisa de pelo menos 2 pesagens
   pes.sort(function(a,b){return new Date(a.data)-new Date(b.data);});
   var prim=pes[0], ult=pes[pes.length-1];
@@ -5485,7 +5485,7 @@ function gmdAnimalIndividual(animalId){
 
 function pesoAtualAnimal(animalId){
   // Peso mais recente do animal (ultima pesagem SISBOV), senao null
-  var pes=getPesagensSisbov().filter(function(p){return p.animalId===animalId&&p.peso>0&&p.data;});
+  var pes=_pesDoAnimal(animalId);
   if(!pes.length)return null;
   pes.sort(function(a,b){return new Date(b.data)-new Date(a.data);});
   return pes[0].peso;
@@ -5569,7 +5569,7 @@ function animaisDoLote(fazenda,pasto){
 }
 function pesoHojeAnimal(a){
   // Ultima pesagem (ou peso de entrada) e projecao ate hoje pelo GMD individual.
-  var pes=getPesagensSisbov().filter(function(p){return p.animalId===a.id&&p.peso>0&&p.data;});
+  var pes=_pesDoAnimal(a.id);
   pes.sort(function(x,y){return x.data<y.data?-1:(x.data>y.data?1:0);});
   var ult=pes.length?pes[pes.length-1]:null;
   var ultPeso=ult?ult.peso:(+a.peso||null), ultData=ult?ult.data:(a.dtE||null);
@@ -17355,6 +17355,14 @@ function exportarPesagens(){
 }
 
 function getPesagensSisbov(){return JSON.parse(localStorage.getItem("caiman_pesagens_sisbov")||"[]");}
+/* 23/10/2026: indice das pesagens por animal, refeito so quando a lista muda. A grade da recria
+   calcula o GMD de ~2.000 bois; sem o indice eram 3 JSON.parse da lista inteira por boi. */
+var _pesIdx={raw:null,map:null};
+function _pesDoAnimal(id){
+  var raw=localStorage.getItem("caiman_pesagens_sisbov")||"[]";
+  if(raw!==_pesIdx.raw){var m={};try{JSON.parse(raw).forEach(function(p){if(p&&p.peso>0&&p.data){(m[p.animalId]=m[p.animalId]||[]).push(p);}});}catch(e){}_pesIdx={raw:raw,map:m};}
+  return (_pesIdx.map[id]||[]).slice();
+}
 function setPesagensSisbov(v){localStorage.setItem("caiman_pesagens_sisbov",JSON.stringify(v));}
 
 function pesoAnimalCell(a){
@@ -22017,6 +22025,34 @@ function _tabelaEvolucao(pontos){
   return t;
 }
 
+/* 23/10/2026: ele: "o pasto tem que fazer a media individual de todos os bois".
+   GMD real do pasto = media do GMD individual de cada boi pesado 2+ vezes. Com bois suficientes
+   (10 ou mais), ele vira o GMD projetado do lote e a data de abate e recalculada a partir da
+   ultima pesagem: dias = (peso de abate - peso medio na ultima pesagem) / GMD real.
+   O GMD do modelo fica guardado em gmdAbateModelo. So pasto (recria, semi, engorda). */
+var GMD_REAL_MIN_BOIS=10;
+function _gmdRealPasto(fazenda,pasto){
+  var an=animaisDoLote(fazenda,pasto);if(!an.length)return null;
+  var sg=0,ng=0,ultD="",pesU={};
+  an.forEach(function(a){var ph=pesoHojeAnimal(a);if(ph.gmd!=null){sg+=ph.gmd;ng++;}if(ph.ultData&&ph.ultPeso){pesU[a.id]=ph;if(ph.ultData>ultD)ultD=ph.ultData;}});
+  if(ng<GMD_REAL_MIN_BOIS)return {gmd:null,n:ng};
+  var sp=0,np=0;Object.keys(pesU).forEach(function(k){if(pesU[k].ultData===ultD){sp+=pesU[k].ultPeso;np++;}});
+  return {gmd:+(sg/ng).toFixed(3),n:ng,dataUlt:ultD,pesoUlt:np?+(sp/np).toFixed(1):null};
+}
+function _atualizarGmdRealLotes(){
+  var ls=getLotes(),mudou=false;
+  ls.forEach(function(l){
+    if(l.vendido||(l.tipo!=="Recria"&&l.tipo!=="Engorda a Pasto"&&l.tipo!=="Semi-Confinamento"))return;
+    var r=_gmdRealPasto(l.fazenda,l.pasto);if(!r||r.gmd==null||!(r.gmd>0))return;
+    var dt=l.dtAbate;
+    if(l.pesoAbate>0&&!l.dtAbateManual&&r.pesoUlt&&r.dataUlt){var d=Math.ceil((l.pesoAbate-r.pesoUlt)/r.gmd);if(d>0&&d<2000)dt=addDias(r.dataUlt,d);}
+    if(l.gmdReal===r.gmd&&l.gmdRealN===r.n&&l.dtAbate===dt)return;
+    if(l.gmdAbateModelo==null&&l.gmdAbate!=null&&!l.gmdReal)l.gmdAbateModelo=l.gmdAbate;
+    l.gmdReal=r.gmd;l.gmdRealN=r.n;l.gmdRealEm=r.dataUlt;l.gmdAbate=r.gmd;l.dtAbate=dt;mudou=true;
+  });
+  if(mudou){setLotes(ls);try{marcarPendente();}catch(e){}}
+  return mudou;
+}
 /* ===== 23/10/2026: RECRIA/PASTOS REMODELADA =====
    Ele: "o layout esta ruim e confuso de ver". Escolhas dele:
    - grade de quadrados, um por pasto, agrupada por fazenda; toque abre a pagina do pasto;
@@ -22067,6 +22103,7 @@ function _pnGrupos(){
 function renderPastos(){
   var grid=document.getElementById("pastos-grid"),empty=document.getElementById("pastos-empty");
   if(!grid)return;
+  try{_atualizarGmdRealLotes();}catch(e){console.warn("gmd real:",e);}
   var gs=_pnGrupos();
   grid.className="";
   if(!gs.length){grid.innerHTML="";empty.style.display="block";return;}
@@ -22106,6 +22143,7 @@ function renderPastos(){
 }
 /* bloco do PASTO no topo da pagina do pasto (abrirAnimaisLote): lote, acoes, area/lotacao, graficos e sanitario */
 function _pnBlocoPasto(L,parte){
+  if(parte!=="acoes"){try{_atualizarGmdRealLotes();}catch(e){}}
   var x=_pnGrupos().find(function(g){return g.k===_chPastoId(L.fazenda,L.pasto);});
   var lt=x?x.lote:getLotes().find(function(l){return !l.vendido&&_chPastoId(l.fazenda,l.pasto)===_chPastoId(L.fazenda,L.pasto);});
   var fE=encodeURIComponent(L.fazenda||""),pE=encodeURIComponent(L.pasto||"");
@@ -22128,7 +22166,7 @@ function _pnBlocoPasto(L,parte){
       it("Dias no pasto",dias!=null?dias:"—")+
       it("Raça / sexo",_escAL([lt.raca,lt.sexo].filter(Boolean).join(" · ")||"—"))+
       it("Abate previsto",lt.dtAbate?fmtData(lt.dtAbate)+(lt.pesoAbate?" · "+(+lt.pesoAbate).toFixed(0)+" kg":""):"—")+
-      it("GMD projetado",lt.gmdAbate?(+lt.gmdAbate).toFixed(3)+" kg":"—")+
+      it("GMD projetado",lt.gmdAbate?(+lt.gmdAbate).toFixed(3)+" kg"+(lt.gmdReal?'<div style="font-size:10.5px;font-weight:500;color:#7A7668">real, média de '+lt.gmdRealN+' bois'+(lt.gmdAbateModelo?' · modelo era '+(+lt.gmdAbateModelo).toFixed(3):'')+'</div>':''):"—")+
     '</div></div>';
   }
   /* area, lotacao e pasture view */
@@ -24787,7 +24825,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.23-recria</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.23-gmdreal</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
