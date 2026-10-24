@@ -5563,6 +5563,12 @@ function _chipFmt(t){
   t=String(t||"").trim();var d=_soDig(t);
   return (d.length===15&&d===t)?d.slice(0,3)+" "+d.slice(3):t;
 }
+/* 24/10/2026: ele: "da para minimizar essa tela, esta muito poluida" - na lista do pasto/curral o boi
+   aparece so com o numero (identificacao eletronica; SISBOV pequeno embaixo quando tiver), sem as etiquetas. */
+function _idAnimalCurto(a){
+  var p=a.eletro?_escAL(_chipFmt(a.eletro)):(a.sisbov?_escAL(a.sisbov):'<span class="al-falta">sem identificação</span>');
+  return '<div style="font-family:ui-monospace,monospace;font-size:12.5px;color:#1f241f;white-space:nowrap">'+p+'</div>'+(a.eletro&&a.sisbov?'<div style="font-size:10px;color:#9A968A">SISBOV '+_escAL(a.sisbov)+'</div>':'');
+}
 function _idAnimalHtml(a){
   /* 22/10: boi so com identificacao eletronica (recria/engorda) nao mostra a linha "sem SISBOV" */
   if(!a.sisbov&&a.eletro)return '<div class="al-id"><div class="al-chip" style="margin-top:0"><span class="al-lbl c">ID ELETRÔNICA</span>'+_escAL(_chipFmt(a.eletro))+'</div></div>';
@@ -5717,21 +5723,23 @@ function renderAnimaisLote(){
   if(_q)lista=lista.filter(function(x){return _soDig(x.a.eletro).indexOf(_q)>=0||_soDig(x.a.sisbov).indexOf(_q)>=0;});
   function card(t,v,sub){return '<div style="flex:1;min-width:110px;background:#F7F4EC;border:1px solid #E3DCC8;border-left:4px solid #B8944F;border-radius:8px;padding:8px 10px;text-align:center"><div style="font-size:10px;color:#7A7668;text-transform:uppercase;letter-spacing:.4px">'+t+'</div><div style="font-size:17px;font-weight:700;color:#23432D">'+v+'</div>'+(sub?'<div style="font-size:10px;color:#777">'+sub+'</div>':'')+'</div>';}
   function corG(g){return g==null?"#999":(g>=1?"#23432D":(g>0?"#7A5F28":"#A32D2D"));}
+  var _alComGmd=r.comGmd>0;
   var linhas=lista.map(function(x){
     var a=x.a,ph=x.ph;
     var baixo=r.pesoMedio&&ph.hoje&&ph.hoje<r.pesoMedio*0.9;
-    return '<tr'+(baixo?' class="al-baixo"':'')+' style="border-bottom:1px solid #E3DCC8">'+
-      '<td style="padding:6px 2px 6px 6px;width:26px"><input type="checkbox" class="al-cb" data-id="'+a.id+'"'+(_alSel[a.id]?' checked':'')+' onclick="event.stopPropagation()" onchange="alMarcar(\''+a.id+'\',this.checked)" style="width:18px;height:18px"></td>'+
-      '<td style="padding:8px 4px;cursor:pointer" onclick="abrirVidaAnimal('+a.id+')" title="Ver a vida do boi">'+_idAnimalHtml(a)+'<div style="font-size:10px;color:#B8944F;font-weight:700;margin-top:2px">ver vida do boi ›'+(function(){var c=_carenciaAtiva(medicacoesDoAnimal(a));return c?' <span style="color:#A32D2D">Em carência até '+fmtData(c.ate).slice(0,5)+'</span>':'';})()+'</div></td>'+
-      '<td style="padding:6px 4px;text-align:right">'+(ph.ultPeso?ph.ultPeso.toFixed(0)+' kg<div style="font-size:10px;color:#999">'+fmtData(ph.ultData)+'</div>':'—')+'</td>'+
-      '<td style="padding:6px 4px;text-align:right;font-weight:700">'+(ph.hoje?ph.hoje.toFixed(0)+' kg'+(ph.projetado?'<span title="projetado pelo GMD individual" style="color:#999">*</span>':''):'—')+(baixo?'<div style="font-size:10px;color:#7A5F28;font-weight:600">abaixo da média</div>':'')+'</td>'+
-      '<td style="padding:6px 4px;text-align:right;color:'+corG(ph.gmd)+'">'+(ph.gmd!=null?ph.gmd.toFixed(3):'—')+'</td>'+
-      '<td style="padding:6px 4px;text-align:right;color:'+corG(ph.gmdRec)+'">'+(ph.gmdRec!=null?ph.gmdRec.toFixed(3):'—')+'</td>'+
-      '<td style="padding:6px 4px;text-align:center">'+ph.nPes+'</td>'+
-      '<td style="padding:6px 4px;white-space:nowrap;text-align:right">'+
-        '<button class="mbtn" onclick="alPesar('+a.id+')" title="Pesar" style="font-size:11px">⚖️</button> '+
-        '<button class="mbtn" onclick="alMover('+a.id+')" title="Mover" style="font-size:11px">↔</button> '+
-        '<button class="mbtn" onclick="abrirVidaAnimal('+a.id+')" title="Vida do boi (todas as pesagens)" style="font-size:11px">📈</button></td></tr>';
+    var _c=_carenciaAtiva(medicacoesDoAnimal(a));
+    return '<tr'+(baixo?' class="al-baixo"':'')+' onclick="abrirVidaAnimal('+a.id+')" title="Toque para ver a vida do boi" style="border-bottom:1px solid #EFEADC;cursor:pointer">'+
+      '<td style="padding:3px 2px 3px 6px;width:26px" onclick="event.stopPropagation()"><input type="checkbox" class="al-cb" data-id="'+a.id+'"'+(_alSel[a.id]?' checked':'')+' onclick="event.stopPropagation()" onchange="alMarcar(\''+a.id+'\',this.checked)" style="width:18px;height:18px"></td>'+
+      '<td style="padding:4px">'+_idAnimalCurto(a)+(_c?'<div style="font-size:10px;color:#A32D2D;font-weight:600">em carência até '+fmtData(_c.ate).slice(0,5)+'</div>':'')+'</td>'+
+      (_alComGmd?
+        '<td style="padding:4px;text-align:right;font-weight:700">'+(ph.hoje?ph.hoje.toFixed(0)+' kg'+(ph.projetado?'<span title="projetado pelo GMD individual" style="color:#999">*</span>':''):'—')+'</td>'+
+        '<td style="padding:4px;text-align:right;color:'+corG(ph.gmd)+'">'+(ph.gmd!=null?ph.gmd.toFixed(3):'—')+'</td>'+
+        '<td style="padding:4px;text-align:right;color:#7A7668;font-size:11px">'+(ph.ultPeso?ph.ultPeso.toFixed(0)+' kg · '+fmtData(ph.ultData).slice(0,5):'—')+'</td>'
+       :'<td style="padding:4px;text-align:right;font-weight:700">'+(ph.ultPeso?ph.ultPeso.toFixed(0)+' kg':'—')+'</td>'+
+        '<td style="padding:4px;text-align:right;color:#7A7668;font-size:11px">'+(ph.ultData?fmtData(ph.ultData):'—')+'</td>')+
+      '<td style="padding:3px 4px;white-space:nowrap;text-align:right" onclick="event.stopPropagation()">'+
+        '<button onclick="alPesar('+a.id+')" title="Pesar" style="font-size:11px;padding:2px 6px;border:1px solid #E3DCC8;background:#fff;border-radius:6px;cursor:pointer">⚖️</button> '+
+        '<button onclick="alMover('+a.id+')" title="Mover" style="font-size:11px;padding:2px 6px;border:1px solid #E3DCC8;background:#fff;border-radius:6px;cursor:pointer">↔</button></td></tr>';
   }).join("");
   c.innerHTML=
     '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:-18px -18px 12px;padding:14px 18px;background:#23432D;border-radius:10px 10px 0 0">'+
@@ -5763,14 +5771,14 @@ function renderAnimaisLote(){
           '<button onclick="baixarModeloPesagemLote()" style="font-size:12px;padding:6px 12px;border:1px solid #B8944F;background:#fff;color:#7A5F28;border-radius:7px;cursor:pointer;font-weight:600">Baixar modelo</button>'+
         '</div><div id="al-imp" style="font-size:12px;margin-top:6px"></div></div></div></details>'+
     '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'+
-      [["todos","Todos",totLista],["baixo","Abaixo de 90%",nBaixo],["sempeso","Sem pesagem",nSemPeso],["semgmd","Sem GMD",nSemGmd]].map(function(f){var on=_alFiltro===f[0];
+      [["todos","Todos",totLista],["baixo","Abaixo de 90%",nBaixo],["sempeso","Sem pesagem",nSemPeso],["semgmd","Sem GMD",nSemGmd]].filter(function(f){return f[0]==="todos"||_alFiltro===f[0]||(f[2]>0&&f[2]<totLista);}).map(function(f){var on=_alFiltro===f[0];
         return '<button onclick="alFiltrar(\''+f[0]+'\')" style="font-size:12px;padding:5px 11px;border-radius:16px;cursor:pointer;font-weight:600;border:1px solid '+(on?'#23432D':'#E3DCC8')+';background:'+(on?'#23432D':'#fff')+';color:'+(on?'#F7F4EC':'#555')+'">'+f[1]+' <span style="opacity:.75">'+f[2]+'</span></button>';}).join("")+
     '</div>'+
     '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">'+
       '<input id="al-filtro-txt" value="'+_escAL(_alTexto)+'" placeholder="Buscar na lista (identificação ou SISBOV)" inputmode="numeric" oninput="alBuscarLista(this.value)" style="flex:1;min-width:180px;font-size:12px;padding:6px 8px;border:1px solid #E3DCC8;border-radius:7px">'+
       '<select onchange="alOrdenar(this.value)" style="font-size:12px;padding:5px">'+
         [["peso","Mais pesados primeiro"],["pesoAsc","Mais leves primeiro"],["gmd","Maior GMD primeiro"],["sisbov","Por identificação"]].map(function(op){return '<option value="'+op[0]+'"'+(o===op[0]?' selected':'')+'>'+op[1]+'</option>';}).join("")+
-      '</select><button onclick="medicarPastoAtual()" style="font-size:12px;padding:6px 11px;border:1px solid #B8944F;background:#fff;color:#7A5F28;border-radius:7px;cursor:pointer;font-weight:700">Protocolo Sanitário do pasto</button></div>'+
+      '</select></div>'+
     (lista.length?
       '<div id="al-barra-sel" style="display:none;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;background:#23432D;color:#F7F4EC;border-radius:8px;padding:8px 10px;margin-bottom:8px"><b id="al-sel-n"></b><span style="display:inline-flex;gap:6px;flex-wrap:wrap">'+
         '<button onclick="alMoverSelecionados()" style="font-size:12px;padding:6px 11px;border:1px solid #B8944F;background:#B8944F;color:#fff;border-radius:7px;cursor:pointer;font-weight:700">Mover em bloco</button>'+
@@ -5780,8 +5788,8 @@ function renderAnimaisLote(){
       (_alListaOculta?'<div style="text-align:center;padding:10px"><button onclick="alMostrarLista(true)" style="font-size:12px;padding:7px 14px;border:1px solid #23432D;background:#23432D;color:#F7F4EC;border-radius:7px;cursor:pointer;font-weight:700">Mostrar os '+lista.length+' animais ▾</button></div>':
       '<div style="text-align:right;margin-bottom:4px"><button onclick="alMostrarLista(false)" style="font-size:11px;padding:3px 9px;border:1px solid #E3DCC8;background:#fff;color:#7A7668;border-radius:6px;cursor:pointer">Recolher lista ▴</button></div>'+
       '<div style="overflow:auto;'+(_alGrande?'':'max-height:55vh;')+'border:1px solid #E3DCC8;border-radius:8px"><table id="al-tab" style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="text-align:left;position:sticky;top:0;background:#F7F4EC;z-index:1;box-shadow:0 1px 0 #E3DCC8">'+
-      '<th style="padding:6px 2px 6px 6px"><input type="checkbox" title="Marcar todos da lista" onchange="alMarcarTodos(this.checked)" style="width:18px;height:18px"></th><th style="padding:6px 4px">Animal (SISBOV / identificação eletrônica)</th><th style="padding:6px 4px;text-align:right">Última pesagem</th><th style="padding:6px 4px;text-align:right">Peso hoje</th><th style="padding:6px 4px;text-align:right">GMD geral</th><th style="padding:6px 4px;text-align:right">GMD recente</th><th style="padding:6px 4px;text-align:center">Pes.</th><th></th></tr></thead><tbody>'+
-      linhas+'</tbody></table></div><div style="font-size:10px;color:#999;margin-top:6px">* peso de hoje projetado pela última pesagem + GMD individual do animal. Linha dourada: abaixo de 90% da média do lote. Toque no boi para ver a vida dele.</div>')
+      '<th style="padding:6px 2px 6px 6px"><input type="checkbox" title="Marcar todos da lista" onchange="alMarcarTodos(this.checked)" style="width:18px;height:18px"></th><th style="padding:6px 4px">Identificação</th>'+(_alComGmd?'<th style="padding:6px 4px;text-align:right">Peso hoje</th><th style="padding:6px 4px;text-align:right">GMD</th><th style="padding:6px 4px;text-align:right">Última pesagem</th>':'<th style="padding:6px 4px;text-align:right">Peso</th><th style="padding:6px 4px;text-align:right">Pesado em</th>')+'<th></th></tr></thead><tbody>'+
+      linhas+'</tbody></table></div><div style="font-size:10px;color:#999;margin-top:6px">'+(_alComGmd?'* projetado pela última pesagem + GMD do boi. ':'')+'Linha dourada: abaixo de 90% da média. Toque no boi para ver a vida dele.</div>')
       :(totLista?'<div class="empty" style="padding:20px">Nenhum animal neste filtro.</div>':'<div class="empty" style="padding:20px">Nenhum animal identificado neste pasto. Pese pela identificação eletrônica acima ou importe a planilha da balança.</div>'));
   _alBarraSel();
 }
@@ -25006,7 +25014,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.24-notapct</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.24-listalimpa</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">

@@ -124,6 +124,8 @@ function fixture() {
     await p.evaluate(() => abrirAnimaisLote(encodeURIComponent("Pinheiral"), encodeURIComponent("A1")));
     await p.waitForTimeout(300);
     await p.screenshot({ path: path.join(process.env.SHOT, "curral.png") });
+    await p.evaluate(() => abrirAnimaisLote(encodeURIComponent("Cruz Alta"), encodeURIComponent("14B")));
+    await p.screenshot({ path: path.join(process.env.SHOT, "pasto.png"), fullPage: true });
     await p.evaluate(() => fecharAnimaisLote());
   }
   igual("data fixa do teste", r.hoje, "2026-10-24");
