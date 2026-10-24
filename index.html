@@ -3345,6 +3345,8 @@ async function _bloqueiaPushEncolhido(hdr, lotesLocais, dietasLocais){
   }
 }
 
+var CARGAS_JANELA_DIAS=120;
+function _cargasCorte(){return addDias(todayStr(),-CARGAS_JANELA_DIAS);}
 async function pushSupabase(){
   if(_safeSyncBusy)throw new Error("Envio bloqueado: uma sincronização já está em andamento.");
   _safeSyncBusy=true;
@@ -3447,8 +3449,21 @@ const chavesCompartilhadas=["caiman_ingredientes","caiman_dietas","caiman_custos
 
   const linhas=[];
   for(const chave of chavesCompartilhadas){
-    const conteudo=localStorage.getItem(chave);
+    let conteudo=localStorage.getItem(chave);
     if(conteudo===null)continue;
+    if(chave==="caiman_cargas_v1"){
+      /* 24/10: o aparelho so tem a janela recente; as cargas mais antigas que o corte vem do servidor e
+         sobem junto, intactas. Se nao der para ler o servidor, nao manda cargas nesta rodada. */
+      try{
+        const r=await fetch(SB_URL+"/rest/v1/dados_v2?id=eq.EMPRESA%3A%3Acaiman_cargas_v1&select=dados",{headers:hdr});
+        if(!r.ok)throw new Error("HTTP "+r.status);
+        const l=await r.json();const rem=l&&l[0]&&l[0].dados?JSON.parse(l[0].dados):[];
+        const corte=_cargasCorte();
+        const loc=JSON.parse(conteudo||"[]");
+        const antigas=(Array.isArray(rem)?rem:[]).filter(function(c){return c&&c.data&&String(c.data)<corte;});
+        conteudo=JSON.stringify(antigas.concat((Array.isArray(loc)?loc:[]).filter(function(c){return !c||!c.data||String(c.data)>=corte;})));
+      }catch(e){console.warn("sync cargas: servidor indisponivel, cargas ficam para a proxima rodada",e);continue;}
+    }
     linhas.push({id:"EMPRESA::"+chave,user_id:"EMPRESA",dados:conteudo});
   }
   for(const chave of chavesHedge){
@@ -4204,6 +4219,14 @@ async function pullSupabase(allowReplace=false){
               if(extra.length){staged[key]=JSON.stringify(remoto.concat(extra));_pontoMergePend=true;extrasBaixados++;return;}
             }
           }catch(e){console.warn("ponto merge:",e);}
+        }
+        /* 24/10/2026 (ele: "deixar o app mais leve"): as cargas do Saicon (o maior dado, ~1,6 MB e crescendo)
+           ficam inteiras no servidor; o aparelho guarda so os ultimos CARGAS_JANELA_DIAS dias. O envio junta
+           com as antigas do servidor (ver _pushSupabaseCore), entao nada se perde. */
+        if(key==="caiman_cargas_v1"&&Array.isArray(remoto)){
+          const corte=_cargasCorte();
+          staged[key]=JSON.stringify(remoto.filter(function(c){return !c||!c.data||String(c.data)>=corte;}));
+          extrasBaixados++;return;
         }
         staged[key]=reg.dados;extrasBaixados++;
       }
@@ -6422,6 +6445,7 @@ function confirmarAcertoLotes(){
     try{marcarPendente();}catch(e){}
   }
   _rerenderLotesId();
+  try{_r(renderPastos,"renderPastos");}catch(e){}
   _telaResultadoMov("Lotes acertados",[[mudou,"lotes acertados"],[lista.length,"lotes apagados"]],txt,"acerto-corpo","document.getElementById(\\'modal-acerto-lotes\\').style.display=\\'none\\'");
 }
 
@@ -8848,6 +8872,43 @@ function _estDias(nome,fazenda){
 }
 
 /* Lista de ingredientes com estoque em cada fazenda. */
+/* 24/10/2026 (ele: "uma conta so para cada numero"): a Cruz Alta passa a usar a previsao do robo
+   (EMPRESA::caiman_estoque_cruzalta_prev = saldo do Saicon de la / media do que saiu do vagao), a
+   mesma que a Bia usa no bom dia. Antes o app fazia a conta dele (inventario + tratos do app). */
+var _estCA=null;
+async function _estCACarregar(){
+  try{
+    if(!SB_URL)return;
+    const h=await _hdrAuth(); delete h["Content-Type"];
+    const r=await fetch(SB_URL.replace(/\/+$/,"")+"/rest/v1/dados_v2?id=eq.EMPRESA%3A%3Acaiman_estoque_cruzalta_prev&select=dados",{headers:h});
+    if(!r.ok)return;
+    const l=await r.json(); const j=l&&l[0]&&l[0].dados?JSON.parse(l[0].dados):null;
+    if(j&&Array.isArray(j.itens))_estCA={ts:Date.now(),data:j.data||null,itens:j.itens};
+  }catch(e){console.warn("estoque cruz alta:",e);}
+}
+function _estCAValido(){
+  if(!_estCA||!_estCA.data)return false;
+  return diasEntre(_estCA.data,todayStr())<=3;
+}
+function _estEhCruzAlta(f){ return /cruz\s*alta|cruzalta/.test(_normIng(f||"")); }
+function _estAplicarCA(out,fazenda){
+  if(!_estCAValido())return out;
+  if(fazenda&&!_estEhCruzAlta(fazenda))return out;
+  const porNome={};_estCA.itens.forEach(function(i){if(i&&i.nome)porNome[_normIng(i.nome)]=i;});
+  const usados={};let fazNome="Cruz Alta";
+  out.forEach(function(x){
+    if(!_estEhCruzAlta(x.fazenda))return;
+    fazNome=x.fazenda;
+    const i=porNome[_normIng(x.nome)];if(!i)return;
+    usados[_normIng(x.nome)]=1;
+    x.saldo=+i.kg||0;x.media=i.mediaDia!=null?+i.mediaDia:null;x.dias=i.dias!=null?+i.dias:null;x.fonte="Saicon";
+  });
+  _estCA.itens.forEach(function(i){
+    const k=_normIng(i.nome);if(usados[k]||!(+i.kg>0))return;
+    out.push({chave:"ca@@"+k,nome:i.nome,fazenda:fazNome,saldo:+i.kg,media:i.mediaDia!=null?+i.mediaDia:null,dias:i.dias!=null?+i.dias:null,custo:0,fonte:"Saicon"});
+  });
+  return out;
+}
 function _estLista(fazenda){
   const vistos={},out=[];
   getEstoque().forEach(function(m){
@@ -8858,6 +8919,7 @@ function _estLista(fazenda){
     out.push({chave:m.chave,nome:m.nome,fazenda:m.fazenda,
               saldo:d.saldo,media:d.media,dias:d.dias,custo:+(m.custo||0)});
   });
+  _estAplicarCA(out,fazenda);
   out.sort(function(a,b){
     const da=(a.dias==null?9e9:a.dias), db=(b.dias==null?9e9:b.dias);
     return da-db;
@@ -9115,6 +9177,7 @@ setTimeout(function(){_custoConfCarregar();},4000);
 setInterval(function(){_custoConfCarregar();},60*60e3);
 async function _estBiaCarregar(){
   if(_estBiaBusy)return; _estBiaBusy=true;
+  try{await _estCACarregar();}catch(e){}
   try{
     const h=await _hdrAuth(); delete h["Content-Type"];
     const r=await fetch(SB_URL.replace(/\/+$/,"")+"/functions/v1/Bia?estoque_json=1",{headers:h});
@@ -9285,8 +9348,8 @@ async function _estAvisoBaixo(forcar,tentativa){
 }
 function _estAvisoBaixoMostrar(forcar){
   try{
-    const semBia=!(_estBia&&_estBia.ok);
-    const al=_estAlertas().filter(function(x){return !(semBia&&_estEhPinheiral(x.fazenda));});
+    const semBia=!(_estBia&&_estBia.ok), semCA=!_estCAValido();
+    const al=_estAlertas().filter(function(x){return !(semBia&&_estEhPinheiral(x.fazenda))&&!(semCA&&_estEhCruzAlta(x.fazenda));});
     if(!al.length)return;
     const hoje=todayStr();
     if(!forcar&&localStorage.getItem("caiman_est_aviso")===hoje)return;
@@ -22129,7 +22192,18 @@ function renderPastos(){
   var fazs={};gs.forEach(function(x){(fazs[x.fazenda]=fazs[x.fazenda]||[]).push(x);});
   var fzTodas={};getLotes().forEach(function(l){if(!l.vendido&&l.tipo!=="Confinamento"&&l.fazenda)fzTodas[l.fazenda]=1;});
   var atual=pastoFazendaFiltro!=="todas"?pastoFazendaFiltro:"todas";
-  var h='<div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 14px">'+
+  /* 24/10: conferencia lote x identificacao em destaque (antes o botao ficava escondido na tela SISBOV) */
+  var _conf="";
+  try{
+    var _pl=_planoLotesPelaPesagem(),_ap=_lotesParaApagarPelaPesagem();
+    if(_pl.length||_ap.length){
+      var _nc=_ap.reduce(function(s,x){return s+(parseInt(x.l.qtd)||0);},0);
+      _conf='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:#FBF8F0;border:1px solid #E3DCC8;border-left:4px solid #B8944F;border-radius:8px;padding:10px 14px;margin:6px 0 12px">'+
+        '<div style="font-size:13px;color:#1f241f"><b>Lotes diferentes dos bois identificados:</b> '+_pl.length+' pasto'+(_pl.length!==1?'s':'')+' para acertar'+(_ap.length?' e '+_ap.length+' lote'+(_ap.length!==1?'s':'')+' sem bois identificados ('+_nc.toLocaleString("pt-BR")+' cab. no cadastro)':'')+'.</div>'+
+        '<button onclick="acertarLotesPelaPesagem()" style="font-size:13px;padding:8px 14px;border:1px solid #23432D;background:#23432D;color:#F7F4EC;border-radius:7px;cursor:pointer;font-weight:700">Conferir e acertar</button></div>';
+    }
+  }catch(e){console.warn("conferencia lotes:",e);}
+  var h=_conf+'<div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 14px">'+
     ["todas"].concat(Object.keys(fzTodas).sort()).map(function(f){var on=f===atual;
       return '<button onclick="filtrarPastoFazenda(\''+_escAL(f)+'\')" style="font-size:13px;padding:7px 14px;border-radius:999px;cursor:pointer;font-weight:'+(on?700:500)+';border:1px solid '+(on?'#23432D':'#E3DCC8')+';background:'+(on?'#23432D':'#fff')+';color:'+(on?'#F7F4EC':'#1f241f')+'">'+(f==="todas"?"Todas as fazendas":_escAL(f))+'</button>';}).join("")+
     '</div>';
@@ -24843,7 +24917,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.24-aviso</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.24-melhorias</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
