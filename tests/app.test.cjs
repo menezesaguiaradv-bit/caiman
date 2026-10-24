@@ -102,6 +102,7 @@ function fixture() {
     localStorage.setItem("caiman_leitura_cocho", JSON.stringify([{ id: "2026-10-24|A1|1", data: "2026-10-24", lote: "A1", slot: 1, nota: "-1", valor: 5 }]));
     irPara("conf"); renderCurraisGrade();
     const cg = document.getElementById("conf-grade");
+    R.fechados = ["conf-cad", "conf-det"].map((id) => { const d = document.getElementById(id); return !!d && !d.open; });
     R.currais = cg.querySelectorAll("button[onclick^='abrirAnimaisLote']").length;
     R.curralTxt = cg.innerText.replace(/\s+/g, " ");
     abrirAnimaisLote(encodeURIComponent("Pinheiral"), encodeURIComponent("A1"));
@@ -148,6 +149,7 @@ function fixture() {
   igual("dashboard: 3 graficos de cotacao", r.mercado.svgs, 3);
   igual("dashboard: base B3 - Datagro MS", r.mercado.base, "+R$ 6,00 por @");
   igual("confinamento: um quadrado por curral", r.currais, 1);
+  igual("confinamento: cadastro e detalhes dos lotes comecam fechados", r.fechados, [true, true]);
   verdade("confinamento: MS/cab de ontem no quadrado (450x4/130 = 13,85 kg)", /13,85 kg/.test(r.curralTxt), r.curralTxt.slice(0, 200));
   verdade("confinamento: peso projetado de hoje no quadrado (418 + 74 dias x 1,4 = 522 kg)", /Peso hoje \(proj\.\) 522 kg/.test(r.curralTxt), r.curralTxt.slice(0, 260));
   verdade("pagina do curral: peso projetado de hoje", r.paginaCurral.peso, "");
