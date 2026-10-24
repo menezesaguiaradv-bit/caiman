@@ -22160,6 +22160,7 @@ function renderCurraisGrade(){
     h+='<button onclick="abrirAnimaisLote(\''+encodeURIComponent(l.fazenda||"")+'\',\''+encodeURIComponent(l.pasto||"")+'\')" style="text-align:left;font:inherit;background:#FFFEFA;border:1px solid '+BD+';border-top:5px solid '+_pcCorNota(nota)+';border-radius:10px;padding:10px 12px;cursor:pointer;color:#1f241f;min-height:160px;display:flex;flex-direction:column;gap:2px">'+
       '<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:17px;font-weight:700">'+_escAL(String(l.pasto||l.nome||"?"))+'</span><span style="font-size:11px;font-weight:700;color:'+_pcCorNota(nota)+'">'+(nota==null?"sem nota":"nota "+(nota>0?"+":"")+nota)+'</span></div>'+
       '<div style="font-size:24px;font-weight:700;color:'+V+';line-height:1.1;margin:2px 0 4px">'+(parseInt(l.qtd)||0).toLocaleString("pt-BR")+' <span style="font-size:12px;font-weight:500;color:#7A7668">cab.'+(dias!=null?' · dia '+dias:'')+'</span></div>'+
+      (function(){var pp=null;try{pp=pesoProjetadoLoteEm(l,hoje);}catch(e){}return li("Peso hoje (proj.)",pp?Math.round(pp).toLocaleString("pt-BR")+" kg":"—");})()+
       li("MS/cab ontem",c?f1(c.cab>0?c.ms/c.cab:null,2)+" kg":"—")+
       li("% PV (MS)",c&&c.pctPvMS?f1(c.pctPvMS,2)+"%":"—")+
       li("Energia",c&&c.pctE?f1(c.pctE,0)+"%":"—",corE)+
@@ -22184,7 +22185,7 @@ function _pcBlocoCurral(L,lt,parte){
   function it(r,v){return '<div><div style="font-size:10px;color:#7A7668;text-transform:uppercase">'+r+'</div><div style="font-size:14px;font-weight:700;color:#1f241f">'+v+'</div></div>';}
   h+='<div style="background:#F7F4EC;border:1px solid '+BD+';border-left:4px solid '+V+';border-radius:8px;padding:10px 12px;margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:'+V+';margin-bottom:6px">Lote · Confinamento</div><div style="display:flex;gap:18px;flex-wrap:wrap">'+
     it("Cabeças",(parseInt(lt.qtd)||0).toLocaleString("pt-BR"))+it("Entrada",(lt.dtE?fmtData(lt.dtE):"—")+((lt.pesoE||lt.peso)?" · "+(+(lt.pesoE||lt.peso)).toFixed(0)+" kg":""))+
-    it("Dias de cocho",dias!=null?dias:"—")+it("Abate previsto",ab&&ab.data?fmtData(ab.data):"—")+it("Meta % PV",(lt.metaPV>0?lt.metaPV:2.26).toLocaleString("pt-BR")+"%")+'</div></div>';
+    it("Dias de cocho",dias!=null?dias:"—")+(function(){var pp=null;try{pp=pesoProjetadoLoteEm(lt,hoje);}catch(e){}return it("Peso projetado hoje",pp?Math.round(pp).toLocaleString("pt-BR")+" kg":"—");})()+it("Abate previsto",ab&&ab.data?fmtData(ab.data):"—")+it("Meta % PV",(lt.metaPV>0?lt.metaPV:2.26).toLocaleString("pt-BR")+"%")+'</div></div>';
   /* 14 dias: MS/cab e %PV (ncxSerie) e energia (_dadosTratosDia), mais a nota de cada dia */
   var ser=[];try{ser=ncxSerie(lt,addDias(hoje,-1),14);}catch(e){}
   var ptsMS=[],ptsPV=[],ptsE=[],notas=[];
@@ -24996,7 +24997,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.24-currais</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.24-pesohoje</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">

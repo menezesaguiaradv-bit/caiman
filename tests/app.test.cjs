@@ -106,7 +106,7 @@ function fixture() {
     R.curralTxt = cg.innerText.replace(/\s+/g, " ");
     abrirAnimaisLote(encodeURIComponent("Pinheiral"), encodeURIComponent("A1"));
     const ac = document.getElementById("al-corpo").innerText;
-    R.paginaCurral = { titulo: /CURRAL|Curral/.test(ac), ms: /MS por cabe/.test(ac), nota: /Nota de cocho/.test(ac), graf: document.getElementById("al-corpo").querySelectorAll("svg").length };
+    R.paginaCurral = { peso: /PESO PROJETADO HOJE\s*522 kg|Peso projetado hoje\s*522 kg/i.test(ac), titulo: /CURRAL|Curral/.test(ac), ms: /MS por cabe/.test(ac), nota: /Nota de cocho/.test(ac), graf: document.getElementById("al-corpo").querySelectorAll("svg").length };
     fecharAnimaisLote();
     /* cotacoes do dashboard */
     localStorage.setItem("caiman_arroba_futuros", JSON.stringify({ lido_em: "2026-10-24T12:00:00Z", contratos: [{ mes: "2026-10", codigo: "BGIV26", preco: 383 }, { mes: "2026-11", codigo: "BGIX26", preco: 392 }] }));
@@ -149,6 +149,8 @@ function fixture() {
   igual("dashboard: base B3 - Datagro MS", r.mercado.base, "+R$ 6,00 por @");
   igual("confinamento: um quadrado por curral", r.currais, 1);
   verdade("confinamento: MS/cab de ontem no quadrado (450x4/130 = 13,85 kg)", /13,85 kg/.test(r.curralTxt), r.curralTxt.slice(0, 200));
+  verdade("confinamento: peso projetado de hoje no quadrado (418 + 74 dias x 1,4 = 522 kg)", /Peso hoje \(proj\.\) 522 kg/.test(r.curralTxt), r.curralTxt.slice(0, 260));
+  verdade("pagina do curral: peso projetado de hoje", r.paginaCurral.peso, "");
   verdade("confinamento: nota de cocho de hoje no quadrado", /nota -1/.test(r.curralTxt), r.curralTxt.slice(0, 200));
   verdade("pagina do curral: titulo, MS, nota e graficos", r.paginaCurral.titulo && r.paginaCurral.ms && r.paginaCurral.nota && r.paginaCurral.graf >= 1, JSON.stringify(r.paginaCurral));
   verdade("nenhum erro de JavaScript na pagina", !erros.length, erros.slice(0, 3).join(" | "));
