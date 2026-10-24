@@ -9266,9 +9266,27 @@ function _estPopularFazendas(){
 /* ---------- aviso de estoque baixo ----------
    Aparece uma vez por dia, na abertura do app. Repetir a cada tela treinaria
    a pessoa a fechar sem ler. */
-function _estAvisoBaixo(forcar){
+/* 24/10/2026: o aviso abria por cima da tela do PIN, antes dos numeros da Bia chegarem, e mostrava
+   a Casca de Soja com o saldo antigo do app (31.358 kg, 14 dias) enquanto o estoque real do Saicon
+   era 81.510 kg. Agora espera o app ser desbloqueado, carrega os numeros da Bia e, se eles nao
+   vierem, deixa a Pinheiral fora do aviso em vez de mostrar conta errada. */
+function _estAppTravado(){
+  var ids=["pin-overlay","login-overlay"];
+  for(var i=0;i<ids.length;i++){var e=document.getElementById(ids[i]);if(e&&getComputedStyle(e).display!=="none")return true;}
+  return false;
+}
+async function _estAvisoBaixo(forcar,tentativa){
+  tentativa=tentativa||0;
+  if(_estAppTravado()){if(tentativa<300)setTimeout(function(){_estAvisoBaixo(forcar,tentativa+1);},2000);return;}
+  if(!forcar&&localStorage.getItem("caiman_est_aviso")===todayStr())return;
+  if(!_estBia||!_estBia.ok||Date.now()-_estBia.ts>30*60e3){try{await _estBiaCarregar();}catch(e){}}
+  if(_estAppTravado()){if(tentativa<300)setTimeout(function(){_estAvisoBaixo(forcar,tentativa+1);},2000);return;}
+  _estAvisoBaixoMostrar(forcar);
+}
+function _estAvisoBaixoMostrar(forcar){
   try{
-    const al=_estAlertas();
+    const semBia=!(_estBia&&_estBia.ok);
+    const al=_estAlertas().filter(function(x){return !(semBia&&_estEhPinheiral(x.fazenda));});
     if(!al.length)return;
     const hoje=todayStr();
     if(!forcar&&localStorage.getItem("caiman_est_aviso")===hoje)return;
@@ -24825,7 +24843,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.23-gmdreal</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.24-aviso</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
