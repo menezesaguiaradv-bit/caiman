@@ -1,0 +1,23 @@
+name: Testes do app
+
+# 24/10/2026: roda os testes das contas principais (tests/app.test.cjs) a cada push.
+# O Claude roda o mesmo teste ANTES de publicar; aqui fica o registro e o alarme
+# caso alguem publique sem rodar.
+on:
+  push:
+    branches: [main]
+    paths: ["index.html", "tests/**", ".github/workflows/testes.yml"]
+  workflow_dispatch:
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm i --no-save playwright@1.56.0 jspdf@2.5.1 xlsx@0.18.5
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/app.test.cjs
