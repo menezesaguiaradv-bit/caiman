@@ -5715,7 +5715,7 @@ function renderAnimaisLote(){
   else if(_alFiltro==="semgmd")lista=lista.filter(function(x){return x.ph.gmd==null;});
   var _q=_soDig(_alTexto);
   if(_q)lista=lista.filter(function(x){return _soDig(x.a.eletro).indexOf(_q)>=0||_soDig(x.a.sisbov).indexOf(_q)>=0;});
-  function card(t,v,sub){return '<div style="flex:1;min-width:110px;background:#F7F4EC;border:1px solid #E3DCC8;border-left:4px solid #B8944F;border-radius:8px;padding:8px 10px"><div style="font-size:10px;color:#7A7668;text-transform:uppercase;letter-spacing:.4px">'+t+'</div><div style="font-size:17px;font-weight:700;color:#23432D">'+v+'</div>'+(sub?'<div style="font-size:10px;color:#777">'+sub+'</div>':'')+'</div>';}
+  function card(t,v,sub){return '<div style="flex:1;min-width:110px;background:#F7F4EC;border:1px solid #E3DCC8;border-left:4px solid #B8944F;border-radius:8px;padding:8px 10px;text-align:center"><div style="font-size:10px;color:#7A7668;text-transform:uppercase;letter-spacing:.4px">'+t+'</div><div style="font-size:17px;font-weight:700;color:#23432D">'+v+'</div>'+(sub?'<div style="font-size:10px;color:#777">'+sub+'</div>':'')+'</div>';}
   function corG(g){return g==null?"#999":(g>=1?"#23432D":(g>0?"#7A5F28":"#A32D2D"));}
   var linhas=lista.map(function(x){
     var a=x.a,ph=x.ph;
@@ -22146,6 +22146,10 @@ function _atualizarGmdRealLotes(){
    mesmas funcoes do relatorio Tratos do Dia (_dadosTratosDia) e da Nota de Cocho (ncxSerie/ncxDoDia). */
 function _pcCorNota(n){if(n==null)return "#9A968A";if(n>=1)return "#A32D2D";if(n<=-1)return "#23432D";return "#B8944F";}
 function _pcCards(dia){var m={};try{(_dadosTratosDia(dia).cards||[]).forEach(function(c){m[String(c.loteId)]=c;});}catch(e){}return m;}
+/* 24/10/2026: ele: "deixe as notas de cocho em porcentagem" - mostra o ajuste do trato (+5%, 0%, -5%)
+   pela escala NCX_ESC (ou o valor/pct que veio do Saicon), em vez da nota -1/0/+1. A cor continua pela nota. */
+function _pcAj(l,dia){try{var r=ncxDoDia(l.pasto||l.nome,dia);if(!r.length)return null;var i=ncxInfo(r[r.length-1]);return i&&i.aj!=null?i.aj:null;}catch(e){return null;}}
+function _pcAjTxt(aj){return aj==null?"—":(aj>0?"+":"")+String(aj).replace(".",",")+"%";}
 function _pcNota(l,dia){try{var r=ncxDoDia(l.pasto||l.nome,dia);return r.length?ncxNotaN(r[r.length-1]):null;}catch(e){return null;}}
 function renderCurraisGrade(){
   var el=document.getElementById("conf-grade");if(!el)return;
@@ -22163,7 +22167,7 @@ function renderCurraisGrade(){
     var corE=c&&c.pctE?(c.pctE<90?"#A32D2D":(c.pctE<100?"#B8641F":V)):"#7A7668";
     function li(r,v,cor){return '<div style="display:flex;justify-content:space-between;gap:6px;font-size:11.5px;line-height:1.55"><span style="color:#7A7668">'+r+'</span><b style="color:'+(cor||'#1f241f')+'">'+v+'</b></div>';}
     h+='<button onclick="abrirAnimaisLote(\''+encodeURIComponent(l.fazenda||"")+'\',\''+encodeURIComponent(l.pasto||"")+'\')" style="text-align:left;font:inherit;background:#FFFEFA;border:1px solid '+BD+';border-top:5px solid '+_pcCorNota(nota)+';border-radius:10px;padding:10px 12px;cursor:pointer;color:#1f241f;min-height:160px;display:flex;flex-direction:column;gap:2px">'+
-      '<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:17px;font-weight:700">'+_escAL(String(l.pasto||l.nome||"?"))+'</span><span style="font-size:11px;font-weight:700;color:'+_pcCorNota(nota)+'">'+(nota==null?"sem nota":"nota "+(nota>0?"+":"")+nota)+'</span></div>'+
+      '<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:17px;font-weight:700">'+_escAL(String(l.pasto||l.nome||"?"))+'</span><span style="font-size:11px;font-weight:700;color:'+_pcCorNota(nota)+'">'+(nota==null?"sem nota":"trato "+_pcAjTxt(_pcAj(l,hoje)))+'</span></div>'+
       '<div style="font-size:24px;font-weight:700;color:'+V+';line-height:1.1;margin:2px 0 4px">'+(parseInt(l.qtd)||0).toLocaleString("pt-BR")+' <span style="font-size:12px;font-weight:500;color:#7A7668">cab.'+(dias!=null?' · dia '+dias:'')+'</span></div>'+
       (function(){var pp=null;try{pp=pesoProjetadoLoteEm(l,hoje);}catch(e){}return li("Peso hoje (proj.)",pp?Math.round(pp).toLocaleString("pt-BR")+" kg":"—");})()+
       li("MS/cab ontem",c?f1(c.cab>0?c.ms/c.cab:null,2)+" kg":"—")+
@@ -22187,8 +22191,8 @@ function _pcBlocoCurral(L,lt,parte){
     '<button onclick="fecharAnimaisLote();irPara(\'notacocho\')" style="'+btn+'border:1px solid '+BD+';background:#fff;color:#1f241f">Nota de cocho</button></div>';
   var hoje=todayStr(),h="";
   var dias=lt.dtE?diasEntre(lt.dtE,hoje):null,ab=null;try{ab=dataAbatePrevista(lt);}catch(e){}
-  function it(r,v){return '<div><div style="font-size:10px;color:#7A7668;text-transform:uppercase">'+r+'</div><div style="font-size:14px;font-weight:700;color:#1f241f">'+v+'</div></div>';}
-  h+='<div style="background:#F7F4EC;border:1px solid '+BD+';border-left:4px solid '+V+';border-radius:8px;padding:10px 12px;margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:'+V+';margin-bottom:6px">Lote · Confinamento</div><div style="display:flex;gap:18px;flex-wrap:wrap">'+
+  function it(r,v){return '<div style="flex:1;min-width:96px;text-align:center"><div style="font-size:10px;color:#7A7668;text-transform:uppercase">'+r+'</div><div style="font-size:14px;font-weight:700;color:#1f241f">'+v+'</div></div>';}
+  h+='<div style="background:#F7F4EC;border:1px solid '+BD+';border-left:4px solid '+V+';border-radius:8px;padding:10px 12px;margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:'+V+';margin-bottom:6px">Lote · Confinamento</div><div style="display:flex;gap:12px 8px;flex-wrap:wrap;justify-content:space-around">'+
     it("Cabeças",(parseInt(lt.qtd)||0).toLocaleString("pt-BR"))+it("Entrada",(lt.dtE?fmtData(lt.dtE):"—")+((lt.pesoE||lt.peso)?" · "+(+(lt.pesoE||lt.peso)).toFixed(0)+" kg":""))+
     it("Dias de cocho",dias!=null?dias:"—")+(function(){var pp=null;try{pp=pesoProjetadoLoteEm(lt,hoje);}catch(e){}return it("Peso projetado hoje",pp?Math.round(pp).toLocaleString("pt-BR")+" kg":"—");})()+it("Abate previsto",ab&&ab.data?fmtData(ab.data):"—")+it("Meta % PV",(lt.metaPV>0?lt.metaPV:2.26).toLocaleString("pt-BR")+"%")+'</div></div>';
   /* 14 dias: MS/cab e %PV (ncxSerie) e energia (_dadosTratosDia), mais a nota de cada dia */
@@ -22199,16 +22203,16 @@ function _pcBlocoCurral(L,lt,parte){
     if(x.pct!=null)ptsPV.push([_mbData(x.dia),+x.pct.toFixed(2)]);
     var c=null;try{c=_pcCards(x.dia)[String(lt.id)];}catch(e){}
     if(c&&c.pctE)ptsE.push([_mbData(x.dia),+c.pctE.toFixed(0)]);
-    notas.push({dia:x.dia,n:_pcNota(lt,x.dia)});
+    notas.push({dia:x.dia,n:_pcNota(lt,x.dia),aj:_pcAj(lt,x.dia)});
   });
-  notas.push({dia:hoje,n:_pcNota(lt,hoje)});
+  notas.push({dia:hoje,n:_pcNota(lt,hoje),aj:_pcAj(lt,hoje)});
   function graf(t,pts,cor,vz){return '<div style="background:#FFFEFA;border:1px solid '+BD+';border-radius:8px;padding:10px 12px"><div style="font-size:12px;font-weight:700;color:'+V+';margin-bottom:4px">'+t+'</div>'+(pts.length>1?_mbLinhaSvg(pts,cor,t):'<div style="font-size:11.5px;color:#999">'+vz+'</div>')+'</div>';}
   h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:12px">'+
     graf("MS por cabeça (kg/dia) — 14 dias",ptsMS,V,"Sem tratos nos últimos 14 dias.")+
     graf("Consumo em % do PV (MS)",ptsPV,D,"Sem peso projetado para calcular.")+
     graf("Energia (% da meta)",ptsE,"#7A5F28","Sem dados de energia.")+'</div>';
-  h+='<div style="background:#FFFEFA;border:1px solid '+BD+';border-radius:8px;padding:10px 12px;margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:'+V+';margin-bottom:6px">Nota de cocho — últimos 15 dias</div><div style="display:flex;gap:4px;flex-wrap:wrap">'+
-    notas.map(function(x){return '<div style="text-align:center;min-width:38px"><div style="font-size:10px;color:#7A7668">'+_mbData(x.dia)+'</div><div style="font-size:13px;font-weight:700;color:#fff;background:'+_pcCorNota(x.n)+';border-radius:6px;padding:3px 0">'+(x.n==null?"—":(x.n>0?"+":"")+x.n)+'</div></div>';}).join("")+'</div></div>';
+  h+='<div style="background:#FFFEFA;border:1px solid '+BD+';border-radius:8px;padding:10px 12px;margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:'+V+';margin-bottom:6px">Nota de cocho — ajuste do trato, últimos 15 dias</div><div style="display:flex;gap:4px;flex-wrap:wrap">'+
+    notas.map(function(x){return '<div style="text-align:center;min-width:38px"><div style="font-size:10px;color:#7A7668">'+_mbData(x.dia)+'</div><div style="font-size:13px;font-weight:700;color:#fff;background:'+_pcCorNota(x.n)+';border-radius:6px;padding:3px 0">'+(x.n==null?"—":_pcAjTxt(x.aj))+'</div></div>';}).join("")+'</div></div>';
   return h;
 }
 
@@ -22335,8 +22339,8 @@ function _pnBlocoPasto(L,parte){
   /* lote */
   if(lt){
     var dias=lt.dtE?diasEntre(lt.dtE,todayStr()):null;
-    function it(r,v){return '<div><div style="font-size:10px;color:#7A7668;text-transform:uppercase">'+r+'</div><div style="font-size:14px;font-weight:700;color:#1f241f">'+v+'</div></div>';}
-    h+='<div style="background:#F7F4EC;border:1px solid '+BD+';border-left:4px solid '+_pnCorTipo(lt.tipo)+';border-radius:8px;padding:10px 12px;margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:'+V+';margin-bottom:6px">Lote · '+_escAL(lt.tipo||"")+'</div><div style="display:flex;gap:18px;flex-wrap:wrap">'+
+    function it(r,v){return '<div style="flex:1;min-width:96px;text-align:center"><div style="font-size:10px;color:#7A7668;text-transform:uppercase">'+r+'</div><div style="font-size:14px;font-weight:700;color:#1f241f">'+v+'</div></div>';}
+    h+='<div style="background:#F7F4EC;border:1px solid '+BD+';border-left:4px solid '+_pnCorTipo(lt.tipo)+';border-radius:8px;padding:10px 12px;margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:'+V+';margin-bottom:6px">Lote · '+_escAL(lt.tipo||"")+'</div><div style="display:flex;gap:12px 8px;flex-wrap:wrap;justify-content:space-around">'+
       it("Entrada",(lt.dtE?fmtData(lt.dtE):"—")+(lt.peso?" · "+lt.peso+" kg":""))+
       it("Dias no pasto",dias!=null?dias:"—")+
       it("Raça / sexo",_escAL([lt.raca,lt.sexo].filter(Boolean).join(" · ")||"—"))+
@@ -25002,7 +25006,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.24-confenxuto</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.24-notapct</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">

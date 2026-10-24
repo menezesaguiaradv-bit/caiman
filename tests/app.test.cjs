@@ -153,7 +153,8 @@ function fixture() {
   verdade("confinamento: MS/cab de ontem no quadrado (450x4/130 = 13,85 kg)", /13,85 kg/.test(r.curralTxt), r.curralTxt.slice(0, 200));
   verdade("confinamento: peso projetado de hoje no quadrado (418 + 74 dias x 1,4 = 522 kg)", /Peso hoje \(proj\.\) 522 kg/.test(r.curralTxt), r.curralTxt.slice(0, 260));
   verdade("pagina do curral: peso projetado de hoje", r.paginaCurral.peso, "");
-  verdade("confinamento: nota de cocho de hoje no quadrado", /nota -1/.test(r.curralTxt), r.curralTxt.slice(0, 200));
+  // 24/10: ele pediu a nota em porcentagem: nota -1 = trato +5%
+  verdade("confinamento: nota de cocho de hoje em % no quadrado (nota -1 = trato +5%)", /trato \+5%/.test(r.curralTxt), r.curralTxt.slice(0, 200));
   verdade("pagina do curral: titulo, MS, nota e graficos", r.paginaCurral.titulo && r.paginaCurral.ms && r.paginaCurral.nota && r.paginaCurral.graf >= 1, JSON.stringify(r.paginaCurral));
   verdade("nenhum erro de JavaScript na pagina", !erros.length, erros.slice(0, 3).join(" | "));
 
