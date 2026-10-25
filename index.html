@@ -8996,6 +8996,18 @@ function _estDefasagem(fazenda){
 }
 
 function _estAlertas(){
+  /* 25/10/2026 (ele mandou o print do aviso: "Sal Branco 9 dias, 439 kg/dia"): o aviso da Pinheiral
+     passa a usar a MESMA conta da pagina do insumo e do Painel (caiman_est_estoque: dietas de cada
+     curral ate o abate). Antes vinha da media de 7 dias da Bia, que somava a racao batida para a
+     Cruz Alta (2.586 kg de sal em 2 dias) e fazia o sal "acabar" em 9 dias quando o cocho leva 44.
+     A racao da Cruz Alta aparece a parte, em "racao". Sem esses numeros, cai na conta da Bia. */
+  if(typeof _EI!=="undefined"&&_EI.dados&&_EI.dados.estoque&&_EI.dados.estoque.length){
+    return _estLista(null).filter(function(x){
+      return x.dias!=null&&x.dias<EST_LIMITE_DIAS&&x.saldo>=0&&!_estEhPinheiral(x.fazenda);
+    }).concat(_EI.dados.estoque.filter(function(r){return +r.consumo_conf>0&&r.dias_conf!=null&&+r.dias_conf<EST_LIMITE_DIAS;}).map(function(r){
+      return {nome:r.insumo,fazenda:"Pinheiral",dias:+r.dias_conf,saldo:+r.saldo,media:+r.consumo_conf,fim:r.acaba_conf,
+        racao:(+r.consumo_prod>0&&r.acaba_total&&r.acaba_total<r.acaba_conf)?r.acaba_total:null,dietas:true};}));
+  }
   /* 19/10: com os numeros da Bia carregados, a Pinheiral do aviso vem deles (igual ao relatorio) */
   const B=(_estBia&&_estBia.ok)?_estBia:null;
   return _estLista(null).filter(function(x){
@@ -9658,14 +9670,18 @@ async function _estAvisoBaixo(forcar,tentativa){
   if(_estAppTravado()){if(tentativa<300)setTimeout(function(){_estAvisoBaixo(forcar,tentativa+1);},2000);return;}
   if(!forcar&&localStorage.getItem("caiman_est_aviso")===todayStr())return;
   if(!_estBia||!_estBia.ok||Date.now()-_estBia.ts>30*60e3){try{await _estBiaCarregar();}catch(e){}}
+  try{await _eiCarregar(false);}catch(e){}   /* 25/10: a conta pelas dietas (mesma do Painel) */
   if(_estAppTravado()){if(tentativa<300)setTimeout(function(){_estAvisoBaixo(forcar,tentativa+1);},2000);return;}
   _estAvisoBaixoMostrar(forcar);
 }
 function _estAvisoBaixoMostrar(forcar){
   try{
-    const semBia=!(_estBia&&_estBia.ok), semCA=!_estCAValido();
+    const temEI=typeof _EI!=="undefined"&&_EI.dados&&_EI.dados.estoque&&_EI.dados.estoque.length;
+    const semBia=!(_estBia&&_estBia.ok)&&!temEI, semCA=!_estCAValido();
+    /* 25/10: insumos que so apertam se continuar batendo racao para a Cruz Alta (o cocho chega bem) */
+    const soRacao=temEI?_EI.dados.estoque.filter(function(r){return +r.consumo_prod>0&&r.dias_total!=null&&+r.dias_total<EST_LIMITE_DIAS&&!(+r.consumo_conf>0&&r.dias_conf!=null&&+r.dias_conf<EST_LIMITE_DIAS);}):[];
     const al=_estAlertas().filter(function(x){return !(semBia&&_estEhPinheiral(x.fazenda))&&!(semCA&&_estEhCruzAlta(x.fazenda));});
-    if(!al.length)return;
+    if(!al.length&&!soRacao.length)return;
     const hoje=todayStr();
     if(!forcar&&localStorage.getItem("caiman_est_aviso")===hoje)return;
     localStorage.setItem("caiman_est_aviso",hoje);
@@ -9678,11 +9694,11 @@ function _estAvisoBaixoMostrar(forcar){
     bg.innerHTML="<div style='background:var(--card);border-radius:12px;max-width:520px;width:100%;"+
       "box-shadow:0 18px 50px rgba(0,0,0,.35);overflow:hidden'>"+
       "<div style='background:#C62828;color:#fff;padding:14px 20px;font-size:15px;font-weight:700'>"+
-        "Estoque acabando — "+al.length+" "+(al.length===1?"ingrediente":"ingredientes")+"</div>"+
+        (al.length?"Estoque acabando — "+al.length+" "+(al.length===1?"ingrediente":"ingredientes"):"Estoque: atenção à ração da Cruz Alta")+"</div>"+
       "<div style='padding:16px 20px;max-height:56vh;overflow:auto'>"+
       al.map(function(x){
         const urg=x.dias<7;
-        const fim=_estDataFim(x.dias);
+        const fim=x.fim||_estDataFim(x.dias);
         return "<div style='border:1px solid "+(urg?"#FFCDD2":"#FFE0B2")+";background:"+
           (urg?"#FFF5F5":"#FFFCF2")+";border-radius:9px;padding:11px 13px;margin-bottom:10px'>"+
           "<div style='display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:8px'>"+
@@ -9702,11 +9718,18 @@ function _estAvisoBaixoMostrar(forcar){
           "</div>"+
           (fim?"<div style='font-size:12px;color:"+(urg?"#C62828":"#8A6D1B")+";margin-top:9px;font-weight:600'>"+
             "Acaba em "+fmtData(fim)+"</div>":"")+
+          (x.racao?"<div style='font-size:11.5px;color:var(--mt);margin-top:3px'>Batendo ração para a Cruz Alta, acaba antes: "+fmtData(x.racao)+"</div>":"")+
           "</div>";
       }).join("")+
+      (soRacao.length?"<div style='font-size:12.5px;font-weight:700;color:var(--vd);margin:6px 0 6px'>Só aperta se continuar batendo ração para a Cruz Alta</div>"+
+        soRacao.map(function(r){return "<div style='border:1px solid var(--bd);border-radius:9px;padding:9px 12px;margin-bottom:8px;font-size:12.5px'>"+
+          "<b>"+r.insumo+"</b> · no cocho "+(r.acaba_conf?"acaba em "+fmtData(r.acaba_conf):"chega ao último abate")+
+          " · com a ração da Cruz Alta ("+f(r.consumo_prod)+" kg/dia) acaba em <b style='color:#B8860B'>"+fmtData(r.acaba_total)+"</b></div>";}).join(""):"")+
       "<div style='font-size:11.5px;color:var(--mt);margin-top:4px;line-height:1.6'>"+
+        (temEI?"Pinheiral: conta pelas <b>dietas de cada curral até o abate previsto</b> (só o cocho), a mesma da página do insumo e do Painel Caiman. "+
+          "A ração batida para a Cruz Alta aparece à parte.":
         "O consumo por dia é a média dos últimos 7 dias <b>com lançamento</b> — dia sem trato não entra "+
-        "na conta, senão um fim de semana sem importação infla a previsão.</div></div>"+
+        "na conta, senão um fim de semana sem importação infla a previsão.")+"</div></div>"+
       "<div style='display:flex;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid var(--bd)'>"+
         "<button onclick=\"document.getElementById('modal-est-aviso').remove();irPara('estoque')\" "+
           "style='background:#fff;border:1px solid var(--v);color:var(--v);padding:8px 16px;border-radius:7px;"+
@@ -25429,7 +25452,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.25-insumos</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.25-aviso</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">

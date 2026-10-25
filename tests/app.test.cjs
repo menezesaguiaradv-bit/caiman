@@ -161,6 +161,12 @@ function fixture() {
     window._pdfEntregar = (doc, nome) => { pdf = { nome, pags: doc.getNumberOfPages() }; };
     try { _eiPdf(true); } finally { window._pdfEntregar = orig; }
     R.pdf = pdf;
+    /* 25/10: aviso de estoque com a mesma conta (sal: cocho 47 dias, com a racao da Cruz Alta 7 dias) */
+    R.alertasPinh = _estAlertas().filter((x) => /pinheiral/i.test(x.fazenda)).map((x) => x.nome);
+    _estAvisoBaixoMostrar(true);
+    const mod = document.getElementById("modal-est-aviso");
+    R.aviso = mod ? mod.innerText.replace(/\s+/g, " ") : "";
+    if (mod) mod.remove();
     return R;
   });
   verdade("estoque pelas dietas: cartao do que comprar (bagaco 145 t ate 13/02)", /Comprar para chegar ao último abate \(13\/02\)/.test(ei.lista) && /145 t/.test(ei.lista), ei.lista.slice(0, 200));
@@ -171,6 +177,8 @@ function fixture() {
   verdade("pagina do insumo: currais na ordem de abate, A2 chega e B1 nao", /A2[^]*chega[^]*A3[^]*não · 9 dias sem[^]*B1/.test(ei.pagina), ei.pagina.slice(0, 600));
   verdade("pagina do insumo: media geral de MS 49,9% (22 dias a 55% e 23 a 45%: 2245/45)", /MÉDIA GERAL DE MS 49,9%|Média geral de MS 49,9%/i.test(ei.pagina), "");
   verdade("pagina do insumo: graficos (saldo, projetado x realizado, MS, usado)", ei.svgs >= 4, "(" + ei.svgs + ")");
+  igual("aviso de estoque: nenhum insumo do cocho acaba em 15 dias pelas dietas", ei.alertasPinh, []);
+  verdade("aviso de estoque: sal so aperta com a racao da Cruz Alta (31/10)", /Só aperta se continuar batendo ração/.test(ei.aviso) && /Sal Branco/.test(ei.aviso) && /31\/10\/2026/.test(ei.aviso), ei.aviso.slice(0, 300));
   verdade("pagina do insumo: PDF no padrao do app", !!ei.pdf && ei.pdf.nome === "Bagaco_De_Cana_2026-10-24.pdf" && ei.pdf.pags >= 1, JSON.stringify(ei.pdf));
 
   if (process.env.SHOT) {   /* fotos para conferir o visual: SHOT=/pasta node tests/app.test.cjs */
