@@ -107,7 +107,7 @@ function fixture() {
     R.curralTxt = cg.innerText.replace(/\s+/g, " ");
     abrirAnimaisLote(encodeURIComponent("Pinheiral"), encodeURIComponent("A1"));
     const ac = document.getElementById("al-corpo").innerText;
-    R.paginaCurral = { peso: /PESO PROJETADO HOJE\s*522 kg|Peso projetado hoje\s*522 kg/i.test(ac), titulo: /CURRAL|Curral/.test(ac), ms: /MS por cabe/.test(ac), nota: /Nota de cocho/.test(ac), graf: document.getElementById("al-corpo").querySelectorAll("svg").length };
+    R.paginaCurral = { peso: /PESO PROJETADO HOJE\s*522 kg|Peso projetado hoje\s*522 kg/i.test(ac), titulo: /CURRAL|Curral/.test(ac), ms: /MS por cabe/.test(ac), nota: /Nota de cocho/.test(ac), graf: document.getElementById("al-corpo").querySelectorAll("svg").length, progReal: ((ac.match(/Trato programado x realizado[^\n]*\n?[^\n]*/) || [""])[0]).replace(/\s+/g, " ") };
     fecharAnimaisLote();
     /* cotacoes do dashboard */
     localStorage.setItem("caiman_arroba_futuros", JSON.stringify({ lido_em: "2026-10-24T12:00:00Z", contratos: [{ mes: "2026-10", codigo: "BGIV26", preco: 383 }, { mes: "2026-11", codigo: "BGIX26", preco: 392 }] }));
@@ -157,6 +157,8 @@ function fixture() {
   verdade("pagina do curral: peso projetado de hoje", r.paginaCurral.peso, "");
   // 24/10: ele pediu a nota em porcentagem: nota -1 = trato +5%
   verdade("confinamento: nota de cocho de hoje em % no quadrado (nota -1 = trato +5%)", /trato \+5%/.test(r.curralTxt), r.curralTxt.slice(0, 200));
+  // 24/10: grafico programado x realizado (4 tratos de 700 kg = 2.800 kg contra 4 x 690 = 2.760 kg)
+  verdade("pagina do curral: trato programado x realizado (2.800 de 2.760 kg, +1,4%)", /2\.800<?\/?b?>? de 2\.760 kg|2\.800 de 2\.760 kg/.test(r.paginaCurral.progReal) && /\+1,4%/.test(r.paginaCurral.progReal), r.paginaCurral.progReal);
   verdade("pagina do curral: titulo, MS, nota e graficos", r.paginaCurral.titulo && r.paginaCurral.ms && r.paginaCurral.nota && r.paginaCurral.graf >= 1, JSON.stringify(r.paginaCurral));
   verdade("nenhum erro de JavaScript na pagina", !erros.length, erros.slice(0, 3).join(" | "));
 

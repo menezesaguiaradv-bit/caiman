@@ -22152,6 +22152,39 @@ function _atualizarGmdRealLotes(){
    Ele aprovou: "separar o Confinamento do mesmo jeito da recria: currais em grade, com pagina propria por
    curral reunindo tratos, nota de cocho, energia, sanitario e bois identificados". Os numeros vem das
    mesmas funcoes do relatorio Tratos do Dia (_dadosTratosDia) e da Nota de Cocho (ncxSerie/ncxDoDia). */
+/* 24/10/2026: ele: "coloque o grafico projetado x realizado de cada curral". Trato do dia (kg de materia
+   natural): programado (o mesmo do Tratos do Dia, _dadosTratosDia.prog) x realizado (descargas do Saicon),
+   14 dias. Linha tracejada dourada = programado; verde = realizado; barra embaixo = diferenca do dia. */
+function _pcProgRealBloco(pts){
+  var V="#23432D",D="#B8944F",BD="#E3DCC8";
+  var h='<div style="background:#FFFEFA;border:1px solid '+BD+';border-radius:8px;padding:10px 12px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap"><div style="font-size:12px;font-weight:700;color:'+V+'">Trato programado x realizado (kg/dia) — 14 dias</div>';
+  var ok=pts.filter(function(p){return p.prog!=null;});
+  if(ok.length<2)return h+'</div><div style="font-size:11.5px;color:#999;margin-top:4px">Sem programado suficiente para comparar.</div></div>';
+  var u=pts[pts.length-1],sp=0,sr=0;ok.forEach(function(p){sp+=p.prog;sr+=p.real;});
+  function pc(r,p){var v=(r/p-1)*100;return (v>0?"+":"")+v.toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1})+"%";}
+  function cor(r,p){var v=Math.abs(r/p-1)*100;return v<=3?V:(v<=10?"#B8641F":"#A32D2D");}
+  h+='<div style="font-size:11.5px;color:#7A7668">'+(u.prog!=null?'ontem <b style="color:#1f241f">'+u.real.toLocaleString("pt-BR")+'</b> de '+u.prog.toLocaleString("pt-BR")+' kg (<b style="color:'+cor(u.real,u.prog)+'">'+pc(u.real,u.prog)+'</b>) · ':'')+'14 dias <b style="color:'+cor(sr,sp)+'">'+pc(sr,sp)+'</b></div></div>';
+  var W=640,H=170,pl=40,pr=10,pt=14,pb=44,n=pts.length;
+  var vs=[];pts.forEach(function(p){vs.push(p.real);if(p.prog!=null)vs.push(p.prog);});
+  var mn=Math.min.apply(null,vs),mx=Math.max.apply(null,vs);if(mx-mn<50){mx+=25;mn-=25;}var pad=(mx-mn)*0.1;mn-=pad;mx+=pad;
+  var hb=pb-24;
+  function X(i){return pl+(W-pl-pr)*(n>1?i/(n-1):0.5);}function Y(v){return pt+(H-pt-pb)*(1-(v-mn)/(mx-mn));}
+  function lin(k){var d="",on=false;pts.forEach(function(p,i){if(p[k]==null){on=false;return;}d+=(on?"L":"M")+X(i).toFixed(1)+" "+Y(p[k]).toFixed(1)+" ";on=true;});return d;}
+  var s='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block;margin-top:6px" role="img" aria-label="Trato programado x realizado">';
+  [mn+pad,(mn+mx)/2,mx-pad].forEach(function(v){s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+Y(v).toFixed(1)+'" y2="'+Y(v).toFixed(1)+'" stroke="#EFEADC"/><text x="'+(pl-4)+'" y="'+(Y(v)+3).toFixed(1)+'" font-size="9.5" fill="#9A968A" text-anchor="end">'+Math.round(v).toLocaleString("pt-BR")+'</text>';});
+  s+='<path d="'+lin("prog")+'" fill="none" stroke="'+D+'" stroke-width="2" stroke-dasharray="5 4"/>';
+  s+='<path d="'+lin("real")+'" fill="none" stroke="'+V+'" stroke-width="2" stroke-linejoin="round"/>';
+  var by=H-pb+6,bw=Math.max(6,(W-pl-pr)/n*0.5);
+  pts.forEach(function(p,i){
+    s+='<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(p.real).toFixed(1)+'" r="'+(i===n-1?4:2.5)+'" fill="'+V+'" stroke="#fff" stroke-width="1"><title>'+p.d+': realizado '+p.real.toLocaleString("pt-BR")+' kg'+(p.prog!=null?' · programado '+p.prog.toLocaleString("pt-BR")+' kg ('+pc(p.real,p.prog)+')':'')+'</title></circle>';
+    if(p.prog!=null){var v=(p.real/p.prog-1)*100,bh=Math.min(hb/2,Math.abs(v)/10*(hb/2));
+      s+='<rect x="'+(X(i)-bw/2).toFixed(1)+'" y="'+(v>=0?by+hb/2-bh:by+hb/2).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+Math.max(1,bh).toFixed(1)+'" rx="2" fill="'+cor(p.real,p.prog)+'"><title>'+p.d+': '+pc(p.real,p.prog)+'</title></rect>';}
+    if(i===0||i===n-1||i%3===0)s+='<text x="'+X(i).toFixed(1)+'" y="'+(H-4)+'" font-size="9.5" fill="#7A7668" text-anchor="'+(i===0?"start":(i===n-1?"end":"middle"))+'">'+p.d+'</text>';
+  });
+  s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+(by+hb/2)+'" y2="'+(by+hb/2)+'" stroke="#D9D2BD"/>';
+  s+='</svg><div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:#555;margin-top:2px"><span><i style="display:inline-block;width:16px;border-top:2px dashed '+D+';vertical-align:middle;margin-right:4px"></i>Programado</span><span><i style="display:inline-block;width:16px;border-top:2px solid '+V+';vertical-align:middle;margin-right:4px"></i>Realizado</span><span>Barras: diferença do dia (verde até 3%, laranja até 10%, vermelho acima)</span></div></div>';
+  return h+s;
+}
 function _pcCorNota(n){if(n==null)return "#9A968A";if(n>=1)return "#A32D2D";if(n<=-1)return "#23432D";return "#B8944F";}
 function _pcCards(dia){var m={};try{(_dadosTratosDia(dia).cards||[]).forEach(function(c){m[String(c.loteId)]=c;});}catch(e){}return m;}
 /* 24/10/2026: ele: "deixe as notas de cocho em porcentagem" - mostra o ajuste do trato (+5%, 0%, -5%)
@@ -22205,12 +22238,13 @@ function _pcBlocoCurral(L,lt,parte){
     it("Dias de cocho",dias!=null?dias:"—")+(function(){var pp=null;try{pp=pesoProjetadoLoteEm(lt,hoje);}catch(e){}return it("Peso projetado hoje",pp?Math.round(pp).toLocaleString("pt-BR")+" kg":"—");})()+it("Abate previsto",ab&&ab.data?fmtData(ab.data):"—")+it("Meta % PV",(lt.metaPV>0?lt.metaPV:2.26).toLocaleString("pt-BR")+"%")+'</div></div>';
   /* 14 dias: MS/cab e %PV (ncxSerie) e energia (_dadosTratosDia), mais a nota de cada dia */
   var ser=[];try{ser=ncxSerie(lt,addDias(hoje,-1),14);}catch(e){}
-  var ptsMS=[],ptsPV=[],ptsE=[],notas=[];
+  var ptsMS=[],ptsPV=[],ptsE=[],ptsPR=[],notas=[];
   ser.forEach(function(x){
     if(x.ms!=null)ptsMS.push([_mbData(x.dia),+x.ms.toFixed(2)]);
     if(x.pct!=null)ptsPV.push([_mbData(x.dia),+x.pct.toFixed(2)]);
     var c=null;try{c=_pcCards(x.dia)[String(lt.id)];}catch(e){}
     if(c&&c.pctE)ptsE.push([_mbData(x.dia),+c.pctE.toFixed(0)]);
+    if(c&&c.kg>0)ptsPR.push({d:_mbData(x.dia),prog:c.prog>0?+c.prog.toFixed(0):null,real:+c.kg.toFixed(0)});
     notas.push({dia:x.dia,n:_pcNota(lt,x.dia),aj:_pcAj(lt,x.dia)});
   });
   notas.push({dia:hoje,n:_pcNota(lt,hoje),aj:_pcAj(lt,hoje)});
@@ -22218,7 +22252,8 @@ function _pcBlocoCurral(L,lt,parte){
   h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:12px">'+
     graf("MS por cabeça (kg/dia) — 14 dias",ptsMS,V,"Sem tratos nos últimos 14 dias.")+
     graf("Consumo em % do PV (MS)",ptsPV,D,"Sem peso projetado para calcular.")+
-    graf("Energia (% da meta)",ptsE,"#7A5F28","Sem dados de energia.")+'</div>';
+    graf("Energia (% da meta)",ptsE,"#7A5F28","Sem dados de energia.")+'</div>'+
+    _pcProgRealBloco(ptsPR);
   h+='<div style="background:#FFFEFA;border:1px solid '+BD+';border-radius:8px;padding:10px 12px;margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:'+V+';margin-bottom:6px">Nota de cocho — ajuste do trato, últimos 15 dias</div><div style="display:flex;gap:4px;flex-wrap:wrap">'+
     notas.map(function(x){return '<div style="text-align:center;min-width:38px"><div style="font-size:10px;color:#7A7668">'+_mbData(x.dia)+'</div><div style="font-size:13px;font-weight:700;color:#fff;background:'+_pcCorNota(x.n)+';border-radius:6px;padding:3px 0">'+(x.n==null?"—":_pcAjTxt(x.aj))+'</div></div>';}).join("")+'</div></div>';
   return h;
@@ -25014,7 +25049,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.24-listalimpa</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.24-progreal</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
