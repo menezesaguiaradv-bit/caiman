@@ -16140,7 +16140,10 @@ function _dadosTratosDia(data,dataF,filtroLote){
       nDias:((_diasLote[k]&&_diasLote[k].size)?_diasLote[k].size:1),
       itens:g.itens.map(function(t){
         const dt=dietas.find(function(d){return String(d.id)===String(t.dietaId);});
-        return {n:_n(t),kg:t.kg||0,ms:t.kgms||0,dieta:dt?dt.nome:""};
+        /* 25/10/2026: ele: "na aba tratos, em seu relatorio, apareca o horario de trato de cada curral" -
+           inicio da descarga no Saicon (saicon.hIni); lancamento manual sem hora fica sem. */
+        const _hr=String((t.saicon&&t.saicon.hIni)||t.hIni||t.hora||"").slice(0,5);
+        return {n:_n(t),kg:t.kg||0,ms:t.kgms||0,dieta:dt?dt.nome:"",hora:/^\d{1,2}:\d{2}$/.test(_hr)?_hr:""};
       }),
     });
   });
@@ -16403,7 +16406,7 @@ function exportarTratosDiaPdf(data,dataF,filtroLote){
     }else{
       c.itens.forEach(function(t){
         doc.setFontSize(8.5); doc.setTextColor(30,86,49); doc.setFont("helvetica","bold");
-        doc.text(t.n+"o trato"+(t.dieta?"  -  "+t.dieta:""),23,y);
+        doc.text(t.n+"o trato"+(t.hora?"  -  "+t.hora:"")+(t.dieta?"  -  "+t.dieta:""),23,y);
         doc.setTextColor(60,60,58); doc.setFont("helvetica","normal");
         // quanto CADA CABECA comeu naquele trato — mostra se os tratos do dia
         // estao equilibrados entre si
@@ -16557,7 +16560,7 @@ function verTratosDia(data){
     const linhas=c.itens.map(function(t){
       const porCab=c.cab>0?('<span style="color:#9a9a94"> · '+f(t.kg/c.cab,2)+' kg MN · '+f(t.ms/c.cab,2)+' kg MS por cab</span>'):"";
       return '<div style="display:flex;justify-content:space-between;font-size:11.5px;color:#6b6b64;padding:3px 0">'+
-             '<span><b style="color:var(--v)">'+t.n+'º trato</b>'+(t.dieta?' · '+t.dieta:"")+'</span>'+
+             '<span><b style="color:var(--v)">'+t.n+'º trato</b>'+(t.hora?' · <b style="color:#1f241f">'+t.hora+'</b>':"")+(t.dieta?' · '+t.dieta:"")+'</span>'+
              '<span>'+f(t.kg)+' kg'+porCab+'</span></div>';
     }).join("");
     return '<div style="border:1px solid var(--bd);border-radius:9px;margin-bottom:13px;background:#fff">'+
@@ -25509,7 +25512,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.25-nomes</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.25-horatrato</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">

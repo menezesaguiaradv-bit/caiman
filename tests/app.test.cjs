@@ -97,7 +97,7 @@ function fixture() {
     fecharAnimaisLote();
     /* confinamento: grade de currais e pagina do curral */
     const tr = [];
-    for (let i = 1; i <= 14; i++) { const d = addDias("2026-10-24", -i); for (let n = 1; n <= 4; n++) tr.push({ id: "t" + i + "-" + n, loteId: 201, data: d, dataIni: d, dataFim: d, numTrato: n, kg: 700, kgms: 450, progKg: 690, origem: "saicon-descarga" }); }
+    for (let i = 1; i <= 14; i++) { const d = addDias("2026-10-24", -i); for (let n = 1; n <= 4; n++) tr.push({ id: "t" + i + "-" + n, loteId: 201, data: d, dataIni: d, dataFim: d, numTrato: n, kg: 700, kgms: 450, progKg: 690, origem: "saicon-descarga", saicon: { hIni: ["", "06:28:52", "09:37:32", "13:05:10", "16:40:00"][n] } }); }
     localStorage.setItem("caiman_tratos", JSON.stringify(tr));
     localStorage.setItem("caiman_leitura_cocho", JSON.stringify([{ id: "2026-10-24|A1|1", data: "2026-10-24", lote: "A1", slot: 1, nota: "-1", valor: 5 }]));
     irPara("conf"); renderCurraisGrade();
@@ -108,6 +108,7 @@ function fixture() {
     abrirAnimaisLote(encodeURIComponent("Pinheiral"), encodeURIComponent("A1"));
     const ac = document.getElementById("al-corpo").innerText;
     R.paginaCurral = { peso: /PESO PROJETADO HOJE\s*522 kg|Peso projetado hoje\s*522 kg/i.test(ac), titulo: /CURRAL|Curral/.test(ac), ms: /MS por cabe/.test(ac), nota: /Nota de cocho/.test(ac), graf: document.getElementById("al-corpo").querySelectorAll("svg").length, progReal: ((ac.match(/Trato programado x realizado[^\n]*\n?[^\n]*/) || [""])[0]).replace(/\s+/g, " ") };
+    R.horasTrato = (_dadosTratosDia("2026-10-23").cards[0] || { itens: [] }).itens.map((t) => t.hora);
     R.pesoEnergia = (ac.match(/A caminho do peso projetado[^\n]*\n?[^\n]*/) || [""])[0].replace(/\s+/g, " ");
     fecharAnimaisLote();
     /* 24/10: aviso de peso x data de abate e GMD na saida */
@@ -193,6 +194,10 @@ function fixture() {
     await p.screenshot({ path: path.join(process.env.SHOT, "curral.png") });
     await p.evaluate(() => abrirAnimaisLote(encodeURIComponent("Cruz Alta"), encodeURIComponent("14B")));
     await p.screenshot({ path: path.join(process.env.SHOT, "pasto.png"), fullPage: true });
+    await p.evaluate(() => { fecharAnimaisLote(); verTratosDia("2026-10-23"); });
+    await p.waitForTimeout(300);
+    try { await p.click("text=Entendi", { timeout: 1500 }); } catch (e) {}
+    await p.screenshot({ path: path.join(process.env.SHOT, "tratos.png") });
     await p.evaluate(() => fecharAnimaisLote());
     await p.evaluate(async () => { irPara("estoque"); await _eiRender(); });
     await (await p.$("#ei-sec")).screenshot({ path: path.join(process.env.SHOT, "estoque.png") });
@@ -235,6 +240,7 @@ function fixture() {
   verdade("aviso de abate: 533 kg com data de 07/12 (418 + 118 dias x 1,4 = 583 kg, chegaria em 02/11)", /583 kg/.test(r.avisoAbate) && /533 kg/.test(r.avisoAbate) && /02\/11\/2026/.test(r.avisoAbate), r.avisoAbate);
   igual("aviso de abate: some quando peso e data batem", r.avisoAbateOk, "");
   verdade("GMD na saida: real 1,55 x projetado 1,40 x energia 1,50", /1,55/.test(r.gmdSaida) && /1,40/.test(r.gmdSaida) && /1,50/.test(r.gmdSaida), r.gmdSaida);
+  igual("relatorio de tratos: horario de cada trato (inicio da descarga)", r.horasTrato, ["06:28", "09:37", "13:05", "16:40"]);
   verdade("pagina do curral: titulo, MS, nota e graficos", r.paginaCurral.titulo && r.paginaCurral.ms && r.paginaCurral.nota && r.paginaCurral.graf >= 1, JSON.stringify(r.paginaCurral));
   verdade("nenhum erro de JavaScript na pagina", !erros.length, erros.slice(0, 3).join(" | "));
 
