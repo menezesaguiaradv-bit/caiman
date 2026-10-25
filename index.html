@@ -7945,7 +7945,12 @@ function confirmarEnc(){
       const dg=l.dtE?diasEntre(l.dtE,ult.data):dias;
       if(dg>0){gmd=(ult.peso-l.pesoE)/dg;gmdReal=true;if(!pesoSaida)pesoSaida=ult.peso;}
     }
+    /* 24/10/2026: confinamento so pesa na entrada e na saida. Com peso de embarque (ou carcaca digitada) o GMD
+       do lote e o REAL da saida; antes ficava o 1,4 projetado mesmo com o peso de saida na mao. */
+    let gmdFonte=gmdReal?"pesagem":"projetado";
+    if(!gmdReal&&pesoSaida>0&&(l.pesoE||0)>0&&dias>0){gmd=(pesoSaida-l.pesoE)/dias;gmdReal=true;gmdFonte=pvEmb>0?"embarque":"carcaca";}
     if(!pesoSaida)pesoSaida=(l.pesoE||0)+gmd*dias;
+    let gmdEner=null;try{gmdEner=l.tipo==="Confinamento"?_pcGmdEnergia(l,dataAbate):null;}catch(e){}
     /* 01/10: guarda a ultima pesagem perto do abate (ate 20 dias antes) - o
        Historico de Abates usa como peso vivo de saida sem precisar digitar */
     let pesoVivoPesagem=0,dataPesagem="";
@@ -7965,7 +7970,8 @@ function confirmarEnc(){
     const msArroba=(arrobas>0&&msCab>0)?msCab/arrobas:0;
     const varConsumo=projKg>0?((kgRealTot-projKg)/projKg)*100:0;
     fechamento={
-      pesoSaida:+pesoSaida.toFixed(1),ganho:+ganho.toFixed(1),gmd:+gmd.toFixed(3),gmdReal:gmdReal,
+      pesoSaida:+pesoSaida.toFixed(1),ganho:+ganho.toFixed(1),gmd:+gmd.toFixed(3),gmdReal:gmdReal,gmdFonte:gmdFonte,
+      gmdProj:(l.tipo==="Confinamento"?GMD_PROJ_CONF:(+l.gmdP||null)),gmdEner:(gmdEner!=null?+gmdEner.toFixed(3):null),
       rend:+(rend*100).toFixed(1),arrobasCab:+arrobas.toFixed(2),arrobasLote:+(arrobas*qtd).toFixed(1),
       msCabDia:(dias>0?+(msCab/dias).toFixed(2):0),msCabTot:+msCab.toFixed(0),
       convAlim:+ca.toFixed(2),msArroba:+msArroba.toFixed(1),
@@ -22217,8 +22223,85 @@ function renderCurraisGrade(){
       li("Abate",ab&&ab.data?fmtData(ab.data):"—")+
     '</button>';
   });
-  h+='</div><div style="font-size:11px;color:#999;margin-top:6px">Faixa de cima na cor da nota de cocho de hoje (verde sobe, vermelho tira). Energia = Mcal do dia sobre a meta do confinamento.</div></div>';
+  h+='</div><div style="font-size:11px;color:#999;margin-top:6px">Faixa de cima na cor da nota de cocho de hoje (verde sobe, vermelho tira). Energia = Mcal do dia sobre a meta do confinamento.</div></div>'+(function(){try{return _pcGmdSaidaBloco();}catch(e){return "";}})();
   el.innerHTML=h;
+}
+/* 24/10/2026: ele: "pode aparecer em algum grafico se estamos a caminho do peso projetado ou nao" (no confinamento
+   so se pesa na entrada e na saida). Peso ESTIMADO PELO CONSUMO DE ENERGIA: no dia d, GMD de Livio pela energia
+   media consumida desde a entrada (pctAc de _serieHist = % da meta, a mesma conta do Tratos do Dia/gmdEner) e
+   peso = entrada + esse GMD x dias. Contra o projetado (entrada + GMD_PROJ_CONF x dias). A 100% da meta o Livio
+   da 1,423 kg/dia, entao com o gado comendo a meta as duas linhas andam juntas. */
+function _pcSerieEnergia(lt,ate){
+  var out=[];if(!lt||!lt.dtE)return out;
+  var pe=+(lt.pesoE||lt.peso)||0;if(!(pe>0))return out;
+  var S=null;try{S=_serieHist(ate,lt.id);}catch(e){return out;}
+  if(!S||!S.dias)return out;
+  S.dias.forEach(function(d,i){
+    if(d<lt.dtE)return;var ac=S.pctAc[i];if(!(ac>0))return;
+    var g=Math.max(0,_livioGmd(ac/100*_livioEmPct(lt),lt)),n=diasEntre(lt.dtE,d);
+    var pj=null;try{pj=pesoProjetadoLoteEm(lt,d);}catch(e){}
+    out.push({dia:d,est:+(pe+g*n).toFixed(1),proj:pj,gmd:+g.toFixed(3),pct:ac});
+  });
+  return out;
+}
+function _pcGmdEnergia(lt,ate){var s=_pcSerieEnergia(lt,ate);return s.length?s[s.length-1].gmd:null;}
+function _pcPesoEnergiaBloco(lt){
+  var V="#23432D",D="#B8944F",BD="#E3DCC8",ontem=addDias(todayStr(),-1);
+  var sr=_pcSerieEnergia(lt,ontem).filter(function(x){return x.proj>0;});
+  var h='<div style="background:#FFFEFA;border:1px solid '+BD+';border-radius:8px;padding:10px 12px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap"><div style="font-size:12px;font-weight:700;color:'+V+'">A caminho do peso projetado? Peso estimado pelo consumo de energia</div>';
+  if(sr.length<2)return h+'</div><div style="font-size:11.5px;color:#999;margin-top:4px">Sem tratos suficientes desde a entrada.</div></div>';
+  var u=sr[sr.length-1],dif=u.est-u.proj,gp=gmdDoLote(lt);
+  var corD=Math.abs(dif)<5?V:(dif>0?V:"#A32D2D");
+  h+='<div style="font-size:12px;color:#7A7668"><b style="font-size:15px;color:'+corD+'">'+(dif>=0?"+":"")+Math.round(dif).toLocaleString("pt-BR")+' kg</b> '+(Math.abs(dif)<5?'no projetado':(dif>0?'à frente':'atrás'))+' · GMD pela energia <b style="color:#1f241f">'+u.gmd.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+'</b> x '+gp.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+' projetado · energia média '+Math.round(u.pct)+'% da meta</div></div>';
+  var W=640,H=170,pl=40,pr=10,pt=14,pb=24,n=sr.length;
+  var vs=[];sr.forEach(function(p){vs.push(p.est,p.proj);});
+  var mn=Math.min.apply(null,vs),mx=Math.max.apply(null,vs);if(mx-mn<20){mx+=10;mn-=10;}var pad=(mx-mn)*0.08;mn-=pad;mx+=pad;
+  function X(i){return pl+(W-pl-pr)*(n>1?i/(n-1):0.5);}function Y(v){return pt+(H-pt-pb)*(1-(v-mn)/(mx-mn));}
+  function lin(k){return sr.map(function(p,i){return (i?"L":"M")+X(i).toFixed(1)+" "+Y(p[k]).toFixed(1);}).join(" ");}
+  var s='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block;margin-top:6px" role="img" aria-label="Peso estimado pela energia x projetado">';
+  [mn+pad,(mn+mx)/2,mx-pad].forEach(function(v){s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+Y(v).toFixed(1)+'" y2="'+Y(v).toFixed(1)+'" stroke="#EFEADC"/><text x="'+(pl-4)+'" y="'+(Y(v)+3).toFixed(1)+'" font-size="9.5" fill="#9A968A" text-anchor="end">'+Math.round(v).toLocaleString("pt-BR")+'</text>';});
+  s+='<path d="'+lin("proj")+'" fill="none" stroke="'+D+'" stroke-width="2" stroke-dasharray="5 4"/>';
+  s+='<path d="'+lin("est")+'" fill="none" stroke="'+V+'" stroke-width="2" stroke-linejoin="round"/>';
+  sr.forEach(function(p,i){s+='<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(p.est).toFixed(1)+'" r="'+(i===n-1?4:6)+'" fill="'+(i===n-1?V:"transparent")+'"><title>'+fmtData(p.dia)+': estimado '+Math.round(p.est)+' kg · projetado '+Math.round(p.proj)+' kg · GMD pela energia '+p.gmd.toFixed(2)+'</title></circle>';
+    if(i===0||i===n-1||i%Math.max(1,Math.round(n/5))===0)s+='<text x="'+X(i).toFixed(1)+'" y="'+(H-6)+'" font-size="9.5" fill="#7A7668" text-anchor="'+(i===0?"start":(i===n-1?"end":"middle"))+'">'+fmtData(p.dia).slice(0,5)+'</text>';});
+  s+='<text x="'+(X(n-1)-6).toFixed(1)+'" y="'+(Y(u.est)-8).toFixed(1)+'" font-size="12" font-weight="700" fill="'+V+'" text-anchor="end">'+Math.round(u.est)+' kg</text>';
+  s+='</svg><div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:#555;margin-top:2px"><span><i style="display:inline-block;width:16px;border-top:2px dashed '+D+';vertical-align:middle;margin-right:4px"></i>Projetado (entrada + '+gp.toLocaleString("pt-BR")+' kg/dia)</span><span><i style="display:inline-block;width:16px;border-top:2px solid '+V+';vertical-align:middle;margin-right:4px"></i>Estimado pela energia consumida (Livio)</span><span>Sem pesagem no meio: é estimativa; a pesagem de saída confirma.</span></div></div>';
+  return h+s;
+}
+/* 24/10/2026: peso de abate x data de abate. Os lotes ficaram com peso de abate 533 kg e data manual que so bate
+   com 588 kg (Saicon). Se o peso projetado na data gravada fugir 15 kg ou mais do peso de abate, avisa e oferece
+   acertar um ou outro (ele escolhe; nada muda sozinho). */
+function _pcAvisoAbate(lt){
+  try{
+    if(!(lt.pesoAbate>0)||!lt.dtAbate)return "";
+    var pa=pesoProjetadoLoteEm(lt,lt.dtAbate);if(!(pa>0)||Math.abs(pa-lt.pesoAbate)<15)return "";
+    var pe=+(lt.pesoE||lt.peso)||0,g=gmdDoLote(lt);if(!(pe>0)||!(g>0)||!lt.dtE)return "";
+    var dn=addDias(lt.dtE,Math.ceil((lt.pesoAbate-pe)/g));
+    var b='font-size:12px;padding:6px 11px;border-radius:7px;cursor:pointer;font-weight:700;';
+    return '<div style="background:#FBF3E4;border:1px solid #E7CF9F;border-left:4px solid #B8641F;border-radius:8px;padding:10px 12px;margin-bottom:12px"><div style="font-size:12.5px;color:#5C3D10"><b>Peso e data de abate não batem.</b> Na data gravada ('+fmtData(lt.dtAbate)+') o peso projetado é <b>'+Math.round(pa)+' kg</b>, mas o peso de abate do lote está em <b>'+Math.round(lt.pesoAbate)+' kg</b> (chegaria em '+fmtData(dn)+').</div>'+
+      '<div id="pc-ab-msg" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button onclick="_pcAcertarAbate(\''+lt.id+'\',\'peso\','+Math.round(pa)+')" style="'+b+'border:1px solid #23432D;background:#23432D;color:#F7F4EC">Peso de abate = '+Math.round(pa)+' kg</button>'+
+      '<button onclick="_pcAcertarAbate(\''+lt.id+'\',\'data\',\''+dn+'\')" style="'+b+'border:1px solid #B8944F;background:#fff;color:#7A5F28">Data de abate = '+fmtData(dn)+'</button></div></div>';
+  }catch(e){return "";}
+}
+function _pcAcertarAbate(id,campo,v){
+  var ls=getLotes(),l=ls.find(function(x){return String(x.id)===String(id);});if(!l)return;
+  if(campo==="peso")l.pesoAbate=+v;else{l.dtAbate=v;l.dtAbateManual=true;}
+  setLotes(ls);try{marcarPendente();}catch(e){}
+  try{renderAnimaisLote();}catch(e){}try{renderCurraisGrade();}catch(e){}
+}
+/* 24/10/2026: GMD na saida. Lote do confinamento so e pesado na entrada e na saida: no encerramento o fechamento
+   guarda o GMD real (peso de embarque) ao lado do projetado (1,4) e do estimado pela energia. Com alguns lotes,
+   a media do real diz se o 1,4 serve para a operacao dele. */
+function _pcGmdSaidaBloco(){
+  var ab=[];try{ab=getAbates().filter(function(a){return a&&a.tipo==="Confinamento"&&a.fech&&a.fech.gmd>0&&(a.fech.gmdFonte==="embarque"||a.fech.gmdFonte==="carcaca");});}catch(e){}
+  if(!ab.length)return "";
+  ab.sort(function(a,b){return String(b.dataSaida||"").localeCompare(String(a.dataSaida||""));});
+  var sg=0,sq=0;ab.forEach(function(a){var q=+a.qtd||1;sg+=a.fech.gmd*q;sq+=q;});
+  var med=sg/sq,f=function(v,c){return v==null||!isFinite(v)?"—":(+v).toLocaleString("pt-BR",{minimumFractionDigits:c,maximumFractionDigits:c});};
+  var t='<details style="margin-top:12px;border:1px solid #E3DCC8;border-radius:10px;background:#FFFEFA"><summary style="cursor:pointer;padding:11px 14px;font-size:14px;font-weight:700;color:#23432D">GMD na saída — real x projetado ('+ab.length+' lote'+(ab.length>1?'s':'')+', média '+f(med,2)+' kg/dia)</summary><div style="padding:0 12px 12px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="background:#F7F4EC;color:#7A7668;text-align:right"><th style="text-align:left;padding:6px">Curral</th><th style="padding:6px">Saída</th><th style="padding:6px">Dias</th><th style="padding:6px">Entrada</th><th style="padding:6px">Saída kg</th><th style="padding:6px">GMD real</th><th style="padding:6px">Projetado</th><th style="padding:6px">Pela energia</th></tr>';
+  ab.forEach(function(a){var x=a.fech,gp=x.gmdProj||GMD_PROJ_CONF,c=x.gmd>=gp?"#23432D":"#A32D2D";
+    t+='<tr style="border-top:1px solid #EFEADC;text-align:right"><td style="text-align:left;padding:6px;font-weight:700">'+_escAL(String(a.pasto||"—"))+'</td><td style="padding:6px">'+(a.dataSaida?fmtData(a.dataSaida):"—")+'</td><td style="padding:6px">'+(a.dias||"—")+'</td><td style="padding:6px">'+f(a.pesoE,0)+'</td><td style="padding:6px">'+f(x.pesoSaida,0)+(x.gmdFonte==="carcaca"?'<span title="pela carcaça e rendimento" style="color:#999">*</span>':'')+'</td><td style="padding:6px;font-weight:700;color:'+c+'">'+f(x.gmd,2)+'</td><td style="padding:6px">'+f(gp,2)+'</td><td style="padding:6px">'+f(x.gmdEner,2)+'</td></tr>';});
+  return t+'</table><div style="font-size:10.5px;color:#999;margin-top:6px">Média ponderada pelas cabeças. * peso de saída pela carcaça (sem peso de embarque).</div></div></details>';
 }
 /* bloco do CURRAL na pagina (abrirAnimaisLote), no lugar do bloco do pasto */
 function _pcBlocoCurral(L,lt,parte){
@@ -22236,6 +22319,7 @@ function _pcBlocoCurral(L,lt,parte){
   h+='<div style="background:#F7F4EC;border:1px solid '+BD+';border-left:4px solid '+V+';border-radius:8px;padding:10px 12px;margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:'+V+';margin-bottom:6px">Lote · Confinamento</div><div style="display:flex;gap:12px 8px;flex-wrap:wrap;justify-content:space-around">'+
     it("Cabeças",(parseInt(lt.qtd)||0).toLocaleString("pt-BR"))+it("Entrada",(lt.dtE?fmtData(lt.dtE):"—")+((lt.pesoE||lt.peso)?" · "+(+(lt.pesoE||lt.peso)).toFixed(0)+" kg":""))+
     it("Dias de cocho",dias!=null?dias:"—")+(function(){var pp=null;try{pp=pesoProjetadoLoteEm(lt,hoje);}catch(e){}return it("Peso projetado hoje",pp?Math.round(pp).toLocaleString("pt-BR")+" kg":"—");})()+it("Abate previsto",ab&&ab.data?fmtData(ab.data):"—")+it("Meta % PV",(lt.metaPV>0?lt.metaPV:2.26).toLocaleString("pt-BR")+"%")+'</div></div>';
+  h+=_pcAvisoAbate(lt);
   /* 14 dias: MS/cab e %PV (ncxSerie) e energia (_dadosTratosDia), mais a nota de cada dia */
   var ser=[];try{ser=ncxSerie(lt,addDias(hoje,-1),14);}catch(e){}
   var ptsMS=[],ptsPV=[],ptsE=[],ptsPR=[],notas=[];
@@ -22253,7 +22337,8 @@ function _pcBlocoCurral(L,lt,parte){
     graf("MS por cabeça (kg/dia) — 14 dias",ptsMS,V,"Sem tratos nos últimos 14 dias.")+
     graf("Consumo em % do PV (MS)",ptsPV,D,"Sem peso projetado para calcular.")+
     graf("Energia (% da meta)",ptsE,"#7A5F28","Sem dados de energia.")+'</div>'+
-    _pcProgRealBloco(ptsPR);
+    _pcProgRealBloco(ptsPR)+
+    (function(){try{return _pcPesoEnergiaBloco(lt);}catch(e){console.warn("peso pela energia:",e);return "";}})();
   h+='<div style="background:#FFFEFA;border:1px solid '+BD+';border-radius:8px;padding:10px 12px;margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:'+V+';margin-bottom:6px">Nota de cocho — ajuste do trato, últimos 15 dias</div><div style="display:flex;gap:4px;flex-wrap:wrap">'+
     notas.map(function(x){return '<div style="text-align:center;min-width:38px"><div style="font-size:10px;color:#7A7668">'+_mbData(x.dia)+'</div><div style="font-size:13px;font-weight:700;color:#fff;background:'+_pcCorNota(x.n)+';border-radius:6px;padding:3px 0">'+(x.n==null?"—":_pcAjTxt(x.aj))+'</div></div>';}).join("")+'</div></div>';
   return h;
@@ -25049,7 +25134,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.24-progreal</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.25-pesoenergia</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">

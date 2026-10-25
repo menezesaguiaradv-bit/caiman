@@ -108,7 +108,14 @@ function fixture() {
     abrirAnimaisLote(encodeURIComponent("Pinheiral"), encodeURIComponent("A1"));
     const ac = document.getElementById("al-corpo").innerText;
     R.paginaCurral = { peso: /PESO PROJETADO HOJE\s*522 kg|Peso projetado hoje\s*522 kg/i.test(ac), titulo: /CURRAL|Curral/.test(ac), ms: /MS por cabe/.test(ac), nota: /Nota de cocho/.test(ac), graf: document.getElementById("al-corpo").querySelectorAll("svg").length, progReal: ((ac.match(/Trato programado x realizado[^\n]*\n?[^\n]*/) || [""])[0]).replace(/\s+/g, " ") };
+    R.pesoEnergia = (ac.match(/A caminho do peso projetado[^\n]*\n?[^\n]*/) || [""])[0].replace(/\s+/g, " ");
     fecharAnimaisLote();
+    /* 24/10: aviso de peso x data de abate e GMD na saida */
+    R.avisoAbate = _pcAvisoAbate({ id: 999, tipo: "Confinamento", pesoE: 418, dtE: "2026-08-11", pesoAbate: 533, dtAbate: "2026-12-07", dtAbateManual: true }).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+    R.avisoAbateOk = _pcAvisoAbate({ id: 998, tipo: "Confinamento", pesoE: 418, dtE: "2026-08-11", pesoAbate: 584, dtAbate: "2026-12-07", dtAbateManual: true });
+    localStorage.setItem("caiman_abates_v1", JSON.stringify([{ id: 1, tipo: "Confinamento", fazenda: "Pinheiral", pasto: "A9", qtd: 100, dataSaida: "2026-09-30", dias: 100, pesoE: 400, fech: { gmd: 1.55, gmdFonte: "embarque", pesoSaida: 555, gmdProj: 1.4, gmdEner: 1.5 } }]));
+    R.gmdSaida = _pcGmdSaidaBloco().replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+    localStorage.removeItem("caiman_abates_v1");
     /* cotacoes do dashboard */
     localStorage.setItem("caiman_arroba_futuros", JSON.stringify({ lido_em: "2026-10-24T12:00:00Z", contratos: [{ mes: "2026-10", codigo: "BGIV26", preco: 383 }, { mes: "2026-11", codigo: "BGIX26", preco: 392 }] }));
     localStorage.setItem("caiman_datagro", JSON.stringify({ sp: [["2026-10-22", 381], ["2026-10-23", 382]], ms: [["2026-10-22", 376], ["2026-10-23", 377]] }));
@@ -159,6 +166,11 @@ function fixture() {
   verdade("confinamento: nota de cocho de hoje em % no quadrado (nota -1 = trato +5%)", /trato \+5%/.test(r.curralTxt), r.curralTxt.slice(0, 200));
   // 24/10: grafico programado x realizado (4 tratos de 700 kg = 2.800 kg contra 4 x 690 = 2.760 kg)
   verdade("pagina do curral: trato programado x realizado (2.800 de 2.760 kg, +1,4%)", /2\.800<?\/?b?>? de 2\.760 kg|2\.800 de 2\.760 kg/.test(r.paginaCurral.progReal) && /\+1,4%/.test(r.paginaCurral.progReal), r.paginaCurral.progReal);
+  // 24/10: peso estimado pela energia (126% da meta -> Livio 1,84 kg/dia; 73 dias -> 418 + 134 = 553 kg; projetado 520 kg)
+  verdade("pagina do curral: peso estimado pela energia (+32 kg a frente, GMD 1,84)", /\+32 kg/.test(r.pesoEnergia) && /1,84/.test(r.pesoEnergia), r.pesoEnergia);
+  verdade("aviso de abate: 533 kg com data de 07/12 (418 + 118 dias x 1,4 = 583 kg, chegaria em 02/11)", /583 kg/.test(r.avisoAbate) && /533 kg/.test(r.avisoAbate) && /02\/11\/2026/.test(r.avisoAbate), r.avisoAbate);
+  igual("aviso de abate: some quando peso e data batem", r.avisoAbateOk, "");
+  verdade("GMD na saida: real 1,55 x projetado 1,40 x energia 1,50", /1,55/.test(r.gmdSaida) && /1,40/.test(r.gmdSaida) && /1,50/.test(r.gmdSaida), r.gmdSaida);
   verdade("pagina do curral: titulo, MS, nota e graficos", r.paginaCurral.titulo && r.paginaCurral.ms && r.paginaCurral.nota && r.paginaCurral.graf >= 1, JSON.stringify(r.paginaCurral));
   verdade("nenhum erro de JavaScript na pagina", !erros.length, erros.slice(0, 3).join(" | "));
 
