@@ -157,9 +157,10 @@ function fixture() {
     R.pagina = pg.innerText.replace(/\s+/g, " ");
     R.svgs = pg.querySelectorAll("svg").length;
     R.ativa = document.getElementById("page-estinsumo").classList.contains("active");
+    R.botoes = [...pg.querySelectorAll("button")].map((x) => x.textContent.trim()).join("|");
     let pdf = null; const orig = window._pdfEntregar;
     window._pdfEntregar = (doc, nome) => { pdf = { nome, pags: doc.getNumberOfPages() }; };
-    try { _eiPdf(true); } finally { window._pdfEntregar = orig; }
+    try { await _eiPdf(); } finally { window._pdfEntregar = orig; }
     R.pdf = pdf;
     /* 25/10: aviso de estoque com a mesma conta (sal: cocho 47 dias, com a racao da Cruz Alta 7 dias) */
     R.alertasPinh = _estAlertas().filter((x) => /pinheiral/i.test(x.fazenda)).map((x) => x.nome);
@@ -179,6 +180,7 @@ function fixture() {
   verdade("pagina do insumo: graficos (saldo, projetado x realizado, MS, usado)", ei.svgs >= 4, "(" + ei.svgs + ")");
   igual("aviso de estoque: nenhum insumo do cocho acaba em 15 dias pelas dietas", ei.alertasPinh, []);
   verdade("aviso de estoque: sal so aperta com a racao da Cruz Alta (31/10)", /Só aperta se continuar batendo ração/.test(ei.aviso) && /Sal Branco/.test(ei.aviso) && /31\/10\/2026/.test(ei.aviso), ei.aviso.slice(0, 300));
+  verdade("pagina do insumo: um botao so, Exportar PDF, sem emoji", ei.botoes === "Exportar PDF", ei.botoes);
   verdade("pagina do insumo: PDF no padrao do app", !!ei.pdf && ei.pdf.nome === "Bagaco_De_Cana_2026-10-24.pdf" && ei.pdf.pags >= 1, JSON.stringify(ei.pdf));
 
   if (process.env.SHOT) {   /* fotos para conferir o visual: SHOT=/pasta node tests/app.test.cjs */
