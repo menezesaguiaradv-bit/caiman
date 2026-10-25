@@ -163,6 +163,7 @@ function fixture() {
     try { await _eiPdf(); } finally { window._pdfEntregar = orig; }
     R.pdf = pdf;
     /* 25/10: aviso de estoque com a mesma conta (sal: cocho 47 dias, com a racao da Cruz Alta 7 dias) */
+    R.nomes = [_nomeArq("Relatorio_Lote_A1.pdf", "pdf"), _nomeArq("Tratos_2026-10-23.pdf", "pdf"), _nomeArq("Pesagens Confinamento", "xlsx"), _nomeArq("Bagaço De Cana", "pdf")];
     R.alertasPinh = _estAlertas().filter((x) => /pinheiral/i.test(x.fazenda)).map((x) => x.nome);
     _estAvisoBaixoMostrar(true);
     const mod = document.getElementById("modal-est-aviso");
@@ -178,6 +179,7 @@ function fixture() {
   verdade("pagina do insumo: currais na ordem de abate, A2 chega e B1 nao", /A2[^]*chega[^]*A3[^]*não · 9 dias sem[^]*B1/.test(ei.pagina), ei.pagina.slice(0, 600));
   verdade("pagina do insumo: media geral de MS 49,9% (22 dias a 55% e 23 a 45%: 2245/45)", /MÉDIA GERAL DE MS 49,9%|Média geral de MS 49,9%/i.test(ei.pagina), "");
   verdade("pagina do insumo: graficos (saldo, projetado x realizado, MS, usado)", ei.svgs >= 4, "(" + ei.svgs + ")");
+  igual("arquivos sempre nomeados e com data", ei.nomes, ["Relatorio_Lote_A1_2026-10-24.pdf", "Tratos_2026-10-23.pdf", "Pesagens_Confinamento_2026-10-24.xlsx", "Bagaco_De_Cana_2026-10-24.pdf"]);
   igual("aviso de estoque: nenhum insumo do cocho acaba em 15 dias pelas dietas", ei.alertasPinh, []);
   verdade("aviso de estoque: sal so aperta com a racao da Cruz Alta (31/10)", /Só aperta se continuar batendo ração/.test(ei.aviso) && /Sal Branco/.test(ei.aviso) && /31\/10\/2026/.test(ei.aviso), ei.aviso.slice(0, 300));
   verdade("pagina do insumo: um botao so, Exportar PDF, sem emoji", ei.botoes === "Exportar PDF", ei.botoes);

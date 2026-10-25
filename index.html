@@ -4789,7 +4789,7 @@ function exportarMsBagacoPdf(){
     doc.text(String(m.obs||"").substring(0,28),168,y);
     y+=4; doc.setDrawColor(238,238,238); doc.line(23,y,187,y); y+=4;
   });
-  doc.save("MS_"+String((S.ing&&S.ing.nome)||"volumoso").replace(/[^A-Za-z0-9]+/g,"_")+"_"+todayStr()+".pdf");
+  _pdfBaixarNomeado(doc,"MS_"+String((S.ing&&S.ing.nome)||"volumoso").replace(/[^A-Za-z0-9]+/g,"_")+"_"+todayStr()+".pdf");
 }
 
 /* ================= CONTROLE DE PONTO — FINS DE SEMANA =================
@@ -5240,7 +5240,7 @@ function pontoPdf(){
     doc.text(f(x.valor),187,y,{align:"right"});
     y+=4; doc.setDrawColor(238,238,238); doc.setLineWidth(0.15); doc.line(23,y,187,y); y+=5;
   });
-  doc.save("Ponto_"+ano+"-"+String(mes+1).padStart(2,"0")+".pdf");
+  _pdfBaixarNomeado(doc,"Ponto_"+ano+"-"+String(mes+1).padStart(2,"0")+".pdf");
 }
 
 /* ===== NAVEGACAO COM VOLTAR =====
@@ -6852,7 +6852,7 @@ function pdfPesagemPasto(fEnc,pEnc){
   });
   y+=3;if(y<285){doc.setFontSize(7);doc.setTextColor(CZ[0],CZ[1],CZ[2]);doc.text("Faixa creme: abaixo de 90% do peso médio do pasto.",20,y);}
   var np=doc.internal.getNumberOfPages();for(var pg=1;pg<=np;pg++){doc.setPage(pg);try{_pdfRodape(doc);}catch(e){}}
-  doc.save("Pesagem_"+String(pasto).replace(/[^\w-]+/g,"_")+"_"+todayStr()+".pdf");
+  _pdfBaixarNomeado(doc,"Pesagem_"+String(pasto).replace(/[^\w-]+/g,"_")+"_"+todayStr()+".pdf");
 }
 (function(){
   if(typeof renderAnimais!=="function")return;
@@ -9831,10 +9831,11 @@ function importarEstoque(input){
 }
 
 function baixarXLSX(wb,nomeArquivo){
+  nomeArquivo=_nomeArq(nomeArquivo,"xlsx");
   try{
     // gera o arquivo como array de bytes
     const wbout=XLSX.write(wb,{bookType:"xlsx",type:"array"});
-    const blob=new Blob([wbout],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+    const blob=new File([wbout],nomeArquivo,{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
     a.href=url;
@@ -12776,7 +12777,7 @@ function exportarAcumuladoPdf(){
   }
 
   const nome="Acumulado_"+ini+"_a_"+fim+(loteId?"_"+D.linhas[0].nome:"")+".pdf";
-  doc.save(nome);
+  _pdfBaixarNomeado(doc,nome);
 }
 
 /* Abre o seletor de periodo a partir do menu Compartilhar do dashboard.
@@ -12948,7 +12949,7 @@ function exportarCargasDiaPdf(data){
   doc.setFontSize(7.5); doc.setTextColor(150,150,145); doc.setFont("helvetica","italic");
   doc.text(D.cargas.length+(D.cargas.length===1?" carga":" cargas")+"   -   * % MS medida na fazenda",20,y+5);
   doc.text("Projeto Confinamento - Fazenda Pinheiral",190,y+5,{align:"right"});
-  doc.save("Carregamento_"+data+".pdf");
+  _pdfBaixarNomeado(doc,"Carregamento_"+data+".pdf");
 }
 
 function renderCarregamento(){
@@ -16517,7 +16518,18 @@ function exportarTratosDiaPdf(data,dataF,filtroLote){
 /* 23/10/2026: o PDF de tratos chegava no celular como "download_29.pdf". O doc.save do jsPDF
    entrega um blob sem nome em alguns aparelhos; aqui o arquivo vai como File com o nome e o
    link com download=nome, que e o que o gerenciador de downloads le. */
+/* 25/10/2026 (ele: "sempre que eu gerar um relatorio no app ou na Bia, o arquivo venha nomeado"):
+   todo arquivo sai com o nome do relatorio, sem acento nem espaco, e com a data; nome sem data ganha a
+   de hoje. Vale para PDF (baixar e compartilhar) e Excel. */
+function _nomeArq(nome,ext){
+  ext=ext||"pdf";
+  var n=String(nome||"Relatorio").replace(new RegExp("\\."+ext+"$","i"),"").normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/[^\w.-]+/g,"_").replace(/_+/g,"_").replace(/^_+|_+$/g,"")||"Relatorio";
+  if(!/\d{4}-\d{2}/.test(n))n+="_"+todayStr();
+  return n+"."+ext;
+}
 function _pdfBaixarNomeado(doc,nome){
+  nome=_nomeArq(nome,"pdf");
   try{
     const blob=doc.output("blob");
     const arq=new File([blob],nome,{type:"application/pdf"});
@@ -20437,7 +20449,7 @@ async function pdfEstoqueBia(compartilhar){
       try{await navigator.share({files:[arq],title:"Estoque "+todayStr()});aviso("");return;}
       catch(e){if(e&&e.name==="AbortError"){aviso("");return;}}
     }
-    const url=URL.createObjectURL(blob);
+    const url=URL.createObjectURL(arq);
     const a=document.createElement("a");
     a.href=url;a.download=nome;
     document.body.appendChild(a);a.click();document.body.removeChild(a);
@@ -20454,6 +20466,7 @@ async function pdfEstoqueBia(compartilhar){
 // abre a folha nativa de compartilhamento (WhatsApp, e-mail...) com o ARQUIVO;
 // senão, baixa normalmente. Fallback: navegadores sem suporte baixam o PDF.
 async function _pdfEntregar(doc,nomeArq){
+  nomeArq=_nomeArq(nomeArq,"pdf");
   if(window._pdfShare){
     window._pdfShare=false;
     try{
@@ -25180,7 +25193,7 @@ function exportarPDFViabilidade(){
   else{doc.setTextColor(198,40,40);doc.text("Operacao no prejuizo - reavalie os numeros",26,y);}
 
   _pdfRodape(doc);
-  doc.save("Viabilidade_"+todayStr()+".pdf");
+  _pdfBaixarNomeado(doc,"Viabilidade_"+todayStr()+".pdf");
 }
 
 function importarLotesConf(input){
@@ -25496,7 +25509,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.25-pdfpagina</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.25-nomes</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
