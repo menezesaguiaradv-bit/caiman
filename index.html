@@ -2373,6 +2373,15 @@ details.ncx-det summary{cursor:pointer;font-weight:600;color:var(--v);font-size:
   <div class="ptitle">Estoque de insumos</div>
   <div class="psub-h">Saldo por fazenda, descontado automaticamente a cada trato lançado — confinamento e semi.</div>
 
+  <div class="sec" id="ei-sec">
+    <div class="stitle">Até quando dura cada insumo · Pinheiral</div>
+    <div style="font-size:12px;color:var(--mt);margin:4px 0 12px">
+      Pelas <b>dietas de cada curral</b> até o <b>abate previsto</b>, com o saldo do <b>Saicon</b> — a mesma conta do Painel Caiman.
+      Toque num insumo para ver tudo dele e exportar o PDF.
+    </div>
+    <div id="ei-conteudo"></div>
+  </div>
+
   <div class="sec">
     <div class="stitle">Relatório de Estoque (PDF)</div>
     <div style="font-size:12px;color:var(--mt);margin:4px 0 12px">
@@ -2430,6 +2439,11 @@ details.ncx-det summary{cursor:pointer;font-weight:600;color:var(--v);font-size:
     <div id="est-lista"></div>
   </div>
 </div>
+</div>
+
+<div id="page-estinsumo" class="page">
+<div class="ph"><button class="back" onclick="irPara('estoque')">← Estoque</button></div>
+<div class="main" id="ei-pagina"></div>
 </div>
 
 <div id="page-pesagens" class="page">
@@ -4062,6 +4076,7 @@ function podeVerAba(aba){
   if(!perm)return true; // sem restrição
   // dashboard sempre liberado (mostra só o que o usuário pode)
   if(aba==="dashboard")return true;
+  if(aba==="estinsumo")aba="estoque";   /* 24/10: a pagina do insumo segue a permissao da aba Estoque */
   return perm.abas.indexOf(aba)>=0;
 };
 const FAZENDA_RESTRITA={'fabricio':['Caiman','Maguary'],'robson':['Cruz Alta'],'renato':['Pinheiral'],'reginaldo':['Furna']};
@@ -5370,7 +5385,8 @@ function irPara(p){
   if(p==="projecao"){carregarConfigCiclo();_r(renderReceitasExtras,"renderReceitasExtras");_r(renderCustosExtras,"renderCustosExtras");atualizarProjecao();_r(renderHistoricoCiclos,"renderHistoricoCiclos");}
   if(p==="nutricusto"){const nd=document.getElementById("nc-data");if(nd&&!nd.value)nd.value=todayStr();_r(renderNutriCusto,"renderNutriCusto");}
   if(p==="ocorrencias"){_r(renderOcorrencias,"renderOcorrencias");}
-  if(p==="estoque"){_r(renderEstoque,"renderEstoque");}
+  if(p==="estoque"){_r(renderEstoque,"renderEstoque");_r(_eiRender,"_eiRender");}
+  if(p==="estinsumo"){_r(_eiRenderInsumo,"_eiRenderInsumo");}
   if(p==="abatesconf"){_r(renderAbatesConf,"renderAbatesConf");abcBaixarConag(false);}
   if(p==="notacocho"){const d=document.getElementById("ncx-data");if(d&&!d.value)d.value=todayStr();_r(renderNotaCocho,"renderNotaCocho");ncxBaixar(false);}
   if(p==="cargas"){_r(renderAcumulado,"renderAcumulado");_r(renderCalendarioCarga,"renderCalendarioCarga");_r(renderCargaIngredientes,"renderCargaIngredientes");_r(renderCargaIngUm,"renderCargaIngUm");}
@@ -9235,6 +9251,285 @@ function _estBiaBloco(B){
     "<tr style='font-weight:700;background:var(--bg)'><td></td><td>TOTAL</td><td></td><td></td><td style='text-align:right'>"+f(tP)+" kg</td><td style='text-align:right'>"+f(tR)+" kg</td>"+
     "<td style='text-align:right'>"+f(tO)+" kg</td><td></td><td></td><td></td><td style='text-align:right'>R$ "+f(tV,2)+"</td></tr></tbody></table></div>";
 }
+/* ===== 24/10/2026: ATE QUANDO DURA CADA INSUMO (Pinheiral) =====
+   Ele: "copiar essa pagina [do Painel Caiman] para a aba de insumos" e "faca de acordo com a sua
+   recomendacao sobre as contas baterem". A conta NAO e feita aqui: o app chama as funcoes do
+   Supabase caiman_est_estoque/proj/uso/prog/currais, as MESMAS que o Painel usa (uma conta so).
+   Cada curral come o que a sua fase come hoje por cabeca (mediana de 7 dias), troca de crescimento
+   para terminacao aos 20 dias e para no abate previsto; a racao batida para a Cruz Alta entra pela
+   media de 7 dias. Toque num insumo abre a pagina dele (page-estinsumo), com PDF no padrao do app. */
+var _EI={dados:null,ts:0,carregando:null,sel:null,erro:null};
+var _EI_V="#23432D",_EI_D="#B8944F",_EI_R="#A32D2D",_EI_BD="#E3DCC8",_EI_MT="#7A7668",_EI_AZ="#3B6E8F";
+function _eiCorDias(v){return v==null?_EI_V:(+v<15?_EI_R:(+v<30?_EI_D:_EI_V));}
+function _eiKg(v){return Math.round(+v||0).toLocaleString("pt-BR");}
+function _eiBrl(v){return "R$ "+Math.round(+v||0).toLocaleString("pt-BR");}
+function _eiPct(v){return (+v).toLocaleString("pt-BR",{maximumFractionDigits:1});}
+function _eiQtd(v){v=Math.abs(+v||0);return v>=10000?Math.round(v/1000).toLocaleString("pt-BR")+" t":_eiKg(v)+" kg";}
+function _eiDm(iso){iso=String(iso||"");return iso.length>=10?iso.slice(8,10)+"/"+iso.slice(5,7):"";}
+function _eiDiff(a,b){return Math.round((new Date(String(b).slice(0,10)+"T00:00:00")-new Date(String(a).slice(0,10)+"T00:00:00"))/86400000);}
+function _eiEsc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+function _eiTemConf(r){return +r.consumo_conf>0;}
+function _eiTemProd(r){return +r.consumo_prod>0;}
+function _eiAcaba(r){return _eiTemConf(r)?r.acaba_conf:r.acaba_total;}
+function _eiDias(r){return _eiTemConf(r)?r.dias_conf:r.dias_total;}
+function _eiFase(d){d=String(d||"");return /termina|final/i.test(d)?"Terminação":(/cresc/i.test(d)?"Crescimento":(/2/.test(d)?"Adaptação 2":(d?"Adaptação 1":"—")));}
+
+async function _eiCarregar(forcar){
+  if(!forcar&&_EI.dados&&Date.now()-_EI.ts<10*60*1000)return _EI.dados;
+  if(_EI.carregando)return _EI.carregando;
+  _EI.carregando=(async function(){
+    try{
+      if(!SB_URL)throw new Error("Configure o Supabase (Sync).");
+      const h=await _hdrAuth(),base=SB_URL.replace(/\/+$/,"")+"/rest/v1/rpc/";
+      const ler=async function(f){const r=await fetch(base+f,{method:"POST",headers:h,body:"{}"});if(!r.ok)throw new Error(f+" "+r.status);return r.json();};
+      const res=await Promise.all(["caiman_est_estoque","caiman_est_proj","caiman_est_uso","caiman_est_prog","caiman_est_currais"].map(ler));
+      _EI.dados={estoque:res[0]||[],proj:res[1]||[],uso:res[2]||[],prog:res[3]||[],currais:res[4]||[]};_EI.ts=Date.now();_EI.erro=null;
+      return _EI.dados;
+    }catch(e){_EI.erro=String(e&&e.message||e);console.warn("estoque pelas dietas:",e);return _EI.dados;}
+    finally{_EI.carregando=null;}
+  })();
+  return _EI.carregando;
+}
+
+/* ---------- aba Estoque: cartoes "comprar" + lista tocavel ---------- */
+async function _eiRender(){
+  const box=document.getElementById("ei-conteudo");if(!box)return;
+  if(!_EI.dados)box.innerHTML='<div style="font-size:12px;color:'+_EI_MT+';padding:8px 0">Carregando…</div>';
+  const D=await _eiCarregar(false);
+  if(!D||!D.estoque.length){box.innerHTML='<div style="font-size:12px;color:#999;padding:8px 0">'+(_EI.erro?"Não consegui ler do servidor ("+_eiEsc(_EI.erro)+").":"Sem dados de estoque do Saicon.")+'</div>';return;}
+  const E=D.estoque,ult=E[0].ultimo_abate,hor=Math.max(1,_eiDiff(todayStr(),ult));
+  let h="";
+  const falta=E.filter(function(r){return _eiTemConf(r)&&+r.falta_conf_kg>0;});
+  if(falta.length){
+    h+='<div style="font-size:12.5px;font-weight:700;color:#1f241f;margin:2px 0 8px">Comprar para chegar ao último abate ('+_eiDm(ult)+')</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:14px">';
+    falta.forEach(function(r){const c=_eiCorDias(r.dias_conf);
+      h+='<div onclick="_eiAbrir(decodeURIComponent(\''+encodeURIComponent(r.insumo)+'\'))" style="cursor:pointer;background:#FBF8F0;border:1px solid '+_EI_BD+';border-left:4px solid '+c+';border-radius:8px;padding:8px 10px;text-align:center">'+
+        '<div style="font-size:11.5px;color:'+_EI_MT+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+_eiEsc(r.insumo)+'</div>'+
+        '<div style="font-size:20px;font-weight:700;color:'+_EI_R+';line-height:1.2">'+_eiQtd(r.falta_conf_kg)+'</div>'+
+        '<div style="font-size:11px;font-weight:700;color:'+c+'">acaba '+_eiDm(r.acaba_conf)+'</div></div>';});
+    h+='</div>';
+  }else h+='<div style="font-size:13px;font-weight:700;color:'+_EI_V+';margin-bottom:12px">Todos os insumos do cocho chegam ao último abate ('+_eiDm(ult)+').</div>';
+  h+='<div style="font-size:12.5px;font-weight:700;color:#1f241f;margin:4px 0 2px">Todos os insumos</div>';
+  E.forEach(function(r){
+    const dd=_eiDias(r),a=_eiAcaba(r),c=_eiCorDias(dd),w=dd==null?100:Math.max(2,Math.min(100,+dd/hor*100));
+    const sub=(_eiTemConf(r)?(+r.falta_conf_kg>0?'<b style="color:'+_EI_R+'">falta '+_eiQtd(r.falta_conf_kg)+' até '+_eiDm(ult)+'</b>':'sobra '+_eiQtd(r.falta_conf_kg)+' no fim'):'só na ração da Cruz Alta')+' · '+_eiKg(r.saldo)+' kg em estoque';
+    h+='<div onclick="_eiAbrir(decodeURIComponent(\''+encodeURIComponent(r.insumo)+'\'))" style="cursor:pointer;padding:10px 2px;border-bottom:1px solid '+_EI_BD+'">'+
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><span style="font-size:14px;font-weight:700;color:#1f241f">'+_eiEsc(r.insumo)+'</span>'+
+      '<span style="font-size:13px;font-weight:700;color:'+c+';white-space:nowrap">'+(a?'acaba '+_eiDm(a):'chega ao abate')+' <span style="color:'+_EI_MT+';font-weight:400">›</span></span></div>'+
+      '<div style="font-size:11.5px;color:'+_EI_MT+';margin-top:2px">'+sub+'</div>'+
+      '<div style="height:5px;background:#EFEADB;border-radius:3px;margin-top:7px;overflow:hidden"><div style="height:100%;width:'+w.toFixed(1)+'%;background:'+c+';border-radius:3px;opacity:'+(_eiTemConf(r)?1:.45)+'"></div></div></div>';
+  });
+  box.innerHTML=h;
+}
+function _eiAbrir(nome){_EI.sel=nome;irPara("estinsumo");}
+
+/* ---------- grafico de linhas em SVG (varias series, como os do app) ---------- */
+function _eiSvg(series,dias,o){
+  o=o||{};
+  if(!dias||dias.length<2)return '<div style="font-size:11px;color:#999">Sem dados suficientes.</div>';
+  const W=640,H=o.alt||200,pl=52,pr=12,pt=o.topo||14,pb=24,n=dias.length;
+  let vs=[];series.forEach(function(s){s.v.forEach(function(v){if(v!=null&&isFinite(v))vs.push(+v);});});if(o.ref!=null)vs.push(o.ref);
+  if(!vs.length)return '<div style="font-size:11px;color:#999">Sem dados.</div>';
+  let mn=o.pct?Math.min.apply(null,vs):Math.min(0,Math.min.apply(null,vs)),mx=Math.max.apply(null,vs);
+  if(mx===mn){mx+=1;}
+  const bruto=(mx-mn)/4,b=Math.pow(10,Math.floor(Math.log10(bruto)));let passo=b*10;[1,2,2.5,5,10].some(function(m){if(b*m>=bruto){passo=b*m;return true;}return false;});
+  mn=Math.floor(mn/passo)*passo;mx=Math.ceil(mx/passo)*passo;
+  function X(i){return pl+(W-pl-pr)*i/(n-1);}function Y(v){return pt+(H-pt-pb)*(1-(v-mn)/(mx-mn));}
+  const ft=function(v){return o.pct?v.toFixed(0)+"%":(Math.abs(v)>=10000?Math.round(v/1000).toLocaleString("pt-BR")+" t":Math.round(v).toLocaleString("pt-BR"));};
+  let s='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block" role="img">';
+  (o.faixas||[]).forEach(function(f){let i0=-1,i1=-1;dias.forEach(function(d,i){if(i0<0&&d>=f.de)i0=i;if(d<=f.ate)i1=i;});if(i0<0||i1<0)return;
+    const x0=X(i0),x1=Math.max(X(i1),x0+3);s+='<rect x="'+x0.toFixed(1)+'" y="'+pt+'" width="'+(x1-x0).toFixed(1)+'" height="'+(H-pt-pb)+'" fill="#F1E6CC" opacity=".75"/>'+
+    '<text x="'+((x0+x1)/2).toFixed(1)+'" y="'+(pt-4)+'" font-size="10" font-weight="700" fill="#8A6A1F" text-anchor="'+(x1>W-60?"end":"middle")+'">'+_eiEsc(f.txt)+'</text>';});
+  if(o.abaixoRef&&o.ref!=null)s+='<rect x="'+pl+'" y="'+Y(o.ref).toFixed(1)+'" width="'+(W-pl-pr)+'" height="'+(Y(mn)-Y(o.ref)).toFixed(1)+'" fill="#E3EDF3"/><text x="'+(pl+6)+'" y="'+(H-pb-6)+'" font-size="10" fill="'+_EI_AZ+'">'+_eiEsc(o.abaixoRef)+'</text>';
+  if(o.zero&&mn<0)s+='<rect x="'+pl+'" y="'+Y(0).toFixed(1)+'" width="'+(W-pl-pr)+'" height="'+(Y(mn)-Y(0)).toFixed(1)+'" fill="#FBE9E7" opacity=".6"/>';
+  for(let v=mn;v<=mx+1e-9;v+=passo){const y=Y(v);s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+y.toFixed(1)+'" y2="'+y.toFixed(1)+'" stroke="#EDE7D6"/><text x="'+(pl-5)+'" y="'+(y+3.5).toFixed(1)+'" font-size="10" fill="#9A968A" text-anchor="end">'+ft(v)+'</text>';}
+  if(o.zero&&mn<0)s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+Y(0).toFixed(1)+'" y2="'+Y(0).toFixed(1)+'" stroke="'+_EI_R+'" stroke-width="1.5"/><text x="'+(W-pr)+'" y="'+(Y(0)-4).toFixed(1)+'" font-size="10" font-weight="700" fill="'+_EI_R+'" text-anchor="end">acabou</text>';
+  if(o.ref!=null)s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+Y(o.ref).toFixed(1)+'" y2="'+Y(o.ref).toFixed(1)+'" stroke="#1f241f" stroke-dasharray="5 4"/>'+(o.refTxt?'<text x="'+(W-pr)+'" y="'+(Y(o.ref)-5).toFixed(1)+'" font-size="10" font-weight="700" fill="#1f241f" text-anchor="end">'+_eiEsc(o.refTxt)+'</text>':'');
+  series.forEach(function(se){let d="",on=false;se.v.forEach(function(v,i){if(v==null||!isFinite(v)){on=false;return;}d+=(on?"L":"M")+X(i).toFixed(1)+" "+Y(+v).toFixed(1)+" ";on=true;});
+    s+='<path d="'+d+'" fill="none" stroke="'+se.cor+'" stroke-width="'+(se.w||2.4)+'"'+(se.dash?' stroke-dasharray="'+se.dash+'"':'')+' stroke-linejoin="round" stroke-linecap="round"/>';});
+  const passoX=Math.max(1,Math.ceil(n/7));
+  dias.forEach(function(d,i){
+    const tt=_eiDm(d)+": "+series.map(function(se){return se.nome+" "+(se.v[i]==null?"—":(o.pct?_eiPct(se.v[i])+"%":_eiKg(se.v[i])+" kg"));}).join(" · ");
+    s+='<rect x="'+(X(i)-(W-pl-pr)/(n-1)/2).toFixed(1)+'" y="'+pt+'" width="'+((W-pl-pr)/(n-1)).toFixed(1)+'" height="'+(H-pt-pb)+'" fill="transparent"><title>'+_eiEsc(tt)+'</title></rect>';
+    if(i%passoX===0&&n-1-i>=passoX/2||i===n-1)s+='<text x="'+X(i).toFixed(1)+'" y="'+(H-6)+'" font-size="10" fill="'+_EI_MT+'" text-anchor="'+(i===0?"start":(i===n-1?"end":"middle"))+'">'+_eiDm(d)+'</text>';});
+  s+='</svg>';
+  if(o.legenda!==false)s+='<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:#555;margin-top:2px">'+series.map(function(se){return '<span><i style="display:inline-block;width:16px;border-top:3px '+(se.dash?"dashed":"solid")+' '+se.cor+';vertical-align:middle;margin-right:4px"></i>'+_eiEsc(se.nome)+'</span>';}).join("")+'</div>';
+  return s;
+}
+function _eiFaixas(cur){
+  const G={};(cur||[]).forEach(function(c){if(!c.abate||!/^[A-Z][0-9]/.test(c.curral||""))return;const k=c.curral[0];(G[k]=G[k]||[]).push(c.abate);});
+  return Object.keys(G).sort().map(function(k){const a=G[k].sort();return {de:a[0],ate:a[a.length-1],txt:"abate "+k};});
+}
+/* Projetado x realizado: projetado = programado do Saicon corrigido para a media geral de MS do ciclo
+   (sem MS, o proprio programado); realizado = carregado. */
+function _eiProg(nome){
+  const D=_EI.dados;if(!D)return null;
+  const todos=D.prog.filter(function(x){return x.insumo===nome;}).map(function(x){return {dia:x.dia,p:+x.programado||0,c:+x.carregado||0,ms:x.ms==null?null:+x.ms};});
+  const comMs=todos.filter(function(x){return x.ms!=null&&x.ms>0;});
+  const msRef=comMs.length>=5?comMs.reduce(function(a,x){return a+x.ms;},0)/comMs.length:null;
+  todos.forEach(function(x){x.proj=msRef&&x.ms?x.p*x.ms/msRef:x.p;});
+  const soma=function(l,f){return l.reduce(function(a,x){return a+f(x);},0);};
+  const ult7=comMs.slice(-7);
+  return {todos:todos,comMs:comMs,msRef:msRef,tProj:soma(todos,function(x){return x.proj;}),tC:soma(todos,function(x){return x.c;}),tP:soma(todos,function(x){return x.p;}),
+    agua:msRef?soma(comMs,function(x){return x.p*(1-x.ms/msRef);}):0,ms7:ult7.length?soma(ult7,function(x){return x.ms;})/ult7.length:null,
+    agua7:msRef?soma(ult7,function(x){return x.p*(1-x.ms/msRef);}):0};
+}
+function _eiResumo(r,cur){
+  const ult=r.ultimo_abate,preco=+r.preco_kg||0;
+  if(!_eiTemConf(r))return "Não vai no cocho do confinamento; só na ração batida para a Cruz Alta. "+(r.acaba_total?"Batendo no ritmo dos últimos 7 dias, acaba em "+_eiDm(r.acaba_total)+".":"No ritmo dos últimos 7 dias, chega ao último abate.");
+  if(!r.acaba_conf)return "Chega ao último abate ("+_eiDm(ult)+") e ainda sobram "+_eiKg(-r.falta_conf_kg)+" kg."+(_eiTemProd(r)?(r.acaba_total?" Mas, se continuar batendo ração para a Cruz Alta, acaba em "+_eiDm(r.acaba_total)+".":" Mesmo somando a ração da Cruz Alta, chega."):"");
+  const nao=cur.filter(function(c){return c.abate>r.acaba_conf;}).map(function(c){return c.curral;});
+  return "Acaba em "+_eiDm(r.acaba_conf)+(nao.length?", antes do abate de "+(nao.length===cur.length?"todos os currais":nao.join(", ")):"")+". Para chegar até "+_eiDm(ult)+" faltam "+_eiKg(r.falta_conf_kg)+" kg"+(preco?" (≈ "+_eiBrl(r.falta_conf_kg*preco)+" ao preço médio de hoje)":"")+"."+(_eiTemProd(r)&&r.acaba_total&&r.acaba_total!==r.acaba_conf?" Somando a ração da Cruz Alta, acaba antes: "+_eiDm(r.acaba_total)+".":"");
+}
+/* numeros da pagina, usados na tela e no PDF (os dois nunca divergem) */
+function _eiNumeros(r){
+  const ult=r.ultimo_abate,preco=+r.preco_kg||0,k=[];
+  k.push({r:"Saldo hoje",v:_eiKg(r.saldo)+" kg",s:preco?"vale "+_eiBrl(r.saldo*preco):""});
+  k.push({r:"Preço médio",v:preco?"R$ "+preco.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+"/kg":"—",s:"custo médio do Saicon"});
+  if(_eiTemConf(r))k.push({r:"Acaba (só confinamento)",v:r.acaba_conf?_eiDm(r.acaba_conf):"chega",s:r.acaba_conf?"daqui a "+r.dias_conf+" dias":"passa do último abate ("+_eiDm(ult)+")",c:_eiCorDias(r.dias_conf)});
+  if(_eiTemProd(r))k.push({r:"Com a ração da Cruz Alta",v:r.acaba_total?_eiDm(r.acaba_total):"chega",s:_eiKg(r.consumo_prod)+" kg/dia de ração (média 7 dias)",c:_eiCorDias(r.dias_total)});
+  if(_eiTemConf(r)){
+    if(+r.falta_conf_kg>0)k.push({r:"Falta até "+_eiDm(ult),v:_eiKg(r.falta_conf_kg)+" kg",s:preco?"≈ "+_eiBrl(r.falta_conf_kg*preco):"",c:_EI_R});
+    else k.push({r:"Sobra em "+_eiDm(ult),v:_eiKg(-r.falta_conf_kg)+" kg",s:preco?"≈ "+_eiBrl(-r.falta_conf_kg*preco):""});
+    k.push({r:"Cocho hoje",v:_eiKg(r.consumo_conf)+" kg/dia",s:"pela dieta de cada curral"});
+  }
+  return k;
+}
+function _eiNumerosProg(r,pr){
+  const preco=+r.preco_kg||0,k=[],dif=pr.tC-pr.tProj;
+  k.push({r:dif>=0?"Usou a mais que o projetado":"Usou a menos que o projetado",v:_eiKg(Math.abs(dif))+" kg",s:_eiPct(Math.abs(dif/(pr.tProj||1)*100))+"% no ciclo"+(preco?" · ≈ "+_eiBrl(Math.abs(dif)*preco):""),c:Math.abs(dif)>pr.tProj*0.03?_EI_R:_EI_V});
+  if(pr.msRef){
+    k.push({r:"Média geral de MS",v:_eiPct(pr.msRef)+"%",s:"desde "+_eiDm(pr.comMs[0].dia)+" · "+pr.comMs.length+" dias com carga"});
+    k.push({r:"Disso, pela umidade",v:(Math.round(pr.agua)===0?"":(pr.agua>0?"+":"−"))+_eiKg(Math.abs(pr.agua))+" kg",s:"contra a média de "+_eiPct(pr.msRef)+"%"+(preco?" · ≈ "+_eiBrl(Math.abs(pr.agua)*preco):""),c:pr.agua>0?_EI_R:_EI_V});
+    k.push({r:"Disso, no carregamento",v:(Math.round(pr.tC-pr.tP)===0?"":(pr.tC-pr.tP>0?"+":"−"))+_eiKg(Math.abs(pr.tC-pr.tP))+" kg",s:"vagão x programado do Saicon",c:Math.abs(pr.tC-pr.tP)>pr.tP*0.03?_EI_R:_EI_V});
+    k.push({r:"MS dos últimos 7 dias",v:_eiPct(pr.ms7)+"%",s:pr.ms7<pr.msRef?"mais úmido que a média: "+_eiKg(Math.abs(pr.agua7))+" kg a mais":"mais seco que a média: "+_eiKg(Math.abs(pr.agua7))+" kg a menos",c:pr.ms7<pr.msRef?_EI_R:_EI_V});
+  }
+  return k;
+}
+function _eiTiles(k){
+  return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:12px">'+k.map(function(x){
+    return '<div style="background:#F7F4EC;border:1px solid '+_EI_BD+';border-left:4px solid '+(x.c||_EI_D)+';border-radius:8px;padding:8px 10px;text-align:center">'+
+      '<div style="font-size:10px;color:'+_EI_MT+';text-transform:uppercase">'+_eiEsc(x.r)+'</div><div style="font-size:18px;font-weight:700;color:'+(x.c||_EI_V)+';line-height:1.25">'+_eiEsc(x.v)+'</div>'+
+      (x.s?'<div style="font-size:10.5px;color:'+_EI_MT+';margin-top:2px">'+_eiEsc(x.s)+'</div>':'')+'</div>';}).join("")+'</div>';
+}
+function _eiBloco(tit,nota,corpo){return '<div style="background:#FFFEFA;border:1px solid '+_EI_BD+';border-radius:8px;padding:10px 12px;margin-bottom:12px"><div style="font-size:13px;font-weight:700;color:'+_EI_V+';margin-bottom:2px">'+tit+'</div>'+(nota?'<div style="font-size:11.5px;color:'+_EI_MT+';margin-bottom:8px">'+nota+'</div>':'')+corpo+'</div>';}
+
+/* ---------- pagina do insumo ---------- */
+async function _eiRenderInsumo(){
+  const box=document.getElementById("ei-pagina");if(!box)return;
+  const nome=_EI.sel;
+  if(!_EI.dados)box.innerHTML='<div style="font-size:12px;color:'+_EI_MT+'">Carregando…</div>';
+  const D=await _eiCarregar(false);
+  const r=D?D.estoque.find(function(x){return x.insumo===nome;}):null;
+  if(!r){box.innerHTML='<div class="ptitle">'+_eiEsc(nome||"Insumo")+'</div><div style="font-size:12px;color:#999">'+(_EI.erro?"Não consegui ler do servidor ("+_eiEsc(_EI.erro)+").":"Este insumo não tem consumo nos últimos 7 dias.")+'</div>';return;}
+  const cur=D.currais||[],ult=r.ultimo_abate;
+  const bt='padding:9px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer';
+  let h='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap"><div><div class="ptitle">'+_eiEsc(nome)+'</div><div class="psub-h">Estoque da Pinheiral · saldo do Saicon · a mesma conta do Painel Caiman</div></div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" style="background:'+_EI_V+';color:#fff;border:0;'+bt+'" onclick="_eiPdf(false)">📄 Baixar PDF</button>'+
+    '<button class="btn" style="background:#fff;color:'+_EI_V+';border:1px solid '+_EI_V+';'+bt+'" onclick="_eiPdf(true)">📤 Compartilhar</button></div></div>';
+  h+='<div style="background:#FBF8F0;border-left:4px solid '+_EI_D+';border-radius:6px;padding:10px 12px;font-size:14px;line-height:1.5;margin:10px 0 12px">'+_eiEsc(_eiResumo(r,cur))+'</div>';
+  h+=_eiTiles(_eiNumeros(r));
+  /* saldo projetado */
+  const pj=D.proj.filter(function(x){return x.insumo===nome;});
+  if(pj.length>1){
+    const ser=[];if(_eiTemConf(r))ser.push({nome:"Só confinamento",cor:_EI_V,v:pj.map(function(x){return +x.saldo_conf;})});
+    if(_eiTemProd(r))ser.push({nome:"Somando a ração da Cruz Alta",cor:_EI_D,v:pj.map(function(x){return +x.saldo_total;}),dash:"5 4",w:2});
+    h+=_eiBloco("Saldo daqui até o último abate ("+_eiDm(ult)+")","Abaixo de zero é o que falta comprar. As faixas mostram os abates de cada linha.",_eiSvg(ser,pj.map(function(x){return x.dia;}),{zero:true,faixas:_eiFaixas(cur),topo:24,alt:220}));
+  }
+  /* currais na ordem de abate */
+  if(_eiTemConf(r)&&cur.length){
+    let t='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="color:'+_EI_MT+';font-size:10.5px;text-transform:uppercase"><th style="text-align:left;padding:6px">Curral</th><th style="text-align:right;padding:6px">Cabeças</th><th style="text-align:left;padding:6px">Dieta</th><th style="text-align:right;padding:6px">Abate</th><th style="text-align:right;padding:6px">Chega?</th></tr></thead><tbody>';
+    cur.forEach(function(c){const chega=!r.acaba_conf||c.abate<=r.acaba_conf,f=chega?0:_eiDiff(r.acaba_conf,c.abate);
+      t+='<tr style="border-top:1px solid '+_EI_BD+'"><td style="padding:6px;font-weight:700;color:'+_EI_V+'">'+_eiEsc(c.curral)+'</td><td style="padding:6px;text-align:right">'+_eiKg(c.cabecas)+'</td><td style="padding:6px">'+_eiFase(c.dieta)+'</td><td style="padding:6px;text-align:right">'+_eiDm(c.abate)+'</td><td style="padding:6px;text-align:right;font-weight:700;color:'+(chega?_EI_V:_EI_R)+'">'+(chega?"chega":"não · "+f+(f===1?" dia":" dias")+" sem")+'</td></tr>';});
+    h+=_eiBloco("Currais: quem chega ao abate com este insumo","Na ordem de abate.",t+'</tbody></table></div>');
+  }
+  /* projetado x realizado */
+  const pr=_eiTemConf(r)?_eiProg(nome):null;
+  if(pr&&pr.todos.length){
+    const pts=pr.todos.slice(-45);
+    let c=_eiTiles(_eiNumerosProg(r,pr));
+    c+=_eiSvg([{nome:"Projetado",cor:_EI_D,v:pts.map(function(p){return p.proj;})},{nome:"Realizado",cor:_EI_V,v:pts.map(function(p){return p.c;})}],pts.map(function(p){return p.dia;}),{alt:210});
+    if(pr.msRef){const ms=pr.comMs.slice(-45);
+      c+='<div style="font-size:12px;font-weight:700;color:'+_EI_V+';margin:14px 0 4px">MS do insumo por dia</div>'+
+        _eiSvg([{nome:"MS do dia",cor:_EI_AZ,v:ms.map(function(p){return p.ms;})}],ms.map(function(p){return p.dia;}),{pct:true,ref:pr.msRef,refTxt:"média geral "+_eiPct(pr.msRef)+"%",abaixoRef:"abaixo da linha: mais úmido, entra mais kg",alt:170,legenda:false});}
+    h+=_eiBloco("Projetado x realizado no cocho",pr.msRef?"Projetado: o que a dieta pediria com o insumo na média geral de MS do ciclo ("+_eiPct(pr.msRef)+"%). Realizado: o que o vagão carregou. Quando chove a MS cai e o realizado sobe acima do projetado. Últimos "+pts.length+" dias.":"Projetado: o que o Saicon programou. Realizado: o que o vagão carregou. Últimos "+pts.length+" dias.",c);
+  }
+  /* usado ate agora */
+  const us=D.uso.filter(function(x){return x.insumo===nome;});
+  if(us.length){
+    const preco=+r.preco_kg||0,tc=us.reduce(function(a,x){return a+(+x.cocho||0);},0),ts=us.reduce(function(a,x){return a+(+x.racao||0);},0);
+    const ini=D.uso.reduce(function(a,x){return !a||x.dia<a?x.dia:a;},null);
+    const k=[{r:"No cocho",v:_eiKg(tc)+" kg",s:preco?"≈ "+_eiBrl(tc*preco):""}];
+    if(ts>0)k.push({r:"Na ração da Cruz Alta",v:_eiKg(ts)+" kg",s:preco?"≈ "+_eiBrl(ts*preco):""});
+    k.push({r:"Total usado",v:_eiKg(tc+ts)+" kg",s:preco?"≈ "+_eiBrl((tc+ts)*preco):""});
+    const ser=[{nome:"Cocho",cor:_EI_V,v:us.map(function(x){return +x.cocho;})}];if(ts>0)ser.push({nome:"Ração Cruz Alta",cor:_EI_D,v:us.map(function(x){return +x.racao;}),w:2});
+    h+=_eiBloco("Usado até agora","Desde "+_eiDm(ini)+", quando entrou o primeiro curral do ciclo atual. Pelas cargas do Saicon; o valor usa o preço médio de hoje.",_eiTiles(k)+_eiSvg(ser,us.map(function(x){return x.dia;}),{alt:180}));
+  }
+  h+='<div id="ei-pdf-msg" style="font-size:12px;color:'+_EI_MT+';margin-top:6px"></div>';
+  box.innerHTML=h;
+}
+
+/* ---------- PDF no padrao dos relatorios do app (_pdfCabecalho/_pdfSecao/_pdfLinha/_pdfGrafico/_pdfRodape) ---------- */
+function _eiPdf(compartilhar){
+  const msg=document.getElementById("ei-pdf-msg");
+  if(typeof window.jspdf==="undefined"){if(msg)msg.textContent="Biblioteca de PDF não carregada. Recarregue a página.";return;}
+  const D=_EI.dados,nome=_EI.sel,r=D?D.estoque.find(function(x){return x.insumo===nome;}):null;if(!r)return;
+  const cur=D.currais||[],titulo="Relatório de Insumo — "+nome,doc=_pdfDoc();
+  let y=_pdfCabecalho(doc,titulo);
+  const rgb=function(h){h=h.replace("#","");return [0,2,4].map(function(i){return parseInt(h.slice(i,i+2),16);});};
+  function cabe(alt){if(y+alt>272){_pdfRodape(doc);doc.addPage();y=_pdfCabecalho(doc,titulo);}}
+  function secao(t){cabe(20);y=_pdfSecao(doc,y,t);}
+  /* a fonte do jsPDF nao tem "≈" nem o sinal de menos tipografico: troca por "~" e "-" */
+  const T=function(x){return String(x).replace(/≈/g,"~").replace(/−/g,"-");};
+  function linha(a,b){cabe(8);a=T(a);b=T(b);doc.setFontSize(9.5);doc.setFont("helvetica","bold");const wb=doc.getTextWidth(b);doc.setFont("helvetica","normal");const l=doc.splitTextToSize(a,160-wb);y=_pdfLinha(doc,y,l[0],b);}
+  function texto(t,tam){t=T(t);doc.setFont("helvetica","normal");doc.setFontSize(tam||9);doc.setTextColor(90,90,90);doc.splitTextToSize(String(t),164).forEach(function(l){cabe(6);doc.text(l,23,y);y+=4.6;});y+=3;}
+  function graf(tit,series,dias,op){if(!dias||dias.length<2)return;cabe((op&&op.alt||34)+24);y+=5;y=_pdfGrafico(doc,y,tit,series,Object.assign({dias:dias},op||{}));}
+  /* resumo em destaque (como a faixa de totais do Tratos do Dia) */
+  doc.setFillColor(251,248,240);const fr=doc.splitTextToSize(T(_eiResumo(r,cur)),160);doc.rect(20,y-4,170,fr.length*5+5,"F");doc.setFillColor(184,148,79);doc.rect(20,y-4,1.2,fr.length*5+5,"F");
+  doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setTextColor(29,34,29);fr.forEach(function(l){doc.text(l,25,y+1);y+=5;});y+=6;
+  secao("Resumo");
+  _eiNumeros(r).forEach(function(k){linha(k.r+(k.s?" — "+k.s:""),k.v);});
+  const pj=D.proj.filter(function(x){return x.insumo===nome;});
+  if(pj.length>1){
+    secao("Saldo daqui até o último abate");
+    /* em toneladas: os eixos ficam legiveis (240 em vez de 240000) */
+    const ser=[];if(_eiTemConf(r))ser.push({nome:"Só confinamento",cor:[35,67,45],v:pj.map(function(x){return Math.round(x.saldo_conf/100)/10;}),w:0.7});
+    if(_eiTemProd(r))ser.push({nome:"Somando a ração da Cruz Alta",cor:[184,148,79],v:pj.map(function(x){return Math.round(x.saldo_total/100)/10;}),w:0.6});
+    const vs=[].concat.apply([],ser.map(function(s){return s.v;}));
+    graf("Saldo em estoque (toneladas) — abaixo de zero é o que falta comprar",ser,pj.map(function(x){return x.dia;}),{min:Math.min(0,Math.floor(Math.min.apply(null,vs)/50)*50),ref:0,alt:38});
+  }
+  if(_eiTemConf(r)&&cur.length){
+    secao("Currais na ordem de abate");
+    cur.forEach(function(c){const chega=!r.acaba_conf||c.abate<=r.acaba_conf,f=chega?0:_eiDiff(r.acaba_conf,c.abate);
+      linha(c.curral+" · "+_eiKg(c.cabecas)+" cab · "+_eiFase(c.dieta)+" · abate "+_eiDm(c.abate),chega?"chega":"não chega · "+f+(f===1?" dia":" dias")+" sem");});
+  }
+  const pr=_eiTemConf(r)?_eiProg(nome):null;
+  if(pr&&pr.todos.length){
+    secao("Projetado x realizado no cocho");
+    texto(pr.msRef?"Projetado: o que a dieta pediria com o insumo na média geral de MS do ciclo ("+_eiPct(pr.msRef)+"%). Realizado: o que o vagão carregou.":"Projetado: o que o Saicon programou. Realizado: o que o vagão carregou.");
+    _eiNumerosProg(r,pr).forEach(function(k){linha(k.r+(k.s?" — "+k.s:""),k.v);});
+    const pts=pr.todos.slice(-45);
+    graf("Por dia (kg) — últimos "+pts.length+" dias",[{nome:"Projetado",cor:[184,148,79],v:pts.map(function(p){return p.proj;}),w:0.7},{nome:"Realizado",cor:[35,67,45],v:pts.map(function(p){return p.c;}),w:0.7}],pts.map(function(p){return p.dia;}),{alt:36});
+    if(pr.msRef){const ms=pr.comMs.slice(-45);
+      graf("MS do insumo por dia (%) — linha tracejada: média geral "+_eiPct(pr.msRef)+"%",[{nome:"MS do dia",cor:[59,110,143],v:ms.map(function(p){return p.ms;}),w:0.7}],ms.map(function(p){return p.dia;}),{min:Math.floor(Math.min.apply(null,ms.map(function(p){return p.ms;}))/5)*5,ref:pr.msRef,alt:30});}
+  }
+  const us=D.uso.filter(function(x){return x.insumo===nome;});
+  if(us.length){
+    secao("Usado até agora");
+    const preco=+r.preco_kg||0,tc=us.reduce(function(a,x){return a+(+x.cocho||0);},0),ts=us.reduce(function(a,x){return a+(+x.racao||0);},0);
+    linha("No cocho"+(preco?" — ≈ "+_eiBrl(tc*preco):""),_eiKg(tc)+" kg");
+    if(ts>0)linha("Na ração da Cruz Alta"+(preco?" — ≈ "+_eiBrl(ts*preco):""),_eiKg(ts)+" kg");
+    linha("Total usado"+(preco?" — ≈ "+_eiBrl((tc+ts)*preco):""),_eiKg(tc+ts)+" kg");
+    const ser=[{nome:"Cocho",cor:[35,67,45],v:us.map(function(x){return +x.cocho;}),w:0.7}];if(ts>0)ser.push({nome:"Ração Cruz Alta",cor:[184,148,79],v:us.map(function(x){return +x.racao;}),w:0.6});
+    graf("Saída por dia (kg)",ser,us.map(function(x){return x.dia;}),{alt:32});
+  }
+  _pdfRodape(doc);
+  const arq=String(nome).normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^\w -]/g,"").trim().replace(/\s+/g,"_")+"_"+todayStr()+".pdf";
+  window._pdfShare=!!compartilhar;
+  _pdfEntregar(doc,arq);
+  if(msg)msg.textContent="";
+}
+
 function renderEstoque(){
   const el=document.getElementById("est-lista"); if(!el)return;
   _estPopularFazendas();
@@ -25134,7 +25429,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.25-pesoenergia</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.25-insumos</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">

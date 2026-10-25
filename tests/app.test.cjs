@@ -125,6 +125,54 @@ function fixture() {
     return R;
   }, F);
 
+  /* 24/10: estoque pelas dietas (mesma conta do Painel: funcoes caiman_est_* do Supabase).
+     O teste poe a resposta do servidor em _EI.dados e confere a tela e o PDF. */
+  const ei = await p.evaluate(async () => {
+    const dias = (de, n) => Array.from({ length: n }, (_, i) => addDias(de, i));
+    const pj = dias("2026-10-24", 112);
+    const est = [
+      { insumo: "Bagaço De Cana", saldo: 271065, preco_kg: 0.28, valor: 75898, consumo_conf: 6532, consumo_prod: 0, acaba_conf: "2026-12-12", dias_conf: 49, acaba_total: "2026-12-12", dias_total: 49, falta_conf_kg: 145174, ultimo_abate: "2027-02-13" },
+      { insumo: "Sal Branco", saldo: 3097, preco_kg: 0.91, valor: 2818, consumo_conf: 65, consumo_prod: 369, acaba_conf: "2026-12-10", dias_conf: 47, acaba_total: "2026-10-31", dias_total: 7, falta_conf_kg: 2066, ultimo_abate: "2027-02-13" },
+      { insumo: "Ureia", saldo: 24218, preco_kg: 3.25, valor: 78709, consumo_conf: 130, consumo_prod: 199, acaba_conf: null, dias_conf: null, acaba_total: "2027-01-10", dias_total: 78, falta_conf_kg: -13895, ultimo_abate: "2027-02-13" },
+    ];
+    const proj = [];
+    est.forEach((e) => pj.forEach((d, i) => proj.push({ insumo: e.insumo, dia: d, saldo_conf: Math.round(e.saldo - (e.consumo_conf || 1) * i), saldo_total: Math.round(e.saldo - ((e.consumo_conf || 1) + e.consumo_prod) * i) })));
+    const passado = dias("2026-09-10", 45), prog = [], uso = [];
+    passado.forEach((d, i) => {
+      const ms = i < 22 ? 55 : 45;   // metade seca (55%), metade umida (45%): media 50%
+      prog.push({ insumo: "Bagaço De Cana", dia: d, programado: 6000, carregado: 6100, ms });
+      uso.push({ insumo: "Bagaço De Cana", dia: d, cocho: 6100, racao: 0 });
+    });
+    const currais = [
+      { curral: "A2", cabecas: 131, dieta: "DIETA DE TERMINAÇÃO", desde: "2026-09-27", abate: "2026-12-04" },
+      { curral: "A3", cabecas: 131, dieta: "DIETA DE TERMINAÇÃO", desde: "2026-09-27", abate: "2026-12-21" },
+      { curral: "B1", cabecas: 132, dieta: "CRESCIMENTO", desde: "2026-10-22", abate: "2027-01-29" },
+    ];
+    _EI.dados = { estoque: est, proj, uso, prog, currais }; _EI.ts = Date.now();
+    irPara("estoque"); await _eiRender();
+    const R = {};
+    R.lista = document.getElementById("ei-conteudo").innerText.replace(/\s+/g, " ");
+    _eiAbrir("Bagaço De Cana"); await _eiRenderInsumo();
+    const pg = document.getElementById("ei-pagina");
+    R.pagina = pg.innerText.replace(/\s+/g, " ");
+    R.svgs = pg.querySelectorAll("svg").length;
+    R.ativa = document.getElementById("page-estinsumo").classList.contains("active");
+    let pdf = null; const orig = window._pdfEntregar;
+    window._pdfEntregar = (doc, nome) => { pdf = { nome, pags: doc.getNumberOfPages() }; };
+    try { _eiPdf(true); } finally { window._pdfEntregar = orig; }
+    R.pdf = pdf;
+    return R;
+  });
+  verdade("estoque pelas dietas: cartao do que comprar (bagaco 145 t ate 13/02)", /Comprar para chegar ao último abate \(13\/02\)/.test(ei.lista) && /145 t/.test(ei.lista), ei.lista.slice(0, 200));
+  verdade("estoque pelas dietas: lista com data de fim (bagaco acaba 12/12, ureia chega)", /acaba 12\/12/.test(ei.lista) && /chega ao abate/.test(ei.lista), ei.lista.slice(0, 300));
+  verdade("pagina do insumo abre", ei.ativa);
+  verdade("pagina do insumo: frase com currais que nao chegam (A3, B1)", /Acaba em 12\/12, antes do abate de A3, B1/.test(ei.pagina), ei.pagina.slice(0, 200));
+  verdade("pagina do insumo: falta em R$ (145.174 kg x 0,28 = R$ 40.649)", /R\$ 40\.649/.test(ei.pagina), "");
+  verdade("pagina do insumo: currais na ordem de abate, A2 chega e B1 nao", /A2[^]*chega[^]*A3[^]*não · 9 dias sem[^]*B1/.test(ei.pagina), ei.pagina.slice(0, 600));
+  verdade("pagina do insumo: media geral de MS 49,9% (22 dias a 55% e 23 a 45%: 2245/45)", /MÉDIA GERAL DE MS 49,9%|Média geral de MS 49,9%/i.test(ei.pagina), "");
+  verdade("pagina do insumo: graficos (saldo, projetado x realizado, MS, usado)", ei.svgs >= 4, "(" + ei.svgs + ")");
+  verdade("pagina do insumo: PDF no padrao do app", !!ei.pdf && ei.pdf.nome === "Bagaco_De_Cana_2026-10-24.pdf" && ei.pdf.pags >= 1, JSON.stringify(ei.pdf));
+
   if (process.env.SHOT) {   /* fotos para conferir o visual: SHOT=/pasta node tests/app.test.cjs */
     await p.evaluate(() => { irPara("conf"); renderCurraisGrade(); });
     await (await p.$("#conf-grade")).screenshot({ path: path.join(process.env.SHOT, "currais.png") });
@@ -134,6 +182,10 @@ function fixture() {
     await p.evaluate(() => abrirAnimaisLote(encodeURIComponent("Cruz Alta"), encodeURIComponent("14B")));
     await p.screenshot({ path: path.join(process.env.SHOT, "pasto.png"), fullPage: true });
     await p.evaluate(() => fecharAnimaisLote());
+    await p.evaluate(async () => { irPara("estoque"); await _eiRender(); });
+    await (await p.$("#ei-sec")).screenshot({ path: path.join(process.env.SHOT, "estoque.png") });
+    await p.evaluate(async () => { _eiAbrir("Bagaço De Cana"); await _eiRenderInsumo(); });
+    await p.screenshot({ path: path.join(process.env.SHOT, "insumo.png"), fullPage: true });
   }
   igual("data fixa do teste", r.hoje, "2026-10-24");
   igual("corte das cargas = 120 dias", r.corte, "2026-06-26");
