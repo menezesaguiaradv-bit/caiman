@@ -113,6 +113,21 @@ function fixture() {
     fecharAnimaisLote();
     /* 24/10: aviso de peso x data de abate e GMD na saida */
     R.avisoAbate = _pcAvisoAbate({ id: 999, tipo: "Confinamento", pesoE: 418, dtE: "2026-08-11", pesoAbate: 533, dtAbate: "2026-12-07", dtAbateManual: true }).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+    /* 26/10: cabecas do app x Saicon com um toque */
+    {
+      const lotes0 = localStorage.getItem("caiman_lotes_v3"), tr0 = localStorage.getItem("caiman_tratos");
+      const lt = getLotes().find((x) => String(x.id) === "201"), app = parseInt(lt.qtd);
+      const t2 = JSON.parse(tr0); t2.push({ id: "tsc", loteId: 201, data: "2026-10-23", dataIni: "2026-10-23", dataFim: "2026-10-23", numTrato: 9, kg: 1, progKg: 1, saicon: { hIni: "18:00:00", cab: app + 1 } });
+      localStorage.setItem("caiman_tratos", JSON.stringify(t2));
+      R.cabAviso = _pcAvisoCab(lt).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+      R.cabEsperado = "App: " + app + " · Saicon: " + (app + 1);
+      _pcManterCab(201, app + 1);
+      R.cabMantido = _pcAvisoCab(getLotes().find((x) => String(x.id) === "201"));
+      _pcAcertarCab(201, app + 1);
+      const l2 = getLotes().find((x) => String(x.id) === "201");
+      R.cabDepois = [parseInt(l2.qtd) === app + 1, (l2.cabAcertos || []).length === 1, _pcAvisoCab(l2) === ""];
+      localStorage.setItem("caiman_lotes_v3", lotes0); localStorage.setItem("caiman_tratos", tr0);
+    }
     R.avisoAbateOk = _pcAvisoAbate({ id: 998, tipo: "Confinamento", pesoE: 418, dtE: "2026-08-11", pesoAbate: 584, dtAbate: "2026-12-07", dtAbateManual: true });
     localStorage.setItem("caiman_abates_v1", JSON.stringify([{ id: 1, tipo: "Confinamento", fazenda: "Pinheiral", pasto: "A9", qtd: 100, dataSaida: "2026-09-30", dias: 100, pesoE: 400, fech: { gmd: 1.55, gmdFonte: "embarque", pesoSaida: 555, gmdProj: 1.4, gmdEner: 1.5 } }]));
     R.gmdSaida = _pcGmdSaidaBloco().replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
@@ -239,6 +254,9 @@ function fixture() {
   verdade("pagina do curral: peso estimado pela energia (+32 kg a frente, GMD 1,84)", /\+32 kg/.test(r.pesoEnergia) && /1,84/.test(r.pesoEnergia), r.pesoEnergia);
   verdade("aviso de abate: 533 kg com data de 07/12 (418 + 118 dias x 1,4 = 583 kg, chegaria em 02/11)", /583 kg/.test(r.avisoAbate) && /533 kg/.test(r.avisoAbate) && /02\/11\/2026/.test(r.avisoAbate), r.avisoAbate);
   igual("aviso de abate: some quando peso e data batem", r.avisoAbateOk, "");
+  verdade("cabecas x Saicon: aviso com os dois numeros e os botoes", r.cabAviso.includes(r.cabEsperado) && /Usar \d+ do Saicon/.test(r.cabAviso) && /Manter \d+ do app/.test(r.cabAviso), r.cabAviso);
+  igual("cabecas x Saicon: usar grava o numero, guarda o historico e o aviso some", r.cabDepois, [true, true, true]);
+  igual("cabecas x Saicon: manter o do app esconde o aviso", r.cabMantido, "");
   verdade("GMD na saida: real 1,55 x projetado 1,40 x energia 1,50", /1,55/.test(r.gmdSaida) && /1,40/.test(r.gmdSaida) && /1,50/.test(r.gmdSaida), r.gmdSaida);
   igual("relatorio de tratos: horario de cada trato (inicio da descarga)", r.horasTrato, ["06:28", "09:37", "13:05", "16:40"]);
   verdade("pagina do curral: titulo, MS, nota e graficos", r.paginaCurral.titulo && r.paginaCurral.ms && r.paginaCurral.nota && r.paginaCurral.graf >= 1, JSON.stringify(r.paginaCurral));

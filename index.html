@@ -22665,6 +22665,46 @@ function _pcAvisoAbate(lt){
       '<button onclick="_pcAcertarAbate(\''+lt.id+'\',\'data\',\''+dn+'\')" style="'+b+'border:1px solid #B8944F;background:#fff;color:#7A5F28">Data de abate = '+fmtData(dn)+'</button></div></div>';
   }catch(e){return "";}
 }
+/* 26/10/2026 (ele aprovou "acertar as cabecas pelo Saicon com um toque"): o vigia da Bia avisa quando a contagem do
+   app difere do Saicon (A2 130 x 131, B2 129 x 133, B5 131 x 133). Na pagina do curral aparece o aviso com dois
+   botoes: usar o numero do Saicon (grava no lote, como qualquer edicao dele) ou manter o do app (some ate o Saicon
+   mudar). Numero do Saicon = cab da descarga mais recente do curral nos ultimos 3 dias (t.saicon.cab). */
+function _pcCabSaicon(lt){
+  var lim=addDias(todayStr(),-3),best=null;
+  try{getTratos().forEach(function(t){
+    if(String(t.loteId)!==String(lt.id)||!t.saicon||!(+t.saicon.cab>0))return;
+    var d=String(t.dataFim||t.data||t.dataIni||"");if(d<lim)return;
+    var k=d+"|"+String(t.saicon.hIni||"")+"|"+String(t.numTrato||0);
+    if(!best||k>best.k)best={k:k,cab:+t.saicon.cab,dia:d};
+  });}catch(e){}
+  return best;
+}
+function _pcAvisoCab(lt){
+  var sc=_pcCabSaicon(lt),app=parseInt(lt.qtd)||0;
+  if(!sc||!app||sc.cab===app)return "";
+  if(lt.cabSaiconMantido&&+lt.cabSaiconMantido===sc.cab)return "";
+  var btn='font-size:12px;padding:7px 12px;border-radius:7px;cursor:pointer;font-weight:700;';
+  return '<div style="background:#FFF8E8;border:1px solid #E6C77A;border-radius:8px;padding:10px 12px;margin-bottom:12px">'+
+    '<div style="font-size:13px;font-weight:700;color:#7A5F28;margin-bottom:4px">Cabeças diferentes do Saicon</div>'+
+    '<div style="font-size:13px;color:#1f241f;margin-bottom:8px">App: <b>'+app+'</b> · Saicon: <b>'+sc.cab+'</b> (descarga de '+fmtData(sc.dia)+'). '+
+    (sc.cab<app?'O Saicon tem '+(app-sc.cab)+' a menos — morte ou saída não lançada no app?':'O Saicon tem '+(sc.cab-app)+' a mais — confira a contagem.')+'</div>'+
+    '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
+    '<button onclick="_pcAcertarCab(\''+lt.id+'\','+sc.cab+')" style="'+btn+'border:1px solid #23432D;background:#23432D;color:#F7F4EC">Usar '+sc.cab+' do Saicon</button>'+
+    '<button onclick="_pcManterCab(\''+lt.id+'\','+sc.cab+')" style="'+btn+'border:1px solid #E3DCC8;background:#fff;color:#1f241f">Manter '+app+' do app</button></div></div>';
+}
+function _pcAcertarCab(id,n){
+  var ls=getLotes(),l=ls.find(function(x){return String(x.id)===String(id);});if(!l||!(+n>0))return;
+  l.cabAcertos=(l.cabAcertos||[]).concat([{de:parseInt(l.qtd)||0,para:+n,em:new Date().toISOString(),fonte:"saicon"}]);
+  l.qtd=+n; delete l.cabSaiconMantido;
+  setLotes(ls);try{marcarPendente();}catch(e){}
+  try{toast("Cabeças do "+(l.pasto||"curral")+" acertadas para "+n);}catch(e){}
+  try{renderAnimaisLote();}catch(e){}try{renderCurraisGrade();}catch(e){}
+}
+function _pcManterCab(id,n){
+  var ls=getLotes(),l=ls.find(function(x){return String(x.id)===String(id);});if(!l)return;
+  l.cabSaiconMantido=+n; setLotes(ls);try{marcarPendente();}catch(e){}
+  try{renderAnimaisLote();}catch(e){}
+}
 function _pcAcertarAbate(id,campo,v){
   var ls=getLotes(),l=ls.find(function(x){return String(x.id)===String(id);});if(!l)return;
   if(campo==="peso")l.pesoAbate=+v;else{l.dtAbate=v;l.dtAbateManual=true;}
@@ -22702,6 +22742,7 @@ function _pcBlocoCurral(L,lt,parte){
     it("Cabeças",(parseInt(lt.qtd)||0).toLocaleString("pt-BR"))+it("Entrada",(lt.dtE?fmtData(lt.dtE):"—")+((lt.pesoE||lt.peso)?" · "+(+(lt.pesoE||lt.peso)).toFixed(0)+" kg":""))+
     it("Dias de cocho",dias!=null?dias:"—")+(function(){var pp=null;try{pp=pesoProjetadoLoteEm(lt,hoje);}catch(e){}return it("Peso projetado hoje",pp?Math.round(pp).toLocaleString("pt-BR")+" kg":"—");})()+it("Abate previsto",ab&&ab.data?fmtData(ab.data):"—")+it("Meta % PV",(lt.metaPV>0?lt.metaPV:2.26).toLocaleString("pt-BR")+"%")+'</div></div>';
   h+=_pcAvisoAbate(lt);
+  try{h+=_pcAvisoCab(lt);}catch(e){console.warn("aviso cabecas:",e);}
   /* 14 dias: MS/cab e %PV (ncxSerie) e energia (_dadosTratosDia), mais a nota de cada dia */
   var ser=[];try{ser=ncxSerie(lt,addDias(hoje,-1),14);}catch(e){}
   var ptsMS=[],ptsPV=[],ptsE=[],ptsPR=[],notas=[];
@@ -25516,7 +25557,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.26-salbranco</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.26-cabsaicon</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
