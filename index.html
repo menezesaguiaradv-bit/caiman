@@ -9722,8 +9722,12 @@ function _estAvisoBaixoMostrar(forcar){
   try{
     const temEI=typeof _EI!=="undefined"&&_EI.dados&&_EI.dados.estoque&&_EI.dados.estoque.length;
     const semBia=!(_estBia&&_estBia.ok)&&!temEI, semCA=!_estCAValido();
-    /* 25/10: insumos que so apertam se continuar batendo racao para a Cruz Alta (o cocho chega bem) */
-    const soRacao=temEI?_EI.dados.estoque.filter(function(r){return +r.consumo_prod>0&&r.dias_total!=null&&+r.dias_total<EST_LIMITE_DIAS&&!(+r.consumo_conf>0&&r.dias_conf!=null&&+r.dias_conf<EST_LIMITE_DIAS);}):[];
+    /* 26/10/2026 (ele: "o popup do sal branco esta errado, nao esta acabando... quero que va debitando
+       conforme o consumo"): o aviso nao projeta mais a racao batida para a Cruz Alta (media de 7 dias
+       de batidas ocasionais do 03 premix virava "369 kg/dia" e o sal "acabava em 6 dias"). Cada batida
+       ja sai do saldo do Saicon no dia em que e feita; o aviso so olha o consumo do cocho, dia a dia.
+       A projecao com a racao continua na pagina do insumo, como informacao. */
+    const soRacao=[];
     const al=_estAlertas().filter(function(x){return !(semBia&&_estEhPinheiral(x.fazenda))&&!(semCA&&_estEhCruzAlta(x.fazenda));});
     if(!al.length&&!soRacao.length)return;
     const hoje=todayStr();
@@ -25512,7 +25516,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.25-horatrato</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.26-salbranco</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">

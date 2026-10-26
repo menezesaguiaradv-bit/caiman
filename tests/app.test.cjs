@@ -182,7 +182,7 @@ function fixture() {
   verdade("pagina do insumo: graficos (saldo, projetado x realizado, MS, usado)", ei.svgs >= 4, "(" + ei.svgs + ")");
   igual("arquivos sempre nomeados e com data", ei.nomes, ["Relatorio_Lote_A1_2026-10-24.pdf", "Tratos_2026-10-23.pdf", "Pesagens_Confinamento_2026-10-24.xlsx", "Bagaco_De_Cana_2026-10-24.pdf"]);
   igual("aviso de estoque: nenhum insumo do cocho acaba em 15 dias pelas dietas", ei.alertasPinh, []);
-  verdade("aviso de estoque: sal so aperta com a racao da Cruz Alta (31/10)", /Só aperta se continuar batendo ração/.test(ei.aviso) && /Sal Branco/.test(ei.aviso) && /31\/10\/2026/.test(ei.aviso), ei.aviso.slice(0, 300));
+  verdade("aviso de estoque: nao projeta a racao da Cruz Alta (sal nao aparece; debita conforme consumo)", !/Só aperta se continuar batendo ração/.test(ei.aviso || "") && !/Sal Branco/.test(ei.aviso || ""), (ei.aviso || "").slice(0, 300));
   verdade("pagina do insumo: um botao so, Exportar PDF, sem emoji", ei.botoes === "Exportar PDF", ei.botoes);
   verdade("pagina do insumo: PDF no padrao do app", !!ei.pdf && ei.pdf.nome === "Bagaco_De_Cana_2026-10-24.pdf" && ei.pdf.pags >= 1, JSON.stringify(ei.pdf));
 
