@@ -408,7 +408,7 @@ Compartilhar</button></div>
 <div class="ptitle" style="display:flex;align-items:center;gap:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg> SISBOV / ID Eletrônica</div><div class="psub-h">Pesagem individual, vida de cada boi, protocolo sanitário e movimentação em bloco</div>
 <div id="alert-sisbov" class="alert"></div>
 <div class="sec" style="border-left:4px solid #B8944F;background:#FFFEFA">
-<div class="stitle" style="color:#23432D;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span>Pesagem individual por pasto <span style="font-weight:400;font-size:12px;color:#7A7668">recria e engorda</span></span><span style="display:inline-flex;gap:6px;flex-wrap:wrap"><button onclick="abrirImportarMovimentacao()" style="background:#23432D;color:#F7F4EC;border:1px solid #23432D;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Importar pesagem / movimentação</button><button onclick="abrirMoverBloco()" style="background:#23432D;color:#F7F4EC;border:1px solid #23432D;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Mover em bloco</button><button onclick="acertarLotesPelaPesagem()" style="background:#FBF8F0;color:#23432D;border:1px solid #B8944F;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Acertar lotes pela pesagem</button></span></div>
+<div class="stitle" style="color:#23432D;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span>Pesagem individual por pasto <span style="font-weight:400;font-size:12px;color:#7A7668">recria e engorda</span></span><span style="display:inline-flex;gap:6px;flex-wrap:wrap"><button onclick="abrirImportarMovimentacao()" style="background:#23432D;color:#F7F4EC;border:1px solid #23432D;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Importar pesagem / movimentação</button><button onclick="abrirMoverBloco()" style="background:#23432D;color:#F7F4EC;border:1px solid #23432D;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Mover em bloco</button><button onclick="acertarLotesPelaPesagem()" style="background:#FBF8F0;color:#23432D;border:1px solid #B8944F;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Acertar lotes pela pesagem</button><button onclick="exportarIdentificadosCSV()" style="background:#FBF8F0;color:#23432D;border:1px solid #B8944F;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Exportar bois identificados (CSV)</button></span></div>
 <div style="font-size:12px;color:#555;margin-bottom:10px">Suba a planilha da balança (pode ter várias abas e datas) ou mande para a Bia no WhatsApp: cada boi vai para o pasto/curral da planilha com a pesagem, e o <b>lote segue os bois</b> — muda de pasto ou vira semi/confinamento sozinho.</div>
 <div style="position:relative;margin-bottom:10px"><input id="ident-busca" inputmode="numeric" autocomplete="off" placeholder="🔎 Pesquisar boi pela identificação eletrônica ou SISBOV (pode ser o final do número)" oninput="renderBuscaAnimalGeral()" style="width:100%;font-size:13px;padding:9px 11px;border:1px solid #B8944F;border-radius:8px;background:#fff"><div id="ident-busca-res"></div></div>
 <div id="ident-resumo"></div>
@@ -7341,6 +7341,49 @@ function _aplicarFilaMovBia(){
   _refrescarAnimaisLote();
   try{toast("Movimentação da Bia: "+tot.mov+" animal(is) mudaram de lugar, "+tot.pesadas+" pesagem(ns)"+(tot.novos?", "+tot.novos+" cadastrado(s)":"")+(tot.excl?", "+tot.excl+" excluído(s)":"")+(tot.lotes?", "+tot.lotes+" lote(s) acertado(s)":"")+(tot.fora?" · "+tot.fora+" linha(s) não aplicada(s)":"")+".");}catch(e){}
   return tot;
+}
+
+/* 28/10/2026: ele pediu "relatorio em csv dos bois identificados de cada pasto ou curral" para exportar no app.
+   Um boi por linha: fazenda, pasto/curral, SISBOV, identificacao eletronica, 1a e ultima pesagem, n de
+   pesagens e GMD entre a 1a e a ultima. Segue o filtro de fazenda do topo. Lugares na ordem de abate do lote
+   (regra dele para currais); sem data de abate, por numero do pasto. Separador ";" e decimal com virgula
+   (abre direto no Excel em portugues), UTF-8 com BOM para os acentos. */
+function exportarIdentificadosCSV(){
+  var animais=getAnimais().filter(function(a){return !a.morto&&!a.encerrado&&(a.sisbov||a.eletro);});
+  if(!animais.length){toast("Nenhum boi identificado para exportar.");return;}
+  var pes={};
+  getPesagensSisbov().forEach(function(p){if(!(p.peso>0)||!p.data)return;(pes[p.animalId]=pes[p.animalId]||[]).push(p);});
+  var abate={};
+  getLotes().forEach(function(l){if(l.vendido||l.encerrado||!l.dtAbate)return;var k=_chPastoId(l.fazenda,l.pasto);if(!abate[k]||l.dtAbate<abate[k])abate[k]=l.dtAbate;});
+  function nomeLugar(p){return String(p||"").replace(/^(pasto|curral|baia)\s*/i,"").replace(/\s+/g,"").toUpperCase()||"(sem pasto)";}
+  function numLugar(p){var m=/^(\d+)(.*)$/.exec(p);return m?[+m[1],m[2]]:[9999,p];}
+  var linhas=animais.map(function(a){
+    var ps=(pes[a.id]||[]).slice().sort(function(x,y){return x.data<y.data?-1:x.data>y.data?1:0;});
+    var pri=ps[0], ult=ps[ps.length-1], gmd="";
+    if(ps.length>=2){var d=(new Date(ult.data)-new Date(pri.data))/86400000;if(d>0)gmd=((ult.peso-pri.peso)/d).toFixed(3).replace(".",",");}
+    var lugar=nomeLugar(a.pasto);
+    return {faz:a.fazenda||"",lugar:lugar,ab:abate[_chPastoId(a.fazenda,a.pasto)]||"",sis:a.sisbov||"",ele:a.eletro||"",
+      d1:pri?pri.data:(a.dtE||""),p1:pri?pri.peso:(a.peso||""),d2:ult?ult.data:"",p2:ult?ult.peso:"",n:ps.length,gmd:gmd};
+  });
+  linhas.sort(function(x,y){
+    if(x.faz!==y.faz)return x.faz.localeCompare(y.faz,"pt-BR");
+    if((x.ab||"9999")!==(y.ab||"9999"))return (x.ab||"9999")<(y.ab||"9999")?-1:1;
+    var nx=numLugar(x.lugar),ny=numLugar(y.lugar);
+    if(nx[0]!==ny[0])return nx[0]-ny[0];
+    if(nx[1]!==ny[1])return nx[1]<ny[1]?-1:1;
+    return String(x.ele||x.sis).localeCompare(String(y.ele||y.sis));
+  });
+  function br(d){return d?d.slice(8,10)+"/"+d.slice(5,7)+"/"+d.slice(0,4):"";}
+  function cel(v){v=String(v==null?"":v);return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
+  function kg(v){return v===""||v==null?"":String(Math.round(+v*10)/10).replace(".",",");}
+  var out=[["Fazenda","Pasto/Curral","SISBOV","Identificação eletrônica","Data 1ª pesagem","Peso 1ª pesagem (kg)","Data última pesagem","Peso última pesagem (kg)","Nº pesagens","GMD (kg/dia)"].join(";")];
+  linhas.forEach(function(r){out.push([r.faz,r.lugar,r.sis,r.ele,br(r.d1),kg(r.p1),br(r.d2),kg(r.p2),r.n,r.gmd].map(cel).join(";"));});
+  var nome=_nomeArq("Bois_identificados_por_pasto_e_curral_"+todayStr(),"csv");
+  var arq=new File(["\ufeff"+out.join("\r\n")],nome,{type:"text/csv;charset=utf-8"});
+  var url=URL.createObjectURL(arq), el=document.createElement("a");
+  el.href=url;el.download=nome;document.body.appendChild(el);el.click();
+  setTimeout(function(){document.body.removeChild(el);URL.revokeObjectURL(url);},150);
+  toast(linhas.length+" bois identificados exportados.");
 }
 
 function exportarAnimaisLote(){
@@ -25570,7 +25613,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.28-filabia</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.28-csvbois</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">

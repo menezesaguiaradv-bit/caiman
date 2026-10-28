@@ -109,6 +109,11 @@ function fixture() {
     const ac = document.getElementById("al-corpo").innerText;
     R.paginaCurral = { peso: /PESO PROJETADO HOJE\s*522 kg|Peso projetado hoje\s*522 kg/i.test(ac), titulo: /CURRAL|Curral/.test(ac), ms: /MS por cabe/.test(ac), nota: /Nota de cocho/.test(ac), graf: document.getElementById("al-corpo").querySelectorAll("svg").length, progReal: ((ac.match(/Trato programado x realizado[^\n]*\n?[^\n]*/) || [""])[0]).replace(/\s+/g, " ") };
     R.horasTrato = (_dadosTratosDia("2026-10-23").cards[0] || { itens: [] }).itens.map((t) => t.hora);
+    // 28/10: exportar os bois identificados em CSV (captura o arquivo em vez de baixar)
+    { const orig = URL.createObjectURL; window._csvArq = null;
+      URL.createObjectURL = (b) => { window._csvArq = b; return orig.call(URL, b); };
+      try { exportarIdentificadosCSV(); } finally { URL.createObjectURL = orig; }
+      R.csvNome = window._csvArq ? window._csvArq.name : ""; }
     R.pesoEnergia = (ac.match(/A caminho do peso projetado[^\n]*\n?[^\n]*/) || [""])[0].replace(/\s+/g, " ");
     fecharAnimaisLote();
     /* 24/10: aviso de peso x data de abate e GMD na saida */
@@ -260,6 +265,10 @@ function fixture() {
   verdade("GMD na saida: real 1,55 x projetado 1,40 x energia 1,50", /1,55/.test(r.gmdSaida) && /1,40/.test(r.gmdSaida) && /1,50/.test(r.gmdSaida), r.gmdSaida);
   igual("relatorio de tratos: horario de cada trato (inicio da descarga)", r.horasTrato, ["06:28", "09:37", "13:05", "16:40"]);
   verdade("pagina do curral: titulo, MS, nota e graficos", r.paginaCurral.titulo && r.paginaCurral.ms && r.paginaCurral.nota && r.paginaCurral.graf >= 1, JSON.stringify(r.paginaCurral));
+  const csv = await p.evaluate(() => window._csvArq ? window._csvArq.text() : "");
+  const csvL = csv.replace(/^\ufeff/, "").split("\r\n");
+  verdade("CSV dos identificados: arquivo nomeado", /^Bois_identificados_por_pasto_e_curral_\d{4}-\d{2}-\d{2}\.csv$/.test(r.csvNome), r.csvNome);
+  verdade("CSV dos identificados: cabecalho e um boi por linha", /^Fazenda;Pasto\/Curral;SISBOV;Identifica/.test(csvL[0]) && csvL.length >= 2, csvL.slice(0, 2).join(" | "));
   verdade("nenhum erro de JavaScript na pagina", !erros.length, erros.slice(0, 3).join(" | "));
 
   await b.close();
