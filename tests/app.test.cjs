@@ -114,6 +114,16 @@ function fixture() {
       URL.createObjectURL = (b) => { window._csvArq = b; return orig.call(URL, b); };
       try { exportarIdentificadosCSV(); } finally { URL.createObjectURL = orig; }
       R.csvNome = window._csvArq ? window._csvArq.name : ""; }
+    // 28/10: painel de filtros (pasto e peso da ultima pesagem)
+    { const todos = _identLinhas().length;
+      document.getElementById("exp-ident").hidden = true; abrirExportIdent();
+      const chips = document.querySelectorAll("#exp-ident input[type=checkbox]").length;
+      const pesos = _identLinhas().map((x) => x.pref).filter((v) => v != null).sort((a, b) => a - b);
+      _EXPF.min = String(pesos[pesos.length - 1] || 0);
+      const altos = _expFiltrar(_identLinhas()).length;
+      const k = _identLinhas()[0].chave; _EXPF.min = ""; _EXPF.pastos = {}; _EXPF.pastos[k] = 1;
+      const umPasto = _expFiltrar(_identLinhas()).every((x) => x.chave === k);
+      _expLimpar(); R.filtro = { todos, chips, altos, umPasto, limpo: _expFiltrar(_identLinhas()).length === todos }; }
     R.pesoEnergia = (ac.match(/A caminho do peso projetado[^\n]*\n?[^\n]*/) || [""])[0].replace(/\s+/g, " ");
     fecharAnimaisLote();
     /* 24/10: aviso de peso x data de abate e GMD na saida */
@@ -269,6 +279,8 @@ function fixture() {
   const csvL = csv.replace(/^\ufeff/, "").split("\r\n");
   verdade("CSV dos identificados: arquivo nomeado", /^Bois_identificados_por_pasto_e_curral_\d{4}-\d{2}-\d{2}\.csv$/.test(r.csvNome), r.csvNome);
   verdade("CSV dos identificados: cabecalho e um boi por linha", /^Fazenda;Pasto\/Curral;SISBOV;Identifica/.test(csvL[0]) && csvL.length >= 2, csvL.slice(0, 2).join(" | "));
+  verdade("filtro dos identificados: um botao por pasto e peso minimo corta", r.filtro.chips >= 1 && r.filtro.altos >= 1 && r.filtro.altos < r.filtro.todos, JSON.stringify(r.filtro));
+  verdade("filtro dos identificados: so o pasto marcado e limpar volta tudo", r.filtro.umPasto && r.filtro.limpo, JSON.stringify(r.filtro));
   verdade("nenhum erro de JavaScript na pagina", !erros.length, erros.slice(0, 3).join(" | "));
 
   await b.close();
