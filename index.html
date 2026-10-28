@@ -3634,6 +3634,7 @@ async function baixarDados(){
     if(btn)btn.innerHTML="⬇ Baixando...";
     if(localStorage.getItem("caiman_sync_pend")==="1"&&!confirm("Há alterações ainda não enviadas. Baixar substituirá estes dados; uma cópia de recuperação ficará no Histórico deste aparelho. Continuar?")){if(btn)btn.innerHTML=orig;return;}
     const counts=await pullSupabase(true);
+    try{await _enviarSeFilaAplicou();}catch(e){console.warn("envio da fila da Bia:",e);}
     if(btn)btn.innerHTML=orig;
     atualizarDashboard();
     toast("✅ Baixados: "+(counts?counts.lotes+" lotes, "+counts.animais+" animais, "+counts.abates+" abates":"sem dados novos")+".");
@@ -3729,6 +3730,7 @@ async function sincronizar(){
     localStorage.setItem("caiman_sync_pend","0");
     if(btn)btn.innerHTML="⬇ Baixando...";
     await pullSupabase();
+    if(await _enviarSeFilaAplicou()&&btn)btn.innerHTML="⬆ Enviando o que a Bia mandou...";
     if(btn)btn.innerHTML="✅ OK!";
     setTimeout(()=>{if(btn)btn.innerHTML=orig;},3000);
     try{localStorage.setItem("caiman_sync_pend","0");}catch(e){}
@@ -7286,6 +7288,17 @@ function confirmarBaixaMorte(){
    chavesCompartilhadas, como a caiman_leitura_cocho) e aplica aqui, uma vez por
    item neste aparelho. Reaplicar em outro aparelho e inofensivo: o animal ja esta
    no destino (vira "sem mudanca") e pesagem do mesmo dia e substituida. */
+/* 28/10/2026: ele apertou "Sincronizar tudo" e os 757 bois do aparte nao chegaram ao servidor. O sincronizar
+   envia, baixa (aqui a fila e aplicada e marca pendente) e depois zerava o pendente - o que a fila cadastrou
+   ficava so no aparelho. Agora quem baixa olha esta marca e envia logo em seguida. */
+var _filaAplicouAgora=false;
+async function _enviarSeFilaAplicou(){
+  if(!_filaAplicouAgora)return false;
+  _filaAplicouAgora=false;
+  await pushSupabase();
+  try{localStorage.setItem("caiman_sync_pend","0");}catch(e){}
+  return true;
+}
 function _aplicarFilaMovBia(){
   var fila=_readLocal("caiman_mov_fila",[]);
   if(!Array.isArray(fila)||!fila.length)return null;
@@ -7322,7 +7335,7 @@ function _aplicarFilaMovBia(){
   });
   localStorage.setItem("caiman_mov_fila_feitos",JSON.stringify(feitos.slice(-500)));
 
-  if(tot.mov||tot.pesadas||tot.novos||tot.excl){try{marcarPendente();}catch(e){}}
+  if(tot.mov||tot.pesadas||tot.novos||tot.excl){try{marcarPendente();}catch(e){} _filaAplicouAgora=true;}
   try{_r(renderAnimais,"renderAnimais");}catch(e){}
   try{renderPastos();}catch(e){}
   _refrescarAnimaisLote();
@@ -25557,7 +25570,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.26-cabsaicon</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.28-filabia</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
