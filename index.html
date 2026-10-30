@@ -5493,9 +5493,9 @@ function alerta(id,msg,tipo){const a=document.getElementById("alert-"+id);if(a){
 
 function gmdSazonal(){
   const m=new Date().getMonth()+1;
-  if([11,12,1,2,3].includes(m)) return 0.800; // Nov-Mar chuvas
-  if([4,5,6,7].includes(m))     return 0.700; // Abr-Jul seca inicial
-  return 0.500;                                // Ago-Out seca plena
+  /* 30/10/2026 (ele): seca de maio a outubro 0,5 kg/dia; aguas de novembro a abril 0,8 kg/dia */
+  if([5,6,7,8,9,10].includes(m)) return 0.500; // Mai-Out seca
+  return 0.800;                                 // Nov-Abr aguas
 }
 
 function gmdUltimoPeriodo(animalId){
@@ -25671,7 +25671,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.28-filtrobois</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.30-gmdpasto</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
