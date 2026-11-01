@@ -8,6 +8,7 @@ android {
     targetSdk = 34
     versionCode = 1
     versionName = "2026.10.31"
+    ndk { abiFilters += listOf("arm64-v8a") }   // celulares atuais; corta o APK pela metade
   }
   buildTypes { getByName("release") { isMinifyEnabled = false; signingConfig = signingConfigs.getByName("debug") } }
   compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
