@@ -4,7 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#06100B">
-<title>Bia virtual</title>
+<link rel="manifest" href="bia-manifest.json">
+<link rel="icon" href="bia-icon-192.png">
+<link rel="apple-touch-icon" href="bia-icon-192.png">
+<title>Bia</title>
 <link rel="icon" type="image/png" href="icon-192.png">
 <!-- 27/10/2026 (ele: "Quero criar a Bia virtual: uma pagina propria, interativa, no estilo do JARVIS, onde eu converso
      com a Bia por texto e voz e vejo a operacao inteira na tela"). Visual JARVIS, fala natural (a Bia de sempre).
@@ -286,7 +289,13 @@ async function iniciar(){
 function abrirApp(){
   $("gate").hidden=true; $("app").hidden=false; $("barra").hidden=false;
   desenharTiles(); carregarTudo();
+  /* 31/10 (ele: "quando eu disser Bia, ela abre e comeca a falar comigo"): aberta pelo atalho/palavra de ativacao
+     (?ouvir=1, start_url do app instalado), ja comeca ouvindo e fica em MODO CONVERSA: depois de responder,
+     volta a ouvir sozinha; para quando ele fica em silencio ou diz "obrigado/tchau/pode parar". */
+  if(MODO_CONVERSA)setTimeout(()=>{if(!ouvindo&&!ocupado)ouvir();},400);
 }
+let MODO_CONVERSA=false;
+try{MODO_CONVERSA=new URLSearchParams(location.search).get("ouvir")==="1";}catch(e){}
 
 /* ===== chamadas a Bia ===== */
 async function chamar(qs,corpo){
@@ -527,10 +536,17 @@ async function perguntar(texto){
     $("resposta").textContent=j.texto||"";
     if(j.painel){carregar(j.painel);abrirPainel(j.painel,j.curral);}
     if(j.audio&&falar)await tocar(j.audio); else setEstado("pronta");
+    if(MODO_CONVERSA&&!/^(obrigad|valeu|tchau|pode parar|parar|so isso|só isso|chega|até mais|ate mais)/i.test(texto))continuarConversa(j.audio&&falar);
   }catch(e){if(e.message!=="login"){$("resposta").textContent="Sem conexão com a Bia agora. Tenta de novo.";}setEstado("pronta");}
   finally{ocupado=false;}
 }
 
+/* modo conversa: volta a ouvir quando a Bia termina de falar (ou logo, se a resposta foi so texto) */
+function continuarConversa(temAudio){
+  const vai=()=>{if(MODO_CONVERSA&&!ouvindo&&!ocupado)ouvir();};
+  if(temAudio&&audioAtual){const a=audioAtual;const fim=a.onended;a.onended=(e)=>{if(fim)fim(e);setTimeout(vai,250);};}
+  else setTimeout(vai,600);
+}
 /* ===== microfone (reconhecimento de voz do navegador, pt-BR) ===== */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 let rec=null,ouvindo=false,parcial="";
@@ -543,7 +559,7 @@ function ouvir(){
   parcial="";
   rec.onstart=()=>{ouvindo=true;$("mic").classList.add("ouvindo");setEstado("ouvindo");$("ouvido").textContent="Pode falar…";};
   rec.onresult=(ev)=>{let fin="",tmp="";for(let i=ev.resultIndex;i<ev.results.length;i++){const r=ev.results[i];if(r.isFinal)fin+=r[0].transcript;else tmp+=r[0].transcript;}if(fin)parcial+=fin;$("ouvido").textContent=(parcial+tmp)||"Pode falar…";};
-  rec.onerror=(ev)=>{if(ev.error==="not-allowed")$("ouvido").textContent="Libere o microfone para esta página nas configurações do navegador.";else if(ev.error==="no-speech")$("ouvido").textContent="Não ouvi nada. Toque de novo.";};
+  rec.onerror=(ev)=>{if(ev.error==="not-allowed")$("ouvido").textContent="Libere o microfone para esta página nas configurações do navegador.";else if(ev.error==="no-speech"){$("ouvido").textContent=MODO_CONVERSA?"Fiquei em silêncio. Toque no microfone ou diga \"Bia\" para chamar de novo.":"Não ouvi nada. Toque de novo.";MODO_CONVERSA=false;}};
   rec.onend=()=>{ouvindo=false;$("mic").classList.remove("ouvindo");if(ESTADO==="ouvindo")setEstado("pronta");const t=parcial.trim();if(t)perguntar(t);};
   try{rec.start();}catch(e){ouvindo=false;}
 }
@@ -552,7 +568,7 @@ function ouvir(){
 $("g-entrar").onclick=entrar;
 $("g-senha").addEventListener("keydown",(e)=>{if(e.key==="Enter")entrar();});
 $("g-senha-link").onclick=()=>{try{sessionStorage.setItem("_bia_pin_ok","1");}catch(e){}$("g-erro").textContent="";mostrarGate("login");};
-$("mic").onclick=ouvir;
+$("mic").onclick=()=>{if(!ouvindo)MODO_CONVERSA=true;ouvir();};   // tocou no microfone: conversa continua ate o silencio
 $("enviar").onclick=()=>{const v=$("txt").value;$("txt").value="";perguntar(v);};
 $("txt").addEventListener("keydown",(e)=>{if(e.key==="Enter"){const v=$("txt").value;$("txt").value="";perguntar(v);}});
 $("voz").onclick=()=>{falar=!falar;try{localStorage.setItem("_bia_voz",falar?"1":"0");}catch(e){}if(!falar)pararAudio();marcarVoz();};

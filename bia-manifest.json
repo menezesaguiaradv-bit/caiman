@@ -1,0 +1,15 @@
+{
+  "name": "Bia — Grupo Caiman Agro",
+  "short_name": "Bia",
+  "id": "/caiman/bia.html",
+  "start_url": "/caiman/bia.html?ouvir=1",
+  "scope": "/caiman/bia.html",
+  "display": "standalone",
+  "background_color": "#06100B",
+  "theme_color": "#06100B",
+  "icons": [
+    {"src": "bia-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "bia-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ],
+  "shortcuts": [{"name": "Falar com a Bia", "url": "/caiman/bia.html?ouvir=1", "icons": [{"src": "bia-icon-192.png", "sizes": "192x192"}]}]
+}
