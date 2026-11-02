@@ -408,7 +408,7 @@ Compartilhar</button></div>
 <div class="ptitle" style="display:flex;align-items:center;gap:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg> SISBOV / ID Eletrônica</div><div class="psub-h">Pesagem individual, vida de cada boi, protocolo sanitário e movimentação em bloco</div>
 <div id="alert-sisbov" class="alert"></div>
 <div class="sec" style="border-left:4px solid #B8944F;background:#FFFEFA">
-<div class="stitle" style="color:#23432D;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span>Pesagem individual por pasto <span style="font-weight:400;font-size:12px;color:#7A7668">recria e engorda</span></span><span style="display:inline-flex;gap:6px;flex-wrap:wrap"><button onclick="abrirImportarMovimentacao()" style="background:#23432D;color:#F7F4EC;border:1px solid #23432D;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Importar pesagem / movimentação</button><button onclick="abrirMoverBloco()" style="background:#23432D;color:#F7F4EC;border:1px solid #23432D;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Mover em bloco</button><button onclick="acertarLotesPelaPesagem()" style="background:#FBF8F0;color:#23432D;border:1px solid #B8944F;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Acertar lotes pela pesagem</button><button onclick="abrirExportIdent()" style="background:#FBF8F0;color:#23432D;border:1px solid #B8944F;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Exportar bois identificados (CSV)</button></span></div>
+<div class="stitle" style="color:#23432D;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span>Pesagem individual por pasto <span style="font-weight:400;font-size:12px;color:#7A7668">recria e engorda</span></span><span style="display:inline-flex;gap:6px;flex-wrap:wrap"><button onclick="abrirImportarMovimentacao()" style="background:#23432D;color:#F7F4EC;border:1px solid #23432D;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Importar pesagem / movimentação</button><button onclick="abrirValorCompra()" style="background:#FFFEFA;color:#23432D;border:1px solid #B8944F;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">💲 Valor de compra</button><button onclick="abrirMoverBloco()" style="background:#23432D;color:#F7F4EC;border:1px solid #23432D;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Mover em bloco</button><button onclick="acertarLotesPelaPesagem()" style="background:#FBF8F0;color:#23432D;border:1px solid #B8944F;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Acertar lotes pela pesagem</button><button onclick="abrirExportIdent()" style="background:#FBF8F0;color:#23432D;border:1px solid #B8944F;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Exportar bois identificados (CSV)</button></span></div>
 <div style="font-size:12px;color:#555;margin-bottom:10px">Suba a planilha da balança (pode ter várias abas e datas) ou mande para a Bia no WhatsApp: cada boi vai para o pasto/curral da planilha com a pesagem, e o <b>lote segue os bois</b> — muda de pasto ou vira semi/confinamento sozinho.</div>
 <div id="exp-ident" hidden style="background:#FFFEFA;border:1px solid #B8944F;border-radius:10px;padding:14px;margin-bottom:12px"></div>
 <div style="position:relative;margin-bottom:10px"><input id="ident-busca" inputmode="numeric" autocomplete="off" placeholder="🔎 Pesquisar boi pela identificação eletrônica ou SISBOV (pode ser o final do número)" oninput="renderBuscaAnimalGeral()" style="width:100%;font-size:13px;padding:9px 11px;border:1px solid #B8944F;border-radius:8px;background:#fff"><div id="ident-busca-res"></div></div>
@@ -426,6 +426,8 @@ Compartilhar</button></div>
 <div class="field"><label>Peso de entrada (kg)</label><input id="s-peso" type="number" placeholder="0" step="0.1"></div>
 <div class="field"><label>Data de entrada no pasto</label><input id="s-dte" type="date"></div>
 <div class="field"><label>Produtor</label><select id="s-produtor"><option value="">— Selecione —</option><option value="RCA">RCA</option><option value="GMA">GMA</option><option value="HMA">HMA</option><option value="AM">AM</option></select></div>
+<div class="field"><label>Valor de compra por cabeça (R$)</label><input id="s-valorcab" type="number" placeholder="0.00" step="0.01"></div>
+<div class="field"><label>NF de compra</label><input id="s-nfcompra" placeholder="Ex: 9382110"></div>
 <div class="field"><label>Preço do kg do boi (R$)</label><input id="s-precoc" type="number" placeholder="0.00" step="0.01"></div>
 <div class="field"><label>Comissão do animal (R$)</label><input id="s-comissao" type="number" placeholder="0.00" step="0.01"></div>
 <div class="field"><label>Frete do animal (R$)</label><input id="s-frete" type="number" placeholder="0.00" step="0.01"></div>
@@ -8154,6 +8156,95 @@ function confirmarEnc(){
   }
 }
 
+/* 01/11 22h44 (Guilherme: "daqui pra frente os bois terao cadastros individuais conforme eu for comprando";
+   "pode fazer as 3 coisas"): valor de compra por cabeca em cada boi identificado. A Bia le a NF de compra
+   (WhatsApp, PDF ou XML) e grava em caiman_compras_gado; aqui ela aparece para preencher de uma vez.
+   custoAnimal = R$/cab + comissao + frete; a Bia usa no custo por boi do Painel. */
+var _comprasGado=[];
+async function _baixarComprasGado(){
+  try{ if(!SB_URL)return _comprasGado; const h=await _hdrAuth(); delete h["Content-Type"];
+    const r=await fetch(SB_URL.replace(/\/+$/,"")+"/rest/v1/dados_v2?id=eq.EMPRESA%3A%3Acaiman_compras_gado&select=dados",{headers:h});
+    if(r.ok){const l=await r.json(); if(l&&l.length&&l[0].dados){ _comprasGado=JSON.parse(l[0].dados)||[]; }} }catch(e){}
+  return _comprasGado;
+}
+function _rsVC(v){return "R$ "+Number(v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});}
+function _compraTxt(c){return (c.data?String(c.data).split("-").reverse().join("/")+" · ":"")+(c.vendedor||"?")+" · NF "+(c.nf||"?")+" · "+(c.cabecas||"?")+" cab · "+_rsVC(c.valor_cab)+"/cab";}
+async function abrirValorCompra(){
+  var m=document.getElementById("modal-valor-compra");
+  if(!m){m=document.createElement("div");m.id="modal-valor-compra";m.className="modal-overlay";document.body.appendChild(m);}
+  var fazs=["Cruz Alta","Pinheiral","Caiman","Maguary","Furna"];
+  m.innerHTML='<div class="modal-enc" style="max-width:520px;max-height:90vh;overflow:auto">'+
+    '<h3 style="margin:0 0 4px;color:#23432D">💲 Valor de compra dos bois</h3>'+
+    '<div style="font-size:12px;color:#666;margin-bottom:12px">Grava o valor de compra em cada boi identificado. A Bia usa esse valor no custo por boi do Painel. Mande a NF para a Bia no WhatsApp e ela aparece aqui.</div>'+
+    '<div style="display:grid;gap:10px">'+
+    '<div class="field"><label>Compra lida pela Bia</label><select id="vc-compra" onchange="_vcEscolheu()"><option value="">carregando…</option></select></div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
+    '<div class="field"><label>Valor por cabeça (R$)</label><input id="vc-valor" type="number" step="0.01" placeholder="0.00"></div>'+
+    '<div class="field"><label>NF</label><input id="vc-nf" placeholder="nº da nota"></div>'+
+    '<div class="field"><label>Comissão por cabeça (R$)</label><input id="vc-comissao" type="number" step="0.01" placeholder="0.00"></div>'+
+    '<div class="field"><label>Frete por cabeça (R$)</label><input id="vc-frete" type="number" step="0.01" placeholder="0.00"></div>'+
+    '<div class="field"><label>Fazenda</label><select id="vc-faz">'+fazs.map(function(f){return '<option>'+f+'</option>';}).join("")+'</select></div>'+
+    '<div class="field"><label>Pasto / curral</label><input id="vc-pasto" placeholder="Ex: 7C"></div></div>'+
+    '<div class="field"><label>Ou só estes bois (final da identificação, um por linha ou separados por vírgula)</label><textarea id="vc-ids" rows="3" style="width:100%"></textarea></div>'+
+    '<label style="font-size:12px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="vc-sobre"> Trocar também os bois que já têm valor de compra</label>'+
+    '<div id="vc-prev" style="font-size:12.5px;color:#23432D;min-height:18px"></div></div>'+
+    '<div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end;flex-wrap:wrap">'+
+    '<button onclick="document.getElementById(\'modal-valor-compra\').style.display=\'none\'">Fechar</button>'+
+    '<button onclick="_vcConferir()" style="border:1px solid #23432D;color:#23432D;background:#fff;padding:9px 14px;border-radius:7px;font-size:13px;cursor:pointer">Conferir</button>'+
+    '<button onclick="_vcGravar()" style="background:#23432D;color:#F7F4EC;border:none;padding:9px 18px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer">Gravar</button></div></div>';
+  m.style.display="flex";
+  var lista=await _baixarComprasGado(), sel=document.getElementById("vc-compra");
+  if(!sel)return;
+  sel.innerHTML='<option value="">— digitar à mão —</option>'+lista.slice().reverse().map(function(c,i){return '<option value="'+_escAL(c.id)+'">'+_escAL(_compraTxt(c))+'</option>';}).join("");
+}
+function _vcEscolheu(){
+  var id=vs("vc-compra"), c=_comprasGado.find(function(x){return String(x.id)===id;}); if(!c)return;
+  document.getElementById("vc-valor").value=c.valor_cab||"";
+  document.getElementById("vc-nf").value=c.nf||"";
+  if(c.fazenda){var f=document.getElementById("vc-faz");[].forEach.call(f.options,function(o){if(_fazCore(o.value)===_fazCore(c.fazenda))f.value=o.value;});}
+  _vcConferir();
+}
+function _vcAlvo(){
+  var ids=vs("vc-ids").split(/[\s,;]+/).map(_soDig).filter(function(x){return x.length>=3;});
+  var sobre=document.getElementById("vc-sobre").checked;
+  var lista;
+  if(ids.length){
+    lista=getAnimais().filter(function(a){if(a.morto||a.encerrado)return false;var s=_soDig(a.sisbov),e=_soDig(a.eletro);
+      return ids.some(function(d){return (s&&s.slice(-d.length)===d)||(e&&e.slice(-d.length)===d);});});
+  }else{
+    if(!vs("vc-pasto").trim())return {erro:"Informe o pasto/curral ou a lista de bois."};
+    lista=animaisDoLote(vs("vc-faz"),vs("vc-pasto"));
+  }
+  var ja=lista.filter(function(a){return +a.custoAnimal>0;}).length;
+  var alvo=sobre?lista:lista.filter(function(a){return !(+a.custoAnimal>0);});
+  return {lista:lista,alvo:alvo,ja:ja,ids:ids.length};
+}
+function _vcConferir(){
+  var el=document.getElementById("vc-prev"), r=_vcAlvo(); if(!el)return r;
+  if(r.erro){el.textContent=r.erro;return r;}
+  var v=vn("vc-valor")+vn("vc-comissao")+vn("vc-frete");
+  el.innerHTML=r.lista.length+" boi(s) encontrados"+(r.ja?" · "+r.ja+" já com valor"+(document.getElementById("vc-sobre").checked?" (serão trocados)":" (ficam como estão)"):"")+
+    " → grava em <b>"+r.alvo.length+"</b>"+(v>0?" a <b>"+_rsVC(v)+"</b>/cab (total "+_rsVC(v*r.alvo.length)+")":"");
+  return r;
+}
+function _vcGravar(){
+  var r=_vcConferir(); if(r.erro)return;
+  var valor=vn("vc-valor"),com=vn("vc-comissao"),fr=vn("vc-frete");
+  if(!(valor>0)){alert("Informe o valor por cabeça.");return;}
+  if(!r.alvo.length){alert("Nenhum boi para gravar.");return;}
+  var c=_comprasGado.find(function(x){return String(x.id)===vs("vc-compra");});
+  if(!confirm("Gravar "+_rsVC(valor+com+fr)+"/cab em "+r.alvo.length+" boi(s)?"))return;
+  var ids={};r.alvo.forEach(function(a){ids[a.id]=1;});
+  var todos=getAnimais();
+  todos.forEach(function(a){ if(!ids[a.id])return;
+    a.valorCompra=valor; a.comissao=com; a.frete=fr; a.custoAnimal=+(valor+com+fr).toFixed(2);
+    a.nfCompra=vs("vc-nf")||a.nfCompra||""; if(c){a.compraId=c.id;a.fornecedor=c.vendedor||a.fornecedor||"";}
+  });
+  setAnimais(todos);
+  document.getElementById("modal-valor-compra").style.display="none";
+  alerta("sisbov","✓ Valor de compra gravado em "+r.alvo.length+" boi(s).","ok");
+  _r(renderAnimais,"renderAnimais");
+}
 function salvarAnimal(){
   const sisbov=vs("s-sisbov"),eletro=vs("s-eletro");
   if(!sisbov&&!eletro){alerta("sisbov","Informe SISBOV ou ID Eletrônica.","err");return;}
@@ -8162,14 +8253,15 @@ function salvarAnimal(){
   const fazenda=vs("s-fazenda"),pasto=vs("s-pasto");
   const _precoKg=vn("s-precoc")||0,_peso=vn("s-peso")||0;
   const _comiss=vn("s-comissao")||0,_frete=vn("s-frete")||0;
-  // custo do animal = preço/kg × peso + comissão + frete (valores diretos, por animal)
-  const _custoAnimal=((_precoKg>0&&_peso>0)?+(_precoKg*_peso).toFixed(2):0)+_comiss+_frete;
+  // custo do animal = valor por cabeça (NF) ou preço/kg × peso, + comissão + frete (valores diretos, por animal)
+  const _valorCab=vn("s-valorcab")||0;
+  const _custoAnimal=(_valorCab>0?_valorCab:((_precoKg>0&&_peso>0)?+(_precoKg*_peso).toFixed(2):0))+_comiss+_frete;
   animais.push({id:novoId(),sisbov,eletro,fazenda,pasto,sexo:vs("s-sexo"),cat:vs("s-cat"),
     peso:vn("s-peso"),dtE:vs("s-dte")||todayStr(),produtor:vs("s-produtor"),encerrado:false,
-    precoKg:_precoKg,comissao:_comiss,frete:_frete,custoAnimal:+_custoAnimal.toFixed(2),
+    precoKg:_precoKg,valorCompra:_valorCab,nfCompra:vs("s-nfcompra"),comissao:_comiss,frete:_frete,custoAnimal:+_custoAnimal.toFixed(2),
     historico:[{data:todayStr(),de:"—",para:fazenda+" / Pasto "+pasto,motivo:"Cadastro inicial"}]});
   setAnimais(animais);alerta("sisbov","Animal cadastrado!","ok");
-  ["s-sisbov","s-eletro","s-pasto","s-produtor","s-precoc","s-comissao","s-frete"].forEach(id=>{var e=document.getElementById(id);if(e)e.value="";});
+  ["s-sisbov","s-eletro","s-pasto","s-produtor","s-precoc","s-valorcab","s-nfcompra","s-comissao","s-frete"].forEach(id=>{var e=document.getElementById(id);if(e)e.value="";});
   _r(renderAnimais,"renderAnimais");atualizarDashboard();
 }
 function renderAnimais(pagina){
@@ -25671,7 +25763,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.10.30-gmdpasto</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.01-valorcompra</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
