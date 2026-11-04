@@ -3200,6 +3200,7 @@ function openChangeHistory(){
     const before=this.getItem(key);
     original.call(this,key,value);                       // o dado vai primeiro, sempre
     if(business&&before!==String(value)&&!_pullEmAndamento){
+      try{_baseGuardar(key,before);}catch(e){console.warn("base:",e.message);}
       try{_recordChange(key,before,String(value));}catch(e){console.warn("auditoria:",e.message);}
       marcarPendente();
     }
@@ -3211,6 +3212,82 @@ function marcarPendente(){
   try{localStorage.setItem("caiman_sync_pend","1");}catch(e){}
   if(typeof atualizarDot==="function")atualizarDot();
   agendarAutoSync();
+}
+
+/* 04/11/2026 (ele: "quero que o app baixe automaticamente os dados"). O robo do Saicon grava cargas, tratos e
+   estoque a cada 15 min e troca o EMPRESA::_sync_meta. Com qualquer alteracao local pendente o app ficava travado:
+   o envio era recusado ("outro aparelho tem dados mais recentes") e a busca automatica nao baixava porque havia
+   pendente - so o Baixar dados manual resolvia (e substituia o que ele tinha feito). Agora o app MESCLA:
+   - na 1a alteracao de cada chave depois do ultimo envio/baixa, guarda o valor de antes (a BASE, em _cag_bases_v1,
+     que mora no IndexedDB);
+   - quando o servidor esta mais novo e ha pendente: guarda o local, baixa tudo, e reaplica por cima do servidor so
+     o que ELE mudou (lista por id: o que entrou, mudou ou saiu em relacao a base); depois envia.
+   Chave sem id ou mudada nos dois lados de outro jeito: vale a do aparelho (como antes do robo). */
+function _basesLer(){try{return JSON.parse(localStorage.getItem("_cag_bases_v1")||"{}")||{};}catch(e){return {};}}
+function _baseGuardar(key,before){
+  const b=_basesLer();if(Object.prototype.hasOwnProperty.call(b,key))return;
+  b[key]=before;localStorage.setItem("_cag_bases_v1",JSON.stringify(b));
+}
+function _basesLimpar(){try{localStorage.setItem("_cag_bases_v1","{}");}catch(e){}}
+function _mesclar3(B,L,R){
+  if(L===null||L===undefined)return R;
+  if(R===null||R===undefined)return L;
+  if(B===R)return L;          // servidor nao mudou: vale o aparelho
+  if(B===L)return R;          // aparelho nao mudou: vale o servidor
+  let b,l,r;try{b=B==null?null:JSON.parse(B);l=JSON.parse(L);r=JSON.parse(R);}catch(e){return L;}
+  const idDe=function(x){return x&&typeof x==="object"&&x.id!=null&&x.id!==""?String(x.id):null;};
+  if(Array.isArray(l)&&Array.isArray(r)&&(b==null||Array.isArray(b))){
+    b=b||[];
+    const todos=b.concat(l,r);
+    const ok=todos.every(function(x){return idDe(x)!==null;});
+    const unicos=function(a){return new Set(a.map(idDe)).size===a.length;};
+    if(!ok||!unicos(b)||!unicos(l)||!unicos(r))return L;
+    const mb=new Map(b.map(function(x){return [idDe(x),JSON.stringify(x)];}));
+    const ml=new Map(l.map(function(x){return [idDe(x),x];}));
+    const out=new Map(r.map(function(x){return [idDe(x),x];}));
+    mb.forEach(function(v,id){if(!ml.has(id))out.delete(id);});                       // saiu no aparelho
+    ml.forEach(function(x,id){if(mb.get(id)!==JSON.stringify(x))out.set(id,x);});      // entrou ou mudou no aparelho
+    return JSON.stringify(Array.from(out.values()));
+  }
+  const obj=function(o){return o&&typeof o==="object"&&!Array.isArray(o);};
+  if(obj(l)&&obj(r)&&(b==null||obj(b))){
+    b=b||{};const out=Object.assign({},r);
+    Object.keys(b).forEach(function(k){if(!(k in l))delete out[k];});
+    Object.keys(l).forEach(function(k){if(JSON.stringify(l[k])!==JSON.stringify(b[k]))out[k]=l[k];});
+    return JSON.stringify(out);
+  }
+  return L;
+}
+var _mesclando=false;
+async function _sincronizarComMescla(){
+  if(_mesclando||_safeSyncBusy)return false;
+  _mesclando=true;
+  try{
+    const bases=_basesLer(),chaves=Object.keys(bases),locais={};
+    chaves.forEach(function(k){locais[k]=localStorage.getItem(k);});
+    const filaExcl=localStorage.getItem("_cag_deletions_v2");
+    await pullSupabase(true);                                   // o servidor por inteiro
+    let mudou=0;const novasBases={};
+    _pullEmAndamento=true;
+    try{
+      chaves.forEach(function(k){
+        const R=localStorage.getItem(k),m=_mesclar3(bases[k],locais[k],R);
+        if(m!=null&&m!==R){localStorage.setItem(k,m);mudou++;novasBases[k]=R;}   // base nova = servidor de agora
+      });
+    }finally{_pullEmAndamento=false;}
+    try{localStorage.setItem("_cag_bases_v1",JSON.stringify(novasBases));}catch(e){}
+    if(filaExcl&&filaExcl!=="[]")try{localStorage.setItem("_cag_deletions_v2",filaExcl);}catch(e){}
+    if(mudou||(filaExcl&&filaExcl!=="[]")){
+      /* o que ele fez continua pendente: envia ja (o servidor agora e o conhecido) */
+      try{localStorage.setItem("caiman_sync_pend","1");}catch(e){}
+      await pushSupabase();
+      try{localStorage.setItem("caiman_sync_pend","0");}catch(e){}
+    }
+    try{await _enviarSeFilaAplicou();}catch(e){}
+    if(typeof atualizarDot==="function")atualizarDot();
+    try{atualizarDashboard();}catch(e){}
+    return true;
+  }finally{_mesclando=false;}
 }
 
 /* Envio automatico religado em 06/09/2026, agora com guarda.
@@ -3248,6 +3325,12 @@ async function autoSyncEnviar(){
     _autoSyncTentativas=0;
     if(typeof atualizarDot==="function")atualizarDot();
   }catch(e){
+    if(String(e.message||"").indexOf("Envio bloqueado: outro aparelho")===0){
+      /* 04/11: servidor mais novo (robo do Saicon ou outro aparelho): baixa, mescla e envia */
+      _autoSyncEnviando=false;
+      try{await _sincronizarComMescla();}catch(e2){console.log("mescla:",e2.message);}
+      return;
+    }
     if(String(e.message||"").indexOf("Envio bloqueado")===0){
       if(typeof toast==="function")toast("⚠ "+e.message.split("\n")[0]);
       _autoSyncEnviando=false; return;      // nao tenta de novo: nao e falha de rede
@@ -3283,16 +3366,24 @@ async function verificarAtualizacaoRemota(){
   if(!SB_URL||!SB_KEY)return;
   if(!getUserId())return;
   if(_pullVerificando||_pullEmAndamento||_autoSyncEnviando)return;
-  // se há alterações locais não enviadas, prioridade é enviar (nunca sobrescrever o local)
-  if(localStorage.getItem("caiman_sync_pend")==="1"){autoSyncEnviar();return;}
+  if(_mesclando)return;
   _pullVerificando=true;
   try{
     const meta=await _lerMetaRemota();
     const local=localStorage.getItem("caiman_sync_lastmeta")||"";
-    if(meta&&meta.ts&&String(meta.ts)!==local){
+    const novo=meta&&meta.ts&&String(meta.ts)!==local;
+    if(localStorage.getItem("caiman_sync_pend")==="1"){
+      /* 04/11: com alteracao pendente e servidor mais novo, mescla em vez de travar; sem novidade, so envia */
+      _pullVerificando=false;
+      if(novo&&local)await _sincronizarComMescla();else autoSyncEnviar();
+      return;
+    }
+    if(novo){
       await pullSupabase();
+      try{await _enviarSeFilaAplicou();}catch(e){}
       if(typeof atualizarDot==="function")atualizarDot();
-      if(typeof toast==="function")toast("↓ Dados atualizados de outro aparelho","info");
+      /* robo do Saicon troca o marcador a cada 15 min: baixa calado; aviso so quando foi outro aparelho */
+      if(meta.dev!=="robo-saicon"&&typeof toast==="function")toast("↓ Dados atualizados de outro aparelho","info");
     }
   }catch(e){console.log("Verificação remota:",e.message);}
   _pullVerificando=false;
@@ -3510,6 +3601,7 @@ const chavesCompartilhadas=["caiman_ingredientes","caiman_dietas","caiman_custos
   const meta={ts:Date.now(),dev:_devId(),usuario:uid};
   await upsertEmLotes("dados_v2",[{id:"EMPRESA::_sync_meta",user_id:"EMPRESA",dados:JSON.stringify(meta)}]);
   try{localStorage.setItem("caiman_sync_lastmeta",String(meta.ts));}catch(e){}
+  _basesLimpar();   // 04/11: o servidor tem o que estava aqui
 
   localStorage.setItem("caiman_sync_pend","0");
   return {lotes:lotes.length, animais:animais.length, abates:abates.length, extras:linhas.length};
@@ -3635,6 +3727,10 @@ async function baixarDados(){
   try{
     if(!SB_URL||!SB_KEY){alert("Supabase não configurado!");return;}
     if(btn)btn.innerHTML="⬇ Baixando...";
+    /* 04/11: com alteracao pendente, baixa e mescla (o que ele fez nao se perde) */
+    if(localStorage.getItem("caiman_sync_pend")==="1"&&(localStorage.getItem("caiman_sync_lastmeta")||"")){
+      await _sincronizarComMescla();if(btn)btn.innerHTML=orig;atualizarDashboard();toast("✅ Dados baixados e mesclados com o que você fez aqui.");return;
+    }
     if(localStorage.getItem("caiman_sync_pend")==="1"&&!confirm("Há alterações ainda não enviadas. Baixar substituirá estes dados; uma cópia de recuperação ficará no Histórico deste aparelho. Continuar?")){if(btn)btn.innerHTML=orig;return;}
     const counts=await pullSupabase(true);
     try{await _enviarSeFilaAplicou();}catch(e){console.warn("envio da fila da Bia:",e);}
@@ -3729,8 +3825,15 @@ async function sincronizar(){
   try{
     if(!SB_URL||!SB_KEY){alert("Supabase não configurado!");return;}
     if(btn)btn.innerHTML="⬆ Enviando...";
-    await pushSupabase();
-    localStorage.setItem("caiman_sync_pend","0");
+    /* 04/11: servidor mais novo com alteracao aqui: baixa, mescla e envia (antes dava "Envio bloqueado") */
+    const _mr=await _lerMetaRemota(),_kn=localStorage.getItem("caiman_sync_lastmeta")||"";
+    if(localStorage.getItem("caiman_sync_pend")==="1"&&_mr&&_mr.ts&&_kn&&String(_mr.ts)!==_kn){
+      if(btn)btn.innerHTML="⇅ Mesclando...";
+      await _sincronizarComMescla();
+    }else{
+      await pushSupabase();
+      localStorage.setItem("caiman_sync_pend","0");
+    }
     if(btn)btn.innerHTML="⬇ Baixando...";
     await pullSupabase();
     if(await _enviarSeFilaAplicou()&&btn)btn.innerHTML="⬆ Enviando o que a Bia mandou...";
@@ -4275,6 +4378,7 @@ async function pullSupabase(allowReplace=false){
     else localStorage.setItem("caiman_sync_lastmeta","legacy-downloaded");
     _syncSignature=_dataSignature();
     localStorage.setItem("_cag_deletions_v2","[]");
+    _basesLimpar();   // 04/11: o aparelho agora e igual ao servidor
     localStorage.setItem("caiman_sync_pend","0");
     if(_pontoMergeVisto)localStorage.setItem("_ponto_merge_v1","1");
     if(_pontoMergePend){try{marcarPendente();}catch(e){}}   // sobe a uniao no proximo envio
@@ -25713,7 +25817,7 @@ if(typeof autoSyncEnviar==="function"){
    Sem IndexedDB (navegador antigo, erro), o app roda como antes, no localStorage. */
 (function(){
   var GRANDES=["caiman_cargas_v1","caiman_tratos","caiman_animais_v1","caiman_mov_fila","caiman_mov_fila_feitos","caiman_pesagens_sisbov",
-    "caiman_estoque_v1","caiman_leitura_cocho","_cag_recovery_v2","_cag_audit_v2","_cag_deletions_v2"];
+    "caiman_estoque_v1","caiman_leitura_cocho","_cag_recovery_v2","_cag_audit_v2","_cag_deletions_v2","_cag_bases_v1"];
   var EH={};GRANDES.forEach(function(k){EH[k]=1;});
   var ls=window.localStorage,proto=Storage.prototype,G=proto.getItem,S=proto.setItem,R=proto.removeItem;
   var mem={},db=null,rodou=false;
@@ -25819,7 +25923,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.04-armazem</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.04-automatico</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
