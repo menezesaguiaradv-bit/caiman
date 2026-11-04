@@ -2948,7 +2948,7 @@ details.ncx-det summary{cursor:pointer;font-weight:600;color:var(--v);font-size:
   </div>
 </div>
 
-<script>
+<script type="text/x-caiman-app" id="cag-app">
 let SB_URL="https://qrsabbvkztfsxoxvaiwm.supabase.co";
 let SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFyc2FiYnZrenRmc3hveHZhaXdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NDgzODAsImV4cCI6MjA5NDMyNDM4MH0.qUlcuhhcH7QPF3Ro142lXaid_yHwmBykAbCzMgxMITA";
 // chave precisa ser um JWT (3 blocos); ignora valor inválido salvo por engano
@@ -25703,6 +25703,62 @@ if(typeof autoSyncEnviar==="function"){
 }
 
 </script>
+<script>
+/* 04/11/2026 (ele, print do celular: "O aparelho ficou sem espaço para os dados do app (limite do navegador)").
+   O localStorage do navegador da ~5 milhoes de caracteres por site e os dados ja passam disso (cargas, tratos,
+   bois identificados, pesagens, fila da Bia, estoque: o backup do dia 02/11 tinha 5,8 milhoes). As chaves GRANDES
+   passam a morar no IndexedDB (cota de centenas de MB), com uma copia na memoria: o app continua chamando
+   localStorage.getItem/setItem igual (o desvio e so para estas chaves). Por isso o script do app (cag-app) so roda
+   depois de ler o IndexedDB. Na 1a abertura, o que estava no localStorage passa para o IndexedDB e sai de la.
+   Sem IndexedDB (navegador antigo, erro), o app roda como antes, no localStorage. */
+(function(){
+  var GRANDES=["caiman_cargas_v1","caiman_tratos","caiman_animais_v1","caiman_mov_fila","caiman_mov_fila_feitos","caiman_pesagens_sisbov",
+    "caiman_estoque_v1","caiman_leitura_cocho","_cag_recovery_v2","_cag_audit_v2","_cag_deletions_v2"];
+  var EH={};GRANDES.forEach(function(k){EH[k]=1;});
+  var ls=window.localStorage,proto=Storage.prototype,G=proto.getItem,S=proto.setItem,R=proto.removeItem;
+  var mem={},db=null,rodou=false;
+  function rodarApp(){
+    if(rodou)return;rodou=true;
+    var ir=function(){var a=document.getElementById("cag-app"),n=document.createElement("script");n.text=a.textContent;document.body.appendChild(n);};
+    if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",ir);else ir();
+  }
+  function semIDB(motivo){console.warn("armazem: localStorage ("+motivo+")");window._cagArmazem="localStorage ("+motivo+")";rodarApp();}
+  var jaUsou=false;try{jaUsou=G.call(ls,"_cag_idb")==="1";}catch(e){}
+  if(!window.indexedDB)return semIDB("sem indexedDB");
+  var req;try{req=indexedDB.open("caiman_dados",1);}catch(e){return semIDB(e&&e.message);}
+  /* demora: se os dados ainda estao no localStorage, roda como antes; se ja passaram para o IndexedDB, espera e avisa */
+  var avisou=false,t=setTimeout(function(){
+    if(rodou)return;
+    if(!jaUsou)return semIDB("demorou");
+    avisou=true;try{var d=document.createElement("div");d.id="cag-carregando";d.textContent="Carregando os dados do aparelho…";
+      d.style.cssText="position:fixed;top:40%;left:10%;right:10%;padding:18px;background:#173b1c;color:#fff;border-radius:10px;text-align:center;z-index:99999;font:16px sans-serif";document.body.appendChild(d);}catch(e){}
+  },6000);
+  req.onupgradeneeded=function(){try{req.result.createObjectStore("kv");}catch(e){}};
+  req.onerror=function(){clearTimeout(t);if(!jaUsou)semIDB("erro ao abrir");else{alert("Não consegui abrir os dados do aparelho (IndexedDB). Feche e abra o app de novo; se continuar, avise o Claude.");}};
+  req.onsuccess=function(){
+    db=req.result;
+    var gravar=function(k,v,depois){try{var tx=db.transaction("kv","readwrite");var st=tx.objectStore("kv");if(v==null)st.delete(k);else st.put(v,k);
+      tx.oncomplete=function(){if(depois)depois();};tx.onerror=function(){console.warn("armazem: falhou gravar "+k,tx.error);};}catch(e){console.warn("armazem: gravar "+k,e);}};
+    var tx=db.transaction("kv","readonly"),st=tx.objectStore("kv");
+    GRANDES.forEach(function(k){var g=st.get(k);g.onsuccess=function(){if(g.result!=null)mem[k]=String(g.result);};});
+    tx.onerror=function(){clearTimeout(t);if(!jaUsou)semIDB("erro ao ler");};
+    tx.oncomplete=function(){
+      if(rodou)return;clearTimeout(t);
+      /* o que ainda esta no localStorage e o mais novo (gravado antes desta versao): passa para o IndexedDB e,
+         depois de gravado, sai do localStorage */
+      GRANDES.forEach(function(k){var v=null;try{v=G.call(ls,k);}catch(e){}
+        if(v!==null){mem[k]=v;gravar(k,v,function(){try{R.call(ls,k);}catch(e){}});}});
+      proto.getItem=function(k){if(this===ls&&EH[k])return Object.prototype.hasOwnProperty.call(mem,k)?mem[k]:null;return G.call(this,k);};
+      proto.setItem=function(k,v){if(this===ls&&EH[k]){v=String(v);mem[k]=v;gravar(k,v);return;}return S.call(this,k,v);};
+      proto.removeItem=function(k){if(this===ls&&EH[k]){delete mem[k];gravar(k,null);return;}return R.call(this,k);};
+      try{S.call(ls,"_cag_idb","1");}catch(e){}
+      window._cagArmazem="indexedDB";
+      try{var c=document.getElementById("cag-carregando");if(c)c.remove();}catch(e){}
+      rodarApp();
+    };
+  };
+})();
+</script>
 
 <div class="modal-overlay" id="modal-edit-recria" style="display:none">
 <div class="modal"><h3 style="display:flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Editar lote</h3>
@@ -25763,7 +25819,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.01-valorcompra</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.04-armazem</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">

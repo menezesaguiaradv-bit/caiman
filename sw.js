@@ -1,6 +1,6 @@
 // Service Worker — Caiman Agro
 // Estrategia: rede primeiro para HTML (sempre versao nova), cache como reserva offline
-const CACHE_NOME = 'caiman-agro-v5';
+const CACHE_NOME = 'caiman-agro-v6';
 const ARQUIVOS = [
   './',
   './index.html',
