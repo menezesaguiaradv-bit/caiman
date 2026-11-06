@@ -12,6 +12,10 @@
     <activity android:name=".MainActivity" android:exported="true">
       <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
     </activity>
+    <activity android:name=".Assistente" android:exported="true" android:theme="@android:style/Theme.Translucent.NoTitleBar" android:excludeFromRecents="true" android:noHistory="true">
+      <intent-filter><action android:name="android.intent.action.ASSIST" /><category android:name="android.intent.category.DEFAULT" /></intent-filter>
+      <intent-filter><action android:name="android.intent.action.VOICE_COMMAND" /><category android:name="android.intent.category.DEFAULT" /></intent-filter>
+    </activity>
     <service android:name=".OuvirService" android:exported="false" android:foregroundServiceType="microphone" />
     <receiver android:name=".Inicio" android:exported="true">
       <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /></intent-filter>

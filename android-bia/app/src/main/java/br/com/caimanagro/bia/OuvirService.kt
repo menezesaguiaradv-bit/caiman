@@ -73,6 +73,13 @@ class OuvirService : Service(), RecognitionListener {
     getSystemService(NotificationManager::class.java).notify(2, n)
   }
 
+  /* 05/11 (ele: "queria que ela fosse tipo o ok google do android"): o botao de assistente do Android abre a Friday
+     pela Assistente; antes ela manda "pausar" aqui para soltar o microfone para a pagina. */
+  override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    if (intent?.action == "pausar" && fala != null) { parar(); h.removeCallbacksAndMessages(null); h.postDelayed({ escutar() }, PAUSA_MS) }
+    return START_STICKY
+  }
+
   override fun onResult(hyp: String?) = ouviu(hyp)
   override fun onFinalResult(hyp: String?) = ouviu(hyp)
   override fun onPartialResult(hyp: String?) {}
