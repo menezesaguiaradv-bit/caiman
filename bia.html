@@ -53,6 +53,8 @@ header{display:flex;align-items:center;justify-content:space-between;height:56px
 .hmarca{display:flex;align-items:center;gap:12px}
 .hmarca b{font-size:20px;font-weight:800;letter-spacing:.28em;background:linear-gradient(180deg,#FFE3A1,#E8B54A 55%,#B07A1E);-webkit-background-clip:text;background-clip:text;color:transparent}
 header img{height:22px;filter:brightness(0) invert(.94) sepia(.15);opacity:.55}
+#aovivo{border-color:var(--dou);color:var(--dou);font-weight:600}
+#aovivo.on{background:var(--vd);color:#fff;border-color:#FF6B5B;box-shadow:0 0 0 4px rgba(255,107,91,.2)}
 .hbt{min-width:48px;height:48px;border-radius:12px;border:1px solid var(--borda);background:transparent;color:var(--tx2);font-size:14px;padding:0 12px}
 /* celular: nucleo em cima, a resposta logo abaixo e os seis paineis em grade 2 x 3 */
 #palco{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
@@ -153,7 +155,8 @@ header img{height:22px;filter:brightness(0) invert(.94) sepia(.15);opacity:.55}
 <main id="app" hidden>
   <header>
     <div class="hmarca"><b>BIA</b><img src="bia-logo.png" alt="Grupo Caiman Agro"></div>
-    <button class="hbt" id="atualizar" aria-label="Atualizar painéis">Atualizar</button>
+    <div style="display:flex;gap:8px"><button class="hbt" id="aovivo" aria-label="Conversa ao vivo">● Ao vivo</button>
+    <button class="hbt" id="atualizar" aria-label="Atualizar painéis">Atualizar</button></div>
   </header>
   <section id="palco">
     <div class="tiles" id="tiles-a"></div>
@@ -187,7 +190,7 @@ header img{height:22px;filter:brightness(0) invert(.94) sepia(.15);opacity:.55}
   <div class="cab"><h2 id="t-tit"></h2><button id="fechar">Fechar</button></div>
   <div id="corpo"></div>
 </div>
-<div class="selo">v2026.11.05-bia</div>
+<div class="selo">v2026.11.05-aovivo</div>
 
 <script>
 "use strict";
@@ -579,6 +582,76 @@ $("txt").addEventListener("keydown",(e)=>{if(e.key==="Enter"){const v=$("txt").v
 $("voz").onclick=()=>{falar=!falar;try{localStorage.setItem("_bia_voz",falar?"1":"0");}catch(e){}if(!falar)pararAudio();marcarVoz();};
 $("fechar").onclick=fecharPainel;
 $("atualizar").onclick=carregarTudo;
+
+/* ===== conversa AO VIVO (05/11, ele: "quero poder conversar com ela, igual a ferramenta do ChatGPT que faz por
+   audio sem interrupcoes"). WebRTC direto na Realtime API da OpenAI, com chave temporaria pedida a Bia
+   (?web=1&realtime=1). Ouve e fala ao mesmo tempo; se ele fala por cima, ela para. Pergunta de dados vem como
+   ferramenta consultar_bia, que vai para a rota ?web=1 de sempre (sem audio) e volta como resultado. */
+const AV={pc:null,dc:null,mic:null,som:null,ativo:false};
+async function aoVivoLigar(){
+  if(AV.ativo){aoVivoDesligar();return;}
+  pararAudio(); if(ouvindo){try{rec.stop();}catch(e){}}
+  MODO_CONVERSA=false; destravarAudio();
+  $("aovivo").classList.add("on"); $("aovivo").textContent="■ Encerrar";
+  $("ouvido").textContent=""; $("resposta").textContent="Ligando…"; setEstado("pensando");
+  try{
+    const j=await chamar("web=1&realtime=1",{});
+    if(!j.ok)throw new Error(j.erro||"não consegui ligar");
+    const pc=new RTCPeerConnection(); AV.pc=pc; AV.ativo=true;
+    const som=new Audio(); som.autoplay=true; AV.som=som;
+    pc.ontrack=(e)=>{som.srcObject=e.streams[0];
+      /* analisador proprio, sem ligar no alto-falante (o som ja sai pelo <audio>; ligar no destino tocaria em dobro) */
+      try{if(audioCtx){if(audioCtx.state==="suspended")audioCtx.resume();const an=audioCtx.createAnalyser();an.fftSize=512;audioCtx.createMediaStreamSource(e.streams[0]).connect(an);AV.anVelho=analisador;analisador=an;}}catch(_){}};
+    AV.mic=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+    pc.addTrack(AV.mic.getTracks()[0]);
+    const dc=pc.createDataChannel("oai-events"); AV.dc=dc;
+    dc.onopen=()=>{setEstado("ouvindo");$("resposta").textContent="Pode falar, chefe.";
+      dc.send(JSON.stringify({type:"response.create",response:{instructions:"Cumprimente o chefe em uma frase curta e animada e pergunte em que pode ajudar."}}));};
+    dc.onmessage=(m)=>{try{aoVivoEvento(JSON.parse(m.data));}catch(e){console.warn(e);}};
+    pc.onconnectionstatechange=()=>{if(["failed","closed","disconnected"].includes(pc.connectionState)&&AV.ativo)aoVivoDesligar("A conexão caiu. Toque em Ao vivo de novo.");};
+    const oferta=await pc.createOffer(); await pc.setLocalDescription(oferta);
+    const r=await fetch("https://api.openai.com/v1/realtime/calls",{method:"POST",body:oferta.sdp,headers:{Authorization:"Bearer "+j.chave,"Content-Type":"application/sdp"}});
+    if(!r.ok)throw new Error("a OpenAI recusou ("+r.status+")");
+    await pc.setRemoteDescription({type:"answer",sdp:await r.text()});
+  }catch(e){
+    if(e.message!=="login")aoVivoDesligar(/Permission|NotAllowed/i.test(String(e&&e.name||e))?"Libere o microfone para esta página.":"Não consegui ligar a conversa ao vivo: "+(e.message||e));
+  }
+}
+function aoVivoDesligar(msg){
+  AV.ativo=false;
+  try{AV.dc&&AV.dc.close();}catch(e){} try{AV.pc&&AV.pc.close();}catch(e){}
+  try{AV.mic&&AV.mic.getTracks().forEach((t)=>t.stop());}catch(e){}
+  try{if(AV.som){AV.som.srcObject=null;}}catch(e){}
+  if(AV.anVelho){analisador=AV.anVelho;AV.anVelho=null;}
+  AV.pc=AV.dc=AV.mic=AV.som=null;
+  $("aovivo").classList.remove("on"); $("aovivo").textContent="● Ao vivo";
+  setEstado("pronta"); if(msg)$("resposta").textContent=msg;
+}
+let avFala="";
+async function aoVivoEvento(ev){
+  const t=ev.type||"";
+  if(t==="input_audio_buffer.speech_started"){setEstado("ouvindo");}
+  else if(t==="conversation.item.input_audio_transcription.completed"){$("ouvido").textContent="Você: "+(ev.transcript||"").trim();}
+  else if(t==="response.created"){avFala="";}
+  else if(t==="response.output_audio_transcript.delta"||t==="response.audio_transcript.delta"){avFala+=ev.delta||"";$("resposta").textContent=avFala;}
+  else if(t==="output_audio_buffer.started"){setEstado("falando");}
+  else if(t==="output_audio_buffer.stopped"||t==="output_audio_buffer.cleared"){if(AV.ativo)setEstado("ouvindo");}
+  else if(t==="response.function_call_arguments.done"&&ev.name==="consultar_bia"){
+    let q="";try{q=JSON.parse(ev.arguments||"{}").pergunta||"";}catch(e){}
+    setEstado("pensando");
+    let saida="";
+    try{const j=await chamar("web=1",{mensagem:q,voz:false});
+      saida=j.ok?(j.texto||""):("erro: "+(j.erro||"sem resposta"));
+      if(j.ok&&j.painel){carregar(j.painel);abrirPainel(j.painel,j.curral);}
+    }catch(e){saida="erro: sem conexão com a Bia";}
+    if(!AV.dc||AV.dc.readyState!=="open")return;
+    AV.dc.send(JSON.stringify({type:"conversation.item.create",item:{type:"function_call_output",call_id:ev.call_id,output:saida.slice(0,6000)}}));
+    AV.dc.send(JSON.stringify({type:"response.create"}));
+  }
+  else if(t==="error"){console.warn("ao vivo:",ev.error);if(ev.error&&/expired|session/i.test(ev.error.message||""))aoVivoDesligar("A sessão expirou. Toque em Ao vivo de novo.");}
+}
+$("aovivo").onclick=aoVivoLigar;
+
 document.addEventListener("keydown",(e)=>{if(e.key==="Escape"&&!$("tela").hidden)fecharPainel();});
 window.addEventListener("popstate",()=>{if(!$("tela").hidden)esconderPainel();});
 marcarVoz();
