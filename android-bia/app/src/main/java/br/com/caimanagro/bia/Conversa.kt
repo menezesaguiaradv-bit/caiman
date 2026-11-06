@@ -58,7 +58,7 @@ class Conversa : Activity() {
     primeira = intent?.getStringExtra("primeira")
     Modelos.carregar(this) { }
     setContentView(web)
-    web.loadUrl(Abrir.URL_AO_VIVO)
+    web.loadUrl(Abrir.url(intent))
   }
 
   private var aoVivo: AoVivo? = null
@@ -71,7 +71,7 @@ class Conversa : Activity() {
   }
 
   /* chamada de novo (gesto/palavra com a tela ja aberta): recarrega e liga de novo */
-  override fun onNewIntent(i: Intent?) { super.onNewIntent(i); tratarBloqueio(i); aoVivo?.parar(); primeira = i?.getStringExtra("primeira"); web.loadUrl(Abrir.URL_AO_VIVO) }
+  override fun onNewIntent(i: Intent?) { super.onNewIntent(i); tratarBloqueio(i); aoVivo?.parar(); primeira = i?.getStringExtra("primeira"); web.loadUrl(Abrir.url(i)) }
 
   /* 06/11 (ele: "quero que a Bia comece a operar com o celular bloqueado ... biometria vocal para so responder a mim"):
      chamada pela voz reconhecida (voz=true) -> abre por cima da tela bloqueada e acende a tela.

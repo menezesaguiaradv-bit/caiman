@@ -9,6 +9,8 @@ import android.content.Intent
 object Abrir {
   const val URL = "https://menezesaguiaradv-bit.github.io/caiman/bia.html?ouvir=1"
   const val URL_AO_VIVO = "https://menezesaguiaradv-bit.github.io/caiman/bia.html?aovivo=1"
+  const val URL_TEXTO = "https://menezesaguiaradv-bit.github.io/caiman/bia.html"   // 06/11: barra da tela inicial, para digitar
+  fun url(i: android.content.Intent?) = if (i?.getStringExtra("modo") == "texto") URL_TEXTO else URL_AO_VIVO
   fun bia(ctx: Context, voz: Boolean = false, primeira: String? = null) {
     ctx.startActivity(Intent(ctx, Conversa::class.java).putExtra("voz", voz).putExtra("primeira", primeira)
       .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))
