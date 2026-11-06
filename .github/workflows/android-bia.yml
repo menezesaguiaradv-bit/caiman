@@ -16,19 +16,19 @@ jobs:
         with: { distribution: temurin, java-version: "17" }
       - uses: gradle/actions/setup-gradle@v3
         with: { gradle-version: "8.7" }
-      - name: Modelo de voz em ingles (Vosk, offline) - palavra de ativacao "Friday"
+      - name: Modelo de voz em portugues (Vosk, offline)
         run: |
-          curl -sSL -o m.zip https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip
+          curl -sSL -o m.zip https://alphacephei.com/vosk/models/vosk-model-small-pt-0.3.zip
           unzip -q m.zip
-          mkdir -p android-bia/app/src/main/assets/model-en
-          cp -r vosk-model-small-en-us-0.15/* android-bia/app/src/main/assets/model-en/
-          echo "en-us-0.15" > android-bia/app/src/main/assets/model-en/uuid
+          mkdir -p android-bia/app/src/main/assets/model-pt
+          cp -r vosk-model-small-pt-0.3/* android-bia/app/src/main/assets/model-pt/
+          echo "pt-0.3" > android-bia/app/src/main/assets/model-pt/uuid
       - name: Compilar
         working-directory: android-bia
         run: gradle --no-daemon assembleRelease
       - name: Publicar o APK
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
-          cp android-bia/app/build/outputs/apk/release/app-release.apk Friday.apk
+          cp android-bia/app/build/outputs/apk/release/app-release.apk Bia.apk
           gh release delete bia-android -y --cleanup-tag || true
-          gh release create bia-android Friday.apk -t "Friday (Android)" -n "App Android com a palavra de ativacao Friday. Instale no celular e ligue a escuta."
+          gh release create bia-android Bia.apk -t "Bia (Android)" -n "App Android com a palavra de ativacao Bia. Instale no celular e ligue a escuta."

@@ -1,6 +1,6 @@
 {
-  "name": "Friday — Grupo Caiman Agro",
-  "short_name": "Friday",
+  "name": "Bia — Grupo Caiman Agro",
+  "short_name": "Bia",
   "id": "/caiman/bia.html",
   "start_url": "/caiman/bia.html?ouvir=1",
   "scope": "/caiman/bia.html",
@@ -11,5 +11,5 @@
     {"src": "bia-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
     {"src": "bia-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
   ],
-  "shortcuts": [{"name": "Falar com a Friday", "url": "/caiman/bia.html?ouvir=1", "icons": [{"src": "bia-icon-192.png", "sizes": "192x192"}]}]
+  "shortcuts": [{"name": "Falar com a Bia", "url": "/caiman/bia.html?ouvir=1", "icons": [{"src": "bia-icon-192.png", "sizes": "192x192"}]}]
 }

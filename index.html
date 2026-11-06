@@ -409,7 +409,7 @@ Compartilhar</button></div>
 <div id="alert-sisbov" class="alert"></div>
 <div class="sec" style="border-left:4px solid #B8944F;background:#FFFEFA">
 <div class="stitle" style="color:#23432D;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span>Pesagem individual por pasto <span style="font-weight:400;font-size:12px;color:#7A7668">recria e engorda</span></span><span style="display:inline-flex;gap:6px;flex-wrap:wrap"><button onclick="abrirImportarMovimentacao()" style="background:#23432D;color:#F7F4EC;border:1px solid #23432D;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Importar pesagem / movimentação</button><button onclick="abrirValorCompra()" style="background:#FFFEFA;color:#23432D;border:1px solid #B8944F;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">💲 Valor de compra</button><button onclick="abrirMoverBloco()" style="background:#23432D;color:#F7F4EC;border:1px solid #23432D;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Mover em bloco</button><button onclick="acertarLotesPelaPesagem()" style="background:#FBF8F0;color:#23432D;border:1px solid #B8944F;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Acertar lotes pela pesagem</button><button onclick="abrirExportIdent()" style="background:#FBF8F0;color:#23432D;border:1px solid #B8944F;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">Exportar bois identificados (CSV)</button></span></div>
-<div style="font-size:12px;color:#555;margin-bottom:10px">Suba a planilha da balança (pode ter várias abas e datas) ou mande para a Friday no WhatsApp: cada boi vai para o pasto/curral da planilha com a pesagem, e o <b>lote segue os bois</b> — muda de pasto ou vira semi/confinamento sozinho.</div>
+<div style="font-size:12px;color:#555;margin-bottom:10px">Suba a planilha da balança (pode ter várias abas e datas) ou mande para a Bia no WhatsApp: cada boi vai para o pasto/curral da planilha com a pesagem, e o <b>lote segue os bois</b> — muda de pasto ou vira semi/confinamento sozinho.</div>
 <div id="exp-ident" hidden style="background:#FFFEFA;border:1px solid #B8944F;border-radius:10px;padding:14px;margin-bottom:12px"></div>
 <div style="position:relative;margin-bottom:10px"><input id="ident-busca" inputmode="numeric" autocomplete="off" placeholder="🔎 Pesquisar boi pela identificação eletrônica ou SISBOV (pode ser o final do número)" oninput="renderBuscaAnimalGeral()" style="width:100%;font-size:13px;padding:9px 11px;border:1px solid #B8944F;border-radius:8px;background:#fff"><div id="ident-busca-res"></div></div>
 <div id="ident-resumo"></div>
@@ -2388,7 +2388,7 @@ details.ncx-det summary{cursor:pointer;font-weight:600;color:var(--v);font-size:
   <div class="sec">
     <div class="stitle">Relatório de Estoque (PDF)</div>
     <div style="font-size:12px;color:var(--mt);margin:4px 0 12px">
-      O <b>mesmo relatório que a Friday manda</b>: saldo do <b>Saicon</b>, custo, valor total e quantos dias
+      O <b>mesmo relatório que a Bia manda</b>: saldo do <b>Saicon</b>, custo, valor total e quantos dias
       cada ingrediente dura <b>pelas dietas vinculadas aos lotes</b> e pela média real.
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -3733,7 +3733,7 @@ async function baixarDados(){
     }
     if(localStorage.getItem("caiman_sync_pend")==="1"&&!confirm("Há alterações ainda não enviadas. Baixar substituirá estes dados; uma cópia de recuperação ficará no Histórico deste aparelho. Continuar?")){if(btn)btn.innerHTML=orig;return;}
     const counts=await pullSupabase(true);
-    try{await _enviarSeFilaAplicou();}catch(e){console.warn("envio da fila da Friday:",e);}
+    try{await _enviarSeFilaAplicou();}catch(e){console.warn("envio da fila da Bia:",e);}
     if(btn)btn.innerHTML=orig;
     atualizarDashboard();
     toast("✅ Baixados: "+(counts?counts.lotes+" lotes, "+counts.animais+" animais, "+counts.abates+" abates":"sem dados novos")+".");
@@ -3836,7 +3836,7 @@ async function sincronizar(){
     }
     if(btn)btn.innerHTML="⬇ Baixando...";
     await pullSupabase();
-    if(await _enviarSeFilaAplicou()&&btn)btn.innerHTML="⬆ Enviando o que a Friday mandou...";
+    if(await _enviarSeFilaAplicou()&&btn)btn.innerHTML="⬆ Enviando o que a Bia mandou...";
     if(btn)btn.innerHTML="✅ OK!";
     setTimeout(()=>{if(btn)btn.innerHTML=orig;},3000);
     try{localStorage.setItem("caiman_sync_pend","0");}catch(e){}
@@ -4383,7 +4383,7 @@ async function pullSupabase(allowReplace=false){
     if(_pontoMergeVisto)localStorage.setItem("_ponto_merge_v1","1");
     if(_pontoMergePend){try{marcarPendente();}catch(e){}}   // sobe a uniao no proximo envio
     try{_msDoRobo();}catch(e){console.warn("ms do robo:",e);}
-    try{_aplicarFilaMovBia();}catch(e){console.warn("fila de movimentacao da Friday:",e);}
+    try{_aplicarFilaMovBia();}catch(e){console.warn("fila de movimentacao da Bia:",e);}
     atualizarDashboard();_r(renderAnimais,"renderAnimais");_r(renderPastos,"renderPastos");
     // re-renderizar as outras telas com os dados baixados
     try{
@@ -5701,7 +5701,7 @@ function _idAnimalHtml(a){
     '<div class="al-chip"><span class="al-lbl c">ID ELETRÔNICA</span>'+(a.eletro?_escAL(_chipFmt(a.eletro)):'<span class="al-falta">sem identificação eletrônica</span>')+'</div></div>';
 }
 // "Curral 14", "curral 14" e "14" sao o mesmo lugar: o lote do confinamento guarda
-// so o numero e o card escreve "Curral" na frente; a balanca e a Friday mandam com a palavra.
+// so o numero e o card escreve "Curral" na frente; a balanca e a Bia mandam com a palavra.
 function _pastoCore(p){
   return _normIng(p).replace(/\bn\s*[o\u00ba\u00b0]\.?\s*(?=\d)/g," ").replace(/\b(curral|currais|pasto|piquete|baia|lote)\b/g," ").replace(/[\s.\-_]+/g,"").toUpperCase();
 }
@@ -6825,7 +6825,7 @@ function renderResumoIdentificados(){
   var el=document.getElementById("ident-resumo");if(!el)return;
   var grupos=_gruposIdentificados();
   var ks=Object.keys(grupos).filter(function(k){return grupos[k].n>0;});
-  if(!ks.length){el.innerHTML='<div class="empty" style="padding:14px">Nenhum pasto com animal identificado ainda. Importe a planilha da balança acima ou mande para a Friday no WhatsApp.</div>';return;}
+  if(!ks.length){el.innerHTML='<div class="empty" style="padding:14px">Nenhum pasto com animal identificado ainda. Importe a planilha da balança acima ou mande para a Bia no WhatsApp.</div>';return;}
   var lotes=getLotes().filter(function(l){return !l.vendido;});
   var porCat={recria:[],semi:[],conf:[],sem:[]};
   ks.forEach(function(k){
@@ -7431,7 +7431,7 @@ function _aplicarFilaMovBia(){
     var ok=plano.filter(function(p){return p.status==="mover"||p.status==="pesar"||p.status==="novo";});
     tot.fora+=plano.filter(function(p){return p.status==="erro";}).length;
     if(ok.length){
-      var r=_movAplicar(ok,f.correcao?"Correção de cadastro (boi é do confinamento)":"Friday (WhatsApp)");tot.mov+=r.mov;tot.pesadas+=r.pesadas;tot.novos+=r.novos;
+      var r=_movAplicar(ok,f.correcao?"Correção de cadastro (boi é do confinamento)":"Bia (WhatsApp)");tot.mov+=r.mov;tot.pesadas+=r.pesadas;tot.novos+=r.novos;
       /* tipo do lote novo mandado pela Bia ("semi", "confinamento" na legenda): {pasto: tipo} */
       var tp={};if(f.tipos)plano.forEach(function(p){var t=f.tipos[p.l.dest]||f.tipos[p.pastoDest];if(t&&p.fazDest&&p.pastoDest)tp[_chPastoId(p.fazDest,p.pastoDest)]=t;});
       /* f.correcao: o boi estava cadastrado no lugar errado (ex.: os 46 do 10B que sao do B5) - muda o boi,
@@ -7446,7 +7446,7 @@ function _aplicarFilaMovBia(){
   try{_r(renderAnimais,"renderAnimais");}catch(e){}
   try{renderPastos();}catch(e){}
   _refrescarAnimaisLote();
-  try{toast("Movimentação da Friday: "+tot.mov+" animal(is) mudaram de lugar, "+tot.pesadas+" pesagem(ns)"+(tot.novos?", "+tot.novos+" cadastrado(s)":"")+(tot.excl?", "+tot.excl+" excluído(s)":"")+(tot.lotes?", "+tot.lotes+" lote(s) acertado(s)":"")+(tot.fora?" · "+tot.fora+" linha(s) não aplicada(s)":"")+".");}catch(e){}
+  try{toast("Movimentação da Bia: "+tot.mov+" animal(is) mudaram de lugar, "+tot.pesadas+" pesagem(ns)"+(tot.novos?", "+tot.novos+" cadastrado(s)":"")+(tot.excl?", "+tot.excl+" excluído(s)":"")+(tot.lotes?", "+tot.lotes+" lote(s) acertado(s)":"")+(tot.fora?" · "+tot.fora+" linha(s) não aplicada(s)":"")+".");}catch(e){}
   return tot;
 }
 
@@ -8079,7 +8079,7 @@ function abrirEnc(id){
   /* peso de saida mandado para a Friday no WhatsApp (ultimos 20 dias) */
   const _preenchePv=function(){const pp=abcPesoPendente(l.pasto);const e=document.getElementById("enc-pv");
     if(pp&&e&&!e.value){e.value=pp.peso;const d=document.getElementById("enc-data");if(d&&pp.data)d.value=pp.data;
-      window._encPvMsg="Peso que você mandou para a Friday em "+fmtData(pp.data)+": <b>"+pp.peso+" kg</b>. ";calcEnc();}};
+      window._encPvMsg="Peso que você mandou para a Bia em "+fmtData(pp.data)+": <b>"+pp.peso+" kg</b>. ";calcEnc();}};
   window._encPvMsg="";
   _preenchePv(); abcBaixaPesos().then(_preenchePv).catch(function(){});
   /* 01/10: @ nao vem mais preenchida com a projecao - ele digita so o peso de
@@ -8279,9 +8279,9 @@ async function abrirValorCompra(){
   var fazs=["Cruz Alta","Pinheiral","Caiman","Maguary","Furna"];
   m.innerHTML='<div class="modal-enc" style="max-width:520px;max-height:90vh;overflow:auto">'+
     '<h3 style="margin:0 0 4px;color:#23432D">💲 Valor de compra dos bois</h3>'+
-    '<div style="font-size:12px;color:#666;margin-bottom:12px">Grava o valor de compra em cada boi identificado. A Friday usa esse valor no custo por boi do Painel. Mande a NF para a Friday no WhatsApp e ela aparece aqui.</div>'+
+    '<div style="font-size:12px;color:#666;margin-bottom:12px">Grava o valor de compra em cada boi identificado. A Bia usa esse valor no custo por boi do Painel. Mande a NF para a Bia no WhatsApp e ela aparece aqui.</div>'+
     '<div style="display:grid;gap:10px">'+
-    '<div class="field"><label>Compra lida pela Friday</label><select id="vc-compra" onchange="_vcEscolheu()"><option value="">carregando…</option></select></div>'+
+    '<div class="field"><label>Compra lida pela Bia</label><select id="vc-compra" onchange="_vcEscolheu()"><option value="">carregando…</option></select></div>'+
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
     '<div class="field"><label>Valor por cabeça (R$)</label><input id="vc-valor" type="number" step="0.01" placeholder="0.00"></div>'+
     '<div class="field"><label>NF</label><input id="vc-nf" placeholder="nº da nota"></div>'+
@@ -9564,7 +9564,7 @@ function _estBiaBloco(B){
       "<td style='text-align:right'>"+dTx(x.dur_media)+"</td>"+
       "<td style='text-align:right'>"+(x.valor!=null?"R$ "+f(x.valor,2):"—")+"</td></tr>";
   }).join("");
-  return "<div style='font-size:13px;font-weight:700;color:var(--v);margin:4px 0 6px'>Fazenda Pinheiral — mesmos números do relatório da Friday"+
+  return "<div style='font-size:13px;font-weight:700;color:var(--v);margin:4px 0 6px'>Fazenda Pinheiral — mesmos números do relatório da Bia"+
     (B.inventario?" <span style='font-weight:400;color:var(--mt);font-size:11.5px'>(inventário do Saicon de "+fmtData(B.inventario)+")</span>":"")+"</div>"+
     "<div style='overflow-x:auto;margin-bottom:18px'><table class='atable'><thead><tr><th>#</th><th>Produto</th><th style='text-align:right'>Custo/kg</th>"+
     "<th style='text-align:right'>Estoque real</th><th style='text-align:right'>Conf. kg/dia previsto</th><th style='text-align:right'>Conf. kg/dia real (7d)</th>"+
@@ -9907,7 +9907,7 @@ function renderEstoque(){
   const B=(querPinh&&_estBia&&_estBia.ok)?_estBia:null;
   if(B)l=l.filter(function(x){return !_estEhPinheiral(x.fazenda);});
   const blocoBia=B?_estBiaBloco(B):(querPinh?"<div style='font-size:11.5px;color:var(--mt);margin-bottom:10px'>"+
-    (_estBia&&!_estBia.ok?"⚠️ Não consegui buscar os números da Friday ("+_estBia.erro+") — a Pinheiral abaixo está na conta do aparelho e pode diferir do relatório dela.":"Buscando os números da Friday para a Pinheiral…")+"</div>":"");
+    (_estBia&&!_estBia.ok?"⚠️ Não consegui buscar os números da Bia ("+_estBia.erro+") — a Pinheiral abaixo está na conta do aparelho e pode diferir do relatório dela.":"Buscando os números da Bia para a Pinheiral…")+"</div>":"");
   if(B){
     const alB=B.linhas.filter(function(x){return x.dur_cor!=null&&x.dur_cor<EST_LIMITE_DIAS;});
     if(!l.length){
@@ -18901,7 +18901,7 @@ async function abcBaixarConag(avisar){
     const l=await r.json();
     if(l&&l.length&&l[0].dados)localStorage.setItem("caiman_conag_receber",l[0].dados);
     else if(avisar&&st)st.textContent="O robô do CONAG ainda não gravou as contas a receber.";
-    // acertos/romaneios que a Friday leu no WhatsApp
+    // acertos/romaneios que a Bia leu no WhatsApp
     try{const r2=await fetch(SB_URL.replace(/\/+$/,"")+"/rest/v1/dados_v2?id=eq.EMPRESA%3A%3Acaiman_acertos_abate&select=dados",{headers:h});
       if(r2.ok){const l2=await r2.json();if(l2&&l2.length&&l2[0].dados)localStorage.setItem("caiman_acertos_abate",l2[0].dados);}}catch(e){}
     try{await abcBaixaPesos();}catch(e){}
@@ -19188,7 +19188,7 @@ function renderAbatesConf(){
       '<td>'+(c.pv?f(c.pv,0)+" kg"+(c.est?' <span class="abc-est">est.</span>':''):"—")+'</td>'+
       '<td>'+(c.gmd!=null?f(c.gmd,3):"—")+(c.est&&c.gmd!=null?' <span class="abc-est">est.</span>':'')+'</td>'+
       '<td>'+(c.rend!=null?f(c.rend,1)+"%":"—")+'</td><td>'+(c.at?f(c.at,2)+(a.atEstimado?' <span class="abc-est" title="estimada pelo peso de embarque x rendimento - digite a @ do romaneio no Editar">est.</span>':''):"—")+'</td>'+
-      '<td>'+(c.nf!=null?R(c.nf)+(a.nfConag&&a.nfConag.acerto?' <span class="abc-est" style="color:#2E7D32" title="valor bruto do acerto de venda lido pela Friday">acerto</span>':'')+(a.nfConag&&a.nfConag.auto?' <span class="abc-est" title="vinculada automaticamente - confira no Editar">auto</span>':''):'<span style="color:#999" title="sem NF vinculada: @ × R$/@">'+R(c.venda)+'*</span>')+'</td>'+
+      '<td>'+(c.nf!=null?R(c.nf)+(a.nfConag&&a.nfConag.acerto?' <span class="abc-est" style="color:#2E7D32" title="valor bruto do acerto de venda lido pela Bia">acerto</span>':'')+(a.nfConag&&a.nfConag.auto?' <span class="abc-est" title="vinculada automaticamente - confira no Editar">auto</span>':''):'<span style="color:#999" title="sem NF vinculada: @ × R$/@">'+R(c.venda)+'*</span>')+'</td>'+
       '<td>'+(c.proap?R(c.proap):"—")+'</td><td>'+R(c.receita)+'</td>'+
       '<td title="compra '+R(c.cCompra)+' · nutrição '+R(c.cNutri)+(c.nutriReal?' (tratos)':' (digitado)')+' · operacional '+R(c.cOp)+(c.custoSusp?' — ATENÇÃO: custo por cabeça gravado errado (parece total do lote); confira ou exclua':'')+'">'+R(c.custo)+(c.custoSusp?' <span class="abc-est" style="color:#C62828">⚠</span>':'')+'</td>'+
       '<td><span class="'+(c.lucro>=0?"abc-pos":"abc-neg")+'">'+R(c.lucro)+'</span></td>'+
@@ -19431,10 +19431,10 @@ async function executarPedidosBia(){
     await _gravarChaveRemota("caiman_encerrar_pedidos",ped);
     if(feitos.length){
       try{autoSyncEnviar();}catch(e){}
-      try{toast("✅ Friday encerrou "+feitos.join(", ")+" — está no Histórico de Abates");}catch(e){}
+      try{toast("✅ Bia encerrou "+feitos.join(", ")+" — está no Histórico de Abates");}catch(e){}
       try{atualizarDashboard();}catch(e){}
     }
-  }catch(e){console.log("pedidos da Friday:",e);}
+  }catch(e){console.log("pedidos da Bia:",e);}
   finally{_encBiaOcupado=false;}
 }
 
@@ -25923,7 +25923,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.05-friday</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.05-bia</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
