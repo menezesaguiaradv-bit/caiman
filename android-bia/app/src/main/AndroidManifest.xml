@@ -10,6 +10,7 @@
   <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
   <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
   <uses-permission android:name="android.permission.WAKE_LOCK" />
+  <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
   <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
   <application android:label="Bia" android:icon="@mipmap/ic_launcher" android:allowBackup="false" android:theme="@android:style/Theme.Material.NoActionBar">
     <activity android:name=".MainActivity" android:exported="true">
@@ -29,7 +30,7 @@
     <service android:name=".Reconhece" android:exported="true" android:label="Bia">
       <intent-filter><action android:name="android.speech.RecognitionService" /><category android:name="android.intent.category.DEFAULT" /></intent-filter>
     </service>
-    <service android:name=".OuvirService" android:exported="false" android:foregroundServiceType="microphone" />
+    <service android:name=".OuvirService" android:exported="false" android:foregroundServiceType="microphone" android:stopWithTask="false" />
     <receiver android:name=".Inicio" android:exported="true">
       <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /></intent-filter>
     </receiver>

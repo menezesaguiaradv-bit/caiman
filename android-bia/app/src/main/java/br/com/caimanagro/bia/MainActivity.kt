@@ -48,7 +48,13 @@ class MainActivity : Activity() {
     atualizar()
   }
 
-  override fun onResume() { super.onResume(); atualizar() }
+  override fun onResume() {
+    super.onResume()
+    /* app aberto: reinicia a escuta com o microfone liberado (o Android so da microfone a servico iniciado com o app na tela) */
+    if (getSharedPreferences("bia", MODE_PRIVATE).getBoolean("ligado", false))
+      try { startForegroundService(Intent(this, OuvirService::class.java).setAction("reiniciar")) } catch (_: Exception) {}
+    atualizar()
+  }
 
   private fun pedirPermissoes() {
     val faltam = mutableListOf<String>()
@@ -56,6 +62,9 @@ class MainActivity : Activity() {
     if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) faltam += Manifest.permission.POST_NOTIFICATIONS
     if (faltam.isNotEmpty()) requestPermissions(faltam.toTypedArray(), 1)
     if (!Settings.canDrawOverlays(this)) startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+    /* 06/11 18h50: sem isso a economia de bateria da Samsung encerra a escuta com o app fechado */
+    else if (!getSystemService(android.os.PowerManager::class.java).isIgnoringBatteryOptimizations(packageName))
+      try { startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName"))) } catch (_: Exception) {}
   }
 
   private fun alternar() {
@@ -69,7 +78,13 @@ class MainActivity : Activity() {
 
   private fun atualizar() {
     val ligado = getSharedPreferences("bia", MODE_PRIVATE).getBoolean("ligado", false)
-    estado.text = if (ligado) "Ouvindo a palavra \"Bia\"" else "Escuta desligada"
+    val pf = getSharedPreferences("bia", MODE_PRIVATE)
+    val vivo = System.currentTimeMillis() - pf.getLong("ouvindo_em", 0) < 90_000
+    val bat = getSystemService(android.os.PowerManager::class.java).isIgnoringBatteryOptimizations(packageName)
+    estado.text = if (!ligado) "Escuta desligada"
+      else (if (pf.getBoolean("mic_mudo", false)) "⚠️ O Android pausou o microfone. Deixe o app aberto alguns segundos."
+        else if (vivo) "✅ Ouvindo a palavra \"Bia\"" else "Ligando a escuta…") +
+        (if (!bat) "\n⚠️ Bateria: libere a Bia (Configurações › Aplicativos › Bia › Bateria › Sem restrições)" else "")
     botao.text = if (ligado) "Desligar a escuta" else "Ligar a escuta"
     val tem = VozPerfil.perfil(this) != null
     val ult = VozPerfil.ultima(this)

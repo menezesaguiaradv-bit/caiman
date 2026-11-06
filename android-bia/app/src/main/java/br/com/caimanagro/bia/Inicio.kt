@@ -8,6 +8,6 @@ import android.content.Intent
 class Inicio : BroadcastReceiver() {
   override fun onReceive(c: Context, i: Intent) {
     if (i.action == Intent.ACTION_BOOT_COMPLETED && c.getSharedPreferences("bia", Context.MODE_PRIVATE).getBoolean("ligado", false))
-      c.startForegroundService(Intent(c, OuvirService::class.java))
+      try { c.startForegroundService(Intent(c, OuvirService::class.java)) } catch (_: Exception) {}   // Android 14 pode barrar microfone no boot: abrir o app reativa
   }
 }

@@ -69,9 +69,21 @@ class OuvirService : Service() {
         rec.startRecording()
         val buf = ByteArray(3200)            // 100 ms
         val frase = ByteArrayOutputStream()  // audio desde o ultimo fim de frase (ate 12 s)
+        /* 06/11 18h50 (ele: "nao esta funcionando com o app fechado em segundo plano"): o Android pode deixar o
+           microfone MUDO para servico que voltou sozinho em segundo plano (so zeros). 30 s de zeros = avisa para tocar
+           e reativar. E um "estou vivo" a cada 20 s, que a tela do app mostra. */
+        var zeros = 0; var ultPing = 0L
+        val pref = getSharedPreferences("bia", MODE_PRIVATE)
         while (rodando) {
           val n = rec.read(buf, 0, buf.size)
           if (n <= 0) continue
+          var mudo = true; var i = 0
+          while (i < n) { if (buf[i].toInt() != 0 || buf[i + 1].toInt() != 0) { mudo = false; break }; i += 2 }
+          zeros = if (mudo) zeros + 1 else 0
+          if (zeros == 300) { pref.edit().putBoolean("mic_mudo", true).apply(); h.post { avisarMudo() } }
+          if (!mudo && pref.getBoolean("mic_mudo", false)) pref.edit().putBoolean("mic_mudo", false).apply()
+          val agora = System.currentTimeMillis()
+          if (agora - ultPing > 20_000) { ultPing = agora; pref.edit().putLong("ouvindo_em", agora).apply() }
           frase.write(buf, 0, n)
           if (frase.size() > 16000 * 2 * 12) { val b = frase.toByteArray(); frase.reset(); frase.write(b, b.size - 16000 * 2 * 6, 16000 * 2 * 6) }
           if (r.acceptWaveForm(buf, n)) {
@@ -130,6 +142,14 @@ class OuvirService : Service() {
     } catch (e: Exception) {}
   }
 
+  private fun avisarMudo() {
+    val pi = PendingIntent.getActivity(this, 3, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+    val n = Notification.Builder(this, "chamar").setContentTitle("Bia: escuta pausada pelo Android")
+      .setContentText("Toque aqui para reativar o \"Bia\"").setSmallIcon(android.R.drawable.ic_btn_speak_now)
+      .setContentIntent(pi).setAutoCancel(true).build()
+    getSystemService(NotificationManager::class.java).notify(3, n)
+  }
+
   private fun avisar(txt: String) {
     val pi = PendingIntent.getActivity(this, 1, Intent(this, Conversa::class.java), PendingIntent.FLAG_IMMUTABLE)
     val n = Notification.Builder(this, "chamar").setContentTitle("Bia").setContentText(txt).setSmallIcon(android.R.drawable.ic_btn_speak_now)
@@ -140,6 +160,8 @@ class OuvirService : Service() {
   /* pausar: a tela Conversa ou o cadastro de voz estao com o microfone (volta sozinho em 15 min); retomar: fecharam */
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     if (intent?.action == "pausar") { parar(); h.removeCallbacksAndMessages(null); h.postDelayed({ escutar() }, 15 * 60_000L) }
+    /* reiniciar: o app abriu (tela visivel) -> recomeca o microfone, que volta a ter permissao total */
+    if (intent?.action == "reiniciar") { h.removeCallbacksAndMessages(null); parar(); h.postDelayed({ escutar() }, 300) }
     if (intent?.action == "retomar") { silencioAte = System.currentTimeMillis() + 20_000; h.removeCallbacksAndMessages(null); h.postDelayed({ escutar() }, 1_000) }
     return START_STICKY
   }
