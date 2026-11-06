@@ -42,6 +42,8 @@ class Conversa : Activity() {
         }
       }
     }
+    /* 06/11: a pagina chama BiaApp.fechar() quando a conversa acaba (ele mandou parar ou 60 s de silencio) */
+    web.addJavascriptInterface(object { @android.webkit.JavascriptInterface fun fechar() { runOnUiThread { finish() } } }, "BiaApp")
     setContentView(web)
     web.loadUrl(Abrir.URL_AO_VIVO)
   }
