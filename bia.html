@@ -604,13 +604,13 @@ async function aoVivoLigar(){
     if(NATIVO){
       const jn=await chamar("web=1&realtime=1&nativo=1",{});
       if(!jn.ok)throw new Error(jn.erro||"não consegui ligar");
-      AV.ativo=true;AV.nativo=true;aoVivoAtividade();
+      AV.ativo=true;AV.nativo=true;AV.inicio=Date.now();aoVivoAtividade();
       BiaApp.iniciar(jn.chave,jn.modelo||"gpt-realtime-2.1");
       return;
     }
     const j=await chamar("web=1&realtime=1",{});
     if(!j.ok)throw new Error(j.erro||"não consegui ligar");
-    const pc=new RTCPeerConnection(); AV.pc=pc; AV.ativo=true;
+    const pc=new RTCPeerConnection(); AV.pc=pc; AV.ativo=true; AV.inicio=Date.now();
     const som=new Audio(); som.autoplay=true; AV.som=som;
     pc.ontrack=(e)=>{som.srcObject=e.streams[0];
       /* analisador proprio, sem ligar no alto-falante (o som ja sai pelo <audio>; ligar no destino tocaria em dobro) */
@@ -636,6 +636,8 @@ function aoVivoAtividade(){clearTimeout(avInativo);avInativo=setTimeout(()=>{if(
 function aoVivoDesligar(msg){
   clearTimeout(avInativo);
   const eraAtivo=AV.ativo;
+  /* 06/11: quanto durou (custo da voz na Bia) */
+  if(eraAtivo&&AV.inicio){const seg=Math.round((Date.now()-AV.inicio)/1000);AV.inicio=0;try{chamar("web=1&aovivo_fim=1",{seg});}catch(e){}}
   AV.ativo=false;
   if(AV.nativo){try{BiaApp.parar();}catch(e){}AV.nativo=false;}
   try{AV.dc&&AV.dc.close();}catch(e){} try{AV.pc&&AV.pc.close();}catch(e){}
