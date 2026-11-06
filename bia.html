@@ -7,7 +7,7 @@
 <link rel="manifest" href="bia-manifest.json">
 <link rel="icon" href="bia-icon-192.png">
 <link rel="apple-touch-icon" href="bia-icon-192.png">
-<title>Bia</title>
+<title>Friday</title>
 <link rel="icon" type="image/png" href="icon-192.png">
 <!-- 27/10/2026 (ele: "Quero criar a Bia virtual: uma pagina propria, interativa, no estilo do JARVIS, onde eu converso
      com a Bia por texto e voz e vejo a operacao inteira na tela"). Visual JARVIS, fala natural (a Bia de sempre).
@@ -127,7 +127,7 @@ header img{height:26px;filter:brightness(0) invert(.94) sepia(.15);opacity:.55}
   <div class="gcx">
     <img src="bia-logo.png" alt="Grupo Caiman Agro">
     <div id="g-login">
-      <h1>Bia virtual</h1>
+      <h1>Friday</h1>
       <p>Entre com o mesmo usuário e senha do app.</p>
       <input class="campo" id="g-user" autocomplete="username" placeholder="Usuário" autocapitalize="none">
       <input class="campo" id="g-senha" type="password" autocomplete="current-password" placeholder="Senha">
@@ -168,11 +168,11 @@ header img{height:26px;filter:brightness(0) invert(.94) sepia(.15);opacity:.55}
     <button class="rnd" id="voz" aria-label="Resposta falada ligada" title="Resposta falada">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
     </button>
-    <input id="txt" placeholder="Pergunte à Bia" enterkeyhint="send" autocomplete="off">
+    <input id="txt" placeholder="Pergunte à Friday" enterkeyhint="send" autocomplete="off">
     <button class="rnd" id="enviar" aria-label="Enviar">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
     </button>
-    <button class="rnd" id="mic" aria-label="Falar com a Bia">
+    <button class="rnd" id="mic" aria-label="Falar com a Friday">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>
     </button>
   </div>
@@ -182,7 +182,7 @@ header img{height:26px;filter:brightness(0) invert(.94) sepia(.15);opacity:.55}
   <div class="cab"><h2 id="t-tit"></h2><button id="fechar">Fechar</button></div>
   <div id="corpo"></div>
 </div>
-<div class="selo">v2026.10.27-bia</div>
+<div class="selo">v2026.11.05-friday</div>
 
 <script>
 "use strict";
@@ -537,7 +537,7 @@ async function perguntar(texto){
     if(j.painel){carregar(j.painel);abrirPainel(j.painel,j.curral);}
     if(j.audio&&falar)await tocar(j.audio); else setEstado("pronta");
     if(MODO_CONVERSA&&!/^(obrigad|valeu|tchau|pode parar|parar|so isso|só isso|chega|até mais|ate mais)/i.test(texto))continuarConversa(j.audio&&falar);
-  }catch(e){if(e.message!=="login"){$("resposta").textContent="Sem conexão com a Bia agora. Tenta de novo.";}setEstado("pronta");}
+  }catch(e){if(e.message!=="login"){$("resposta").textContent="Sem conexão com a Friday agora. Tenta de novo.";}setEstado("pronta");}
   finally{ocupado=false;}
 }
 
