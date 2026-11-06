@@ -559,7 +559,7 @@ function ouvir(){
   parcial="";
   rec.onstart=()=>{ouvindo=true;$("mic").classList.add("ouvindo");setEstado("ouvindo");$("ouvido").textContent="Pode falar…";};
   rec.onresult=(ev)=>{let fin="",tmp="";for(let i=ev.resultIndex;i<ev.results.length;i++){const r=ev.results[i];if(r.isFinal)fin+=r[0].transcript;else tmp+=r[0].transcript;}if(fin)parcial+=fin;$("ouvido").textContent=(parcial+tmp)||"Pode falar…";};
-  rec.onerror=(ev)=>{if(ev.error==="not-allowed")$("ouvido").textContent="Libere o microfone para esta página nas configurações do navegador.";else if(ev.error==="no-speech"){$("ouvido").textContent=MODO_CONVERSA?"Fiquei em silêncio. Toque no microfone ou diga \"Bia\" para chamar de novo.":"Não ouvi nada. Toque de novo.";MODO_CONVERSA=false;}};
+  rec.onerror=(ev)=>{if(ev.error==="not-allowed")$("ouvido").textContent="Libere o microfone para esta página nas configurações do navegador.";else if(ev.error==="no-speech"){$("ouvido").textContent=MODO_CONVERSA?"Fiquei em silêncio. Toque no microfone ou diga \"Friday\" para chamar de novo.":"Não ouvi nada. Toque de novo.";MODO_CONVERSA=false;}};
   rec.onend=()=>{ouvindo=false;$("mic").classList.remove("ouvindo");if(ESTADO==="ouvindo")setEstado("pronta");const t=parcial.trim();if(t)perguntar(t);};
   try{rec.start();}catch(e){ouvindo=false;}
 }

@@ -8,7 +8,7 @@
   <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
   <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
   <uses-permission android:name="android.permission.WAKE_LOCK" />
-  <application android:label="Bia ouvindo" android:icon="@mipmap/ic_launcher" android:allowBackup="false" android:theme="@android:style/Theme.Material.NoActionBar">
+  <application android:label="Friday" android:icon="@mipmap/ic_launcher" android:allowBackup="false" android:theme="@android:style/Theme.Material.NoActionBar">
     <activity android:name=".MainActivity" android:exported="true">
       <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
     </activity>

@@ -6,8 +6,8 @@ android {
     applicationId = "br.com.caimanagro.bia"
     minSdk = 26
     targetSdk = 34
-    versionCode = 1
-    versionName = "2026.10.31"
+    versionCode = 2
+    versionName = "2026.11.05-friday"
     ndk { abiFilters += listOf("arm64-v8a") }   // celulares atuais; corta o APK pela metade
   }
   buildTypes { getByName("release") { isMinifyEnabled = false; signingConfig = signingConfigs.getByName("debug") } }

@@ -25,13 +25,13 @@ class MainActivity : Activity() {
   override fun onCreate(b: Bundle?) {
     super.onCreate(b)
     val l = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; setPadding(48, 48, 48, 48); setBackgroundColor(0xFF06100B.toInt()) }
-    val tit = TextView(this).apply { text = "Bia"; textSize = 40f; setTextColor(0xFFF7F4EC.toInt()); gravity = Gravity.CENTER }
+    val tit = TextView(this).apply { text = "Friday"; textSize = 40f; setTextColor(0xFFF7F4EC.toInt()); gravity = Gravity.CENTER }
     estado = TextView(this).apply { textSize = 16f; setTextColor(0xFFB8944F.toInt()); gravity = Gravity.CENTER; setPadding(0, 24, 0, 24) }
     botao = Button(this).apply { setOnClickListener { alternar() } }
-    val abrir = Button(this).apply { text = "Abrir a Bia agora"; setOnClickListener { Abrir.bia(this@MainActivity) } }
+    val abrir = Button(this).apply { text = "Abrir a Friday agora"; setOnClickListener { Abrir.bia(this@MainActivity) } }
     val ajuda = TextView(this).apply {
       textSize = 13f; setTextColor(0xFFC9C3B0.toInt()); gravity = Gravity.CENTER; setPadding(0, 32, 0, 0)
-      text = "Com a escuta ligada, diga \"Bia\" e ela abre já ouvindo.\nA palavra é reconhecida no próprio celular; nada é enviado antes de a Bia abrir.\nPara a Bia abrir por cima de outros apps, permita \"Aparecer sobre outros apps\"."
+      text = "Com a escuta ligada, diga \"Friday\" e ela abre já ouvindo.\nA palavra é reconhecida no próprio celular; nada é enviado antes de a Friday abrir.\nPara a Friday abrir por cima de outros apps, permita \"Aparecer sobre outros apps\"."
     }
     l.addView(tit); l.addView(estado); l.addView(botao); l.addView(abrir); l.addView(ajuda)
     setContentView(l)
@@ -60,7 +60,7 @@ class MainActivity : Activity() {
 
   private fun atualizar() {
     val ligado = getSharedPreferences("bia", MODE_PRIVATE).getBoolean("ligado", false)
-    estado.text = if (ligado) "Ouvindo a palavra \"Bia\"" else "Escuta desligada"
+    estado.text = if (ligado) "Ouvindo a palavra \"Friday\"" else "Escuta desligada"
     botao.text = if (ligado) "Desligar a escuta" else "Ligar a escuta"
   }
 }
