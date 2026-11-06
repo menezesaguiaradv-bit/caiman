@@ -63,11 +63,11 @@ class OuvirService : Service(), RecognitionListener {
     if (!Regex("\\bbia\\b").containsMatchIn(t)) return
     parar()
     if (Settings.canDrawOverlays(this)) Abrir.bia(this) else avisar("Toque para falar com a Bia")
-    h.postDelayed({ escutar() }, PAUSA_MS)
+    h.postDelayed({ escutar() }, 15 * 60_000L)   // a Conversa manda "retomar" ao fechar
   }
 
   private fun avisar(txt: String) {
-    val pi = PendingIntent.getActivity(this, 1, android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(Abrir.URL)), PendingIntent.FLAG_IMMUTABLE)
+    val pi = PendingIntent.getActivity(this, 1, Intent(this, Conversa::class.java), PendingIntent.FLAG_IMMUTABLE)
     val n = Notification.Builder(this, "chamar").setContentTitle("Bia").setContentText(txt).setSmallIcon(android.R.drawable.ic_btn_speak_now)
       .setContentIntent(pi).setAutoCancel(true).setFullScreenIntent(pi, true).build()
     getSystemService(NotificationManager::class.java).notify(2, n)
@@ -76,7 +76,9 @@ class OuvirService : Service(), RecognitionListener {
   /* 05/11 (ele: "queria que ela fosse tipo o ok google do android"): o botao de assistente do Android abre a Friday
      pela Assistente; antes ela manda "pausar" aqui para soltar o microfone para a pagina. */
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-    if (intent?.action == "pausar" && fala != null) { parar(); h.removeCallbacksAndMessages(null); h.postDelayed({ escutar() }, PAUSA_MS) }
+    /* pausar: a tela Conversa esta com o microfone (volta sozinho em 15 min se ela nao avisar); retomar: tela fechou */
+    if (intent?.action == "pausar") { parar(); h.removeCallbacksAndMessages(null); h.postDelayed({ escutar() }, 15 * 60_000L) }
+    if (intent?.action == "retomar") { h.removeCallbacksAndMessages(null); if (fala == null) h.postDelayed({ escutar() }, 1_000) }
     return START_STICKY
   }
 

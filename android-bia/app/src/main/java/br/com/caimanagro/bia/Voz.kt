@@ -16,10 +16,7 @@ class Sessao : VoiceInteractionSessionService() {
   override fun onNewSession(args: Bundle?): VoiceInteractionSession = object : VoiceInteractionSession(this) {
     override fun onShow(args: Bundle?, showFlags: Int) {
       super.onShow(args, showFlags)
-      if (context.getSharedPreferences("bia", android.content.Context.MODE_PRIVATE).getBoolean("ligado", false)) {
-        try { context.startService(Intent(context, OuvirService::class.java).setAction("pausar")) } catch (e: Exception) {}
-      }
-      val i = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(Abrir.URL)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      val i = Intent(context, Conversa::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
       try { startAssistantActivity(i) } catch (e: Exception) { try { context.startActivity(i) } catch (_: Exception) {} }
       hide()
     }

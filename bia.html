@@ -301,8 +301,12 @@ function abrirApp(){
      (?ouvir=1, start_url do app instalado), ja comeca ouvindo e fica em MODO CONVERSA: depois de responder,
      volta a ouvir sozinha; para quando ele fica em silencio ou diz "obrigado/tchau/pode parar". */
   if(MODO_CONVERSA)setTimeout(()=>{if(!ouvindo&&!ocupado)ouvir();},400);
+  /* 05/11: ?aovivo=1 (app Android da Bia, gesto de assistente ou palavra "Bia") ja liga a conversa ao vivo */
+  if(AO_VIVO_AUTO)setTimeout(()=>{if(!AV.ativo)aoVivoLigar();},500);
 }
 let MODO_CONVERSA=false;
+let AO_VIVO_AUTO=false;
+try{AO_VIVO_AUTO=new URLSearchParams(location.search).get("aovivo")==="1";}catch(e){}
 try{MODO_CONVERSA=new URLSearchParams(location.search).get("ouvir")==="1";}catch(e){}
 
 /* ===== chamadas a Bia ===== */

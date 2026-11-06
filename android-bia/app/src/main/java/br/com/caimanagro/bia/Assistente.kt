@@ -11,9 +11,6 @@ import android.os.Bundle
 class Assistente : Activity() {
   override fun onCreate(b: Bundle?) {
     super.onCreate(b)
-    if (getSharedPreferences("bia", MODE_PRIVATE).getBoolean("ligado", false)) {
-      try { startService(Intent(this, OuvirService::class.java).setAction("pausar")) } catch (e: Exception) {}
-    }
     Abrir.bia(this)
     finish()
   }
