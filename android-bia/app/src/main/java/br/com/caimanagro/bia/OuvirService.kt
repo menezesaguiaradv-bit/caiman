@@ -31,6 +31,7 @@ import org.vosk.android.StorageService
 class OuvirService : Service(), RecognitionListener {
   private var modelo: Model? = null
   private var spk: SpeakerModel? = null   // 06/11: biometria de voz
+  private var silencioAte = 0L
   private var fala: SpeechService? = null
   private val h = Handler(Looper.getMainLooper())
   private val PAUSA_MS = 120_000L   // tempo da conversa com a pagina aberta (o microfone fica com ela)
@@ -75,6 +76,11 @@ class OuvirService : Service(), RecognitionListener {
   private fun ouviu(json: String?) {
     val t = try { JSONObject(json ?: "{}").optString("text", "") } catch (e: Exception) { "" }
     if (!Regex("\\bbia\\b").containsMatchIn(t)) return
+    /* 06/11 17h39: nao dispara com som de outro app tocando (audio do WhatsApp, video, musica), durante ligacao,
+       nem nos 20 s depois de fechar a conversa */
+    val am = getSystemService(android.media.AudioManager::class.java)
+    if (am.isMusicActive || am.mode == android.media.AudioManager.MODE_IN_CALL || am.mode == android.media.AudioManager.MODE_IN_COMMUNICATION) { VozPerfil.registrar(this, "ignorado: som de outro app ou ligação"); return }
+    if (System.currentTimeMillis() < silencioAte) return
     /* 06/11: biometria de voz. Com voz cadastrada, so abre se a frase parecer a voz do chefe. Sem cadastro, so abre
        com o celular desbloqueado (bloqueado, quem chamar nao passa). */
     val bloqueado = getSystemService(KeyguardManager::class.java).isKeyguardLocked
@@ -114,7 +120,7 @@ class OuvirService : Service(), RecognitionListener {
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     /* pausar: a tela Conversa esta com o microfone (volta sozinho em 15 min se ela nao avisar); retomar: tela fechou */
     if (intent?.action == "pausar") { parar(); h.removeCallbacksAndMessages(null); h.postDelayed({ escutar() }, 15 * 60_000L) }
-    if (intent?.action == "retomar") { h.removeCallbacksAndMessages(null); if (fala == null) h.postDelayed({ escutar() }, 1_000) }
+    if (intent?.action == "retomar") { silencioAte = System.currentTimeMillis() + 20_000; h.removeCallbacksAndMessages(null); if (fala == null) h.postDelayed({ escutar() }, 1_000) }
     return START_STICKY
   }
 

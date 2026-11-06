@@ -78,6 +78,14 @@ class Conversa : Activity() {
     }
   }
 
+  /* 06/11 17h39 (print dele: o WhatsApp dizia "nao e possivel gravar durante uma ligacao" e "a Bia fica falando toda
+     hora quando eu acesso os apps"): a conversa ao vivo seguia aberta por tras, segurando o microfone e respondendo
+     ao som dos outros apps. Agora, saiu da tela da Bia (outro app, tela inicial, tela apagada), a conversa ENCERRA. */
+  override fun onStop() {
+    super.onStop()
+    if (!isChangingConfigurations) finish()
+  }
+
   override fun onDestroy() {
     try { web.loadUrl("about:blank"); web.destroy() } catch (e: Exception) {}
     servico("retomar")
