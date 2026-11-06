@@ -42,12 +42,27 @@ class Conversa : Activity() {
         }
       }
     }
-    /* 06/11: a pagina chama BiaApp.fechar() quando a conversa acaba (ele mandou parar ou 60 s de silencio) */
-    web.addJavascriptInterface(object { @android.webkit.JavascriptInterface fun fechar() { runOnUiThread { finish() } } }, "BiaApp")
+    /* 06/11: ponte com a pagina. fechar(): a conversa acabou. nativo/iniciar/enviar/parar: o audio da conversa ao vivo
+       roda no app (AoVivo), com a biometria de voz em cada frase; a pagina pede a chave temporaria e mostra o texto. */
+    aoVivo = AoVivo(this) { ev -> runOnUiThread { try { web.evaluateJavascript("window.aoVivoNativo&&aoVivoNativo(" + org.json.JSONObject.quote(ev) + ")", null) } catch (_: Exception) {} } }
+    web.addJavascriptInterface(object {
+      @android.webkit.JavascriptInterface fun fechar() { runOnUiThread { finish() } }
+      @android.webkit.JavascriptInterface fun nativo(): Boolean = true
+      @android.webkit.JavascriptInterface fun iniciar(chave: String, modelo: String) {
+        val p = primeira; primeira = null
+        runOnUiThread { Modelos.carregar(this@Conversa) { aoVivo?.iniciar(chave, modelo, p) } }
+      }
+      @android.webkit.JavascriptInterface fun enviar(json: String) { aoVivo?.enviar(json) }
+      @android.webkit.JavascriptInterface fun parar() { runOnUiThread { aoVivo?.parar() } }
+    }, "BiaApp")
+    primeira = intent?.getStringExtra("primeira")
+    Modelos.carregar(this) { }
     setContentView(web)
     web.loadUrl(Abrir.URL_AO_VIVO)
   }
 
+  private var aoVivo: AoVivo? = null
+  private var primeira: String? = null
   private var pendente: PermissionRequest? = null
   override fun onRequestPermissionsResult(rc: Int, p: Array<out String>, r: IntArray) {
     super.onRequestPermissionsResult(rc, p, r)
@@ -56,7 +71,7 @@ class Conversa : Activity() {
   }
 
   /* chamada de novo (gesto/palavra com a tela ja aberta): recarrega e liga de novo */
-  override fun onNewIntent(i: Intent?) { super.onNewIntent(i); tratarBloqueio(i); web.loadUrl(Abrir.URL_AO_VIVO) }
+  override fun onNewIntent(i: Intent?) { super.onNewIntent(i); tratarBloqueio(i); aoVivo?.parar(); primeira = i?.getStringExtra("primeira"); web.loadUrl(Abrir.URL_AO_VIVO) }
 
   /* 06/11 (ele: "quero que a Bia comece a operar com o celular bloqueado ... biometria vocal para so responder a mim"):
      chamada pela voz reconhecida (voz=true) -> abre por cima da tela bloqueada e acende a tela.
@@ -89,6 +104,7 @@ class Conversa : Activity() {
   }
 
   override fun onDestroy() {
+    try { aoVivo?.parar() } catch (e: Exception) {}
     try { web.loadUrl("about:blank"); web.destroy() } catch (e: Exception) {}
     servico("retomar")
     super.onDestroy()

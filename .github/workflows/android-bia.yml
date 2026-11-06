@@ -30,8 +30,13 @@ jobs:
           mkdir -p android-bia/app/src/main/assets/model-spk
           cp -r vosk-model-spk-0.4/* android-bia/app/src/main/assets/model-spk/
           ls -R android-bia/app/src/main/assets/model-spk
+      - name: Chave fixa (se estiver no cofre)
+        env: { BIA_KEYSTORE: "${{ secrets.BIA_KEYSTORE }}" }
+        run: |
+          if [ -n "$BIA_KEYSTORE" ]; then echo "$BIA_KEYSTORE" | base64 -d > android-bia/app/bia.jks; echo "usando a chave fixa"; else echo "sem chave fixa: assina com debug"; fi
       - name: Compilar
         working-directory: android-bia
+        env: { BIA_KEY_PASS: "${{ secrets.BIA_KEY_PASS }}" }
         run: gradle --no-daemon assembleRelease
       - name: Publicar o APK
         env: { GH_TOKEN: "${{ github.token }}" }

@@ -190,7 +190,7 @@ header img{height:22px;filter:brightness(0) invert(.94) sepia(.15);opacity:.55}
   <div class="cab"><h2 id="t-tit"></h2><button id="fechar">Fechar</button></div>
   <div id="corpo"></div>
 </div>
-<div class="selo">v2026.11.06-parar</div>
+<div class="selo">v2026.11.06-minhavoz</div>
 
 <script>
 "use strict";
@@ -599,6 +599,15 @@ async function aoVivoLigar(){
   $("aovivo").classList.add("on"); $("aovivo").textContent="■ Encerrar";
   $("ouvido").textContent=""; $("resposta").textContent="Ligando…"; setEstado("pensando");
   try{
+    /* 06/11: dentro do app Android, o audio vai pelo app (biometria: so a voz do chefe chega na Bia) */
+    let NATIVO=false;try{NATIVO=!!(window.BiaApp&&BiaApp.nativo&&BiaApp.nativo());}catch(e){}
+    if(NATIVO){
+      const jn=await chamar("web=1&realtime=1&nativo=1",{});
+      if(!jn.ok)throw new Error(jn.erro||"não consegui ligar");
+      AV.ativo=true;AV.nativo=true;aoVivoAtividade();
+      BiaApp.iniciar(jn.chave,jn.modelo||"gpt-realtime-2.1");
+      return;
+    }
     const j=await chamar("web=1&realtime=1",{});
     if(!j.ok)throw new Error(j.erro||"não consegui ligar");
     const pc=new RTCPeerConnection(); AV.pc=pc; AV.ativo=true;
@@ -628,6 +637,7 @@ function aoVivoDesligar(msg){
   clearTimeout(avInativo);
   const eraAtivo=AV.ativo;
   AV.ativo=false;
+  if(AV.nativo){try{BiaApp.parar();}catch(e){}AV.nativo=false;}
   try{AV.dc&&AV.dc.close();}catch(e){} try{AV.pc&&AV.pc.close();}catch(e){}
   try{AV.mic&&AV.mic.getTracks().forEach((t)=>t.stop());}catch(e){}
   try{if(AV.som){AV.som.srcObject=null;}}catch(e){}
@@ -639,6 +649,16 @@ function aoVivoDesligar(msg){
   if(eraAtivo&&AO_VIVO_AUTO&&window.BiaApp&&BiaApp.fechar)setTimeout(()=>{try{BiaApp.fechar();}catch(e){}},1200);
 }
 let avFala="";
+function avEnviar(o){const t=JSON.stringify(o);if(AV.nativo){try{BiaApp.enviar(t);}catch(e){}}else if(AV.dc&&AV.dc.readyState==="open")AV.dc.send(t);}
+/* eventos que o app manda (os da OpenAI repassados + os "nativo.*" do proprio app) */
+function aoVivoNativo(txt){
+  let ev;try{ev=JSON.parse(txt);}catch(e){return;}
+  const t=ev.type||"";
+  if(t==="nativo.estado"){setEstado(ev.valor);if(ev.valor!=="pensando")aoVivoAtividade();return;}
+  if(t==="nativo.ignorado"){$("ouvido").textContent="(voz não reconhecida, ignorei)";return;}
+  if(t==="nativo.erro"){aoVivoDesligar(String(ev.valor||"erro"));return;}
+  aoVivoEvento(ev);
+}
 async function aoVivoEvento(ev){
   const t=ev.type||"";
   if(t==="input_audio_buffer.speech_started"||t==="output_audio_buffer.started"||t==="response.function_call_arguments.done")aoVivoAtividade();
@@ -656,13 +676,13 @@ async function aoVivoEvento(ev){
       saida=j.ok?(j.texto||""):("erro: "+(j.erro||"sem resposta"));
       if(j.ok&&j.painel){carregar(j.painel);abrirPainel(j.painel,j.curral);}
     }catch(e){saida="erro: sem conexão com a Bia";}
-    if(!AV.dc||AV.dc.readyState!=="open")return;
-    AV.dc.send(JSON.stringify({type:"conversation.item.create",item:{type:"function_call_output",call_id:ev.call_id,output:saida.slice(0,6000)}}));
-    AV.dc.send(JSON.stringify({type:"response.create"}));
+    if(!AV.ativo)return;
+    avEnviar({type:"conversation.item.create",item:{type:"function_call_output",call_id:ev.call_id,output:saida.slice(0,6000)}});
+    avEnviar({type:"response.create"});
   }
   else if(t==="response.function_call_arguments.done"&&ev.name==="encerrar_conversa"){
     /* 06/11 17h50 (ele: "quando eu falar para parar, ela pare. E ai economiza bateria"): deixa ela dizer "ate mais" e desliga */
-    try{AV.dc.send(JSON.stringify({type:"conversation.item.create",item:{type:"function_call_output",call_id:ev.call_id,output:"ok"}}));}catch(e){}
+    avEnviar({type:"conversation.item.create",item:{type:"function_call_output",call_id:ev.call_id,output:"ok"}});
     setTimeout(()=>aoVivoDesligar("Até mais, chefe."),1800);
   }
     else if(t==="error"){console.warn("ao vivo:",ev.error);if(ev.error&&/expired|session/i.test(ev.error.message||""))aoVivoDesligar("A sessão expirou. Toque em Ao vivo de novo.");}

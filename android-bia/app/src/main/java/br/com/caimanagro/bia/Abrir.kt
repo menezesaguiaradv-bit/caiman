@@ -4,12 +4,13 @@ import android.content.Context
 import android.content.Intent
 
 /* Abre a Bia. 05/11: em vez do Chrome, abre a tela Conversa do proprio app, ja em conversa ao vivo.
-   06/11: voz=true quando a biometria de voz reconheceu o chefe; so assim a Conversa abre por cima da tela bloqueada. */
+   06/11: voz=true quando a biometria de voz reconheceu o chefe; so assim a Conversa abre por cima da tela bloqueada.
+   primeira = audio da frase dita junto com o nome ("Bia, quanto tem de milho?"), para ela ja responder. */
 object Abrir {
   const val URL = "https://menezesaguiaradv-bit.github.io/caiman/bia.html?ouvir=1"
   const val URL_AO_VIVO = "https://menezesaguiaradv-bit.github.io/caiman/bia.html?aovivo=1"
-  fun bia(ctx: Context, voz: Boolean = false) {
-    ctx.startActivity(Intent(ctx, Conversa::class.java).putExtra("voz", voz)
+  fun bia(ctx: Context, voz: Boolean = false, primeira: String? = null) {
+    ctx.startActivity(Intent(ctx, Conversa::class.java).putExtra("voz", voz).putExtra("primeira", primeira)
       .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))
   }
 }

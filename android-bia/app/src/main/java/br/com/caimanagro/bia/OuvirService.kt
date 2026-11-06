@@ -1,9 +1,13 @@
 package br.com.caimanagro.bia
 
 /* Servico em primeiro plano (icone fixo "Bia ouvindo") que escuta SO a palavra "bia" com o Vosk offline (gramatica
-   restrita: ["bia", "[unk]"]). Ouviu: solta o microfone (a pagina da Bia precisa dele), abre a Bia ja ouvindo e volta
-   a escutar depois de PAUSA_MS. Sem permissao de "aparecer sobre outros apps", mostra uma notificacao para tocar. */
+   restrita: ["bia", "[unk]"]).
+   06/11: microfone proprio (AudioRecord) em vez do SpeechService, para guardar o audio da frase inteira: "Bia, quanto
+   tem de milho?" dito de uma vez vai junto para a conversa (ela ja responde a pergunta). Biometria de voz: com voz
+   cadastrada, so a voz dele abre; com o celular bloqueado, so abre com a voz dele. */
 
+import android.annotation.SuppressLint
+import android.app.KeyguardManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -11,30 +15,28 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.media.AudioFormat
+import android.media.AudioManager
+import android.media.AudioRecord
+import android.media.MediaRecorder
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.provider.Settings
-import android.app.KeyguardManager
 import android.os.PowerManager
+import android.provider.Settings
 import org.json.JSONObject
 import org.vosk.LibVosk
 import org.vosk.LogLevel
-import org.vosk.Model
 import org.vosk.Recognizer
-import org.vosk.SpeakerModel
-import org.vosk.android.RecognitionListener
-import org.vosk.android.SpeechService
-import org.vosk.android.StorageService
+import java.io.ByteArrayOutputStream
+import java.io.File
 
-class OuvirService : Service(), RecognitionListener {
-  private var modelo: Model? = null
-  private var spk: SpeakerModel? = null   // 06/11: biometria de voz
-  private var silencioAte = 0L
-  private var fala: SpeechService? = null
+class OuvirService : Service() {
   private val h = Handler(Looper.getMainLooper())
-  private val PAUSA_MS = 120_000L   // tempo da conversa com a pagina aberta (o microfone fica com ela)
+  @Volatile private var rodando = false
+  private var thread: Thread? = null
+  private var silencioAte = 0L
 
   override fun onBind(i: Intent?): IBinder? = null
 
@@ -48,55 +50,75 @@ class OuvirService : Service(), RecognitionListener {
       .setSmallIcon(android.R.drawable.ic_btn_speak_now).setContentIntent(abrirApp).setOngoing(true).build()
     if (Build.VERSION.SDK_INT >= 29) startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE) else startForeground(1, n)
     LibVosk.setLogLevel(LogLevel.WARNINGS)
-    /* 05/11 (ele: trocar o nome para Friday): "friday" nao existe no modelo de portugues, entao a palavra de
-       ativacao usa o modelo pequeno de INGLES do Vosk (offline, gramatica so ["friday", "[unk]"]). */
-    StorageService.unpack(this, "model-pt", "model", { m -> modelo = m; carregarBiometria() }, { e -> avisar("Não consegui carregar o modelo de voz: ${e.message}") })
+    Modelos.carregar(this) { erro -> if (erro != null) avisar("Não consegui carregar o modelo de voz: $erro") else escutar() }
   }
 
-  /* 06/11: o modelo de locutor carrega numa thread (copia ~13 MB na primeira vez); sem ele a Bia ainda funciona
-     com o celular DESBLOQUEADO, mas nao abre por cima da tela bloqueada */
-  private fun carregarBiometria() {
-    Thread {
-      try { spk = SpeakerModel(VozPerfil.caminhoModelo(this)) } catch (e: Exception) { spk = null }
-      h.post { escutar() }
-    }.start()
-  }
-
+  @SuppressLint("MissingPermission")
   private fun escutar() {
-    val m = modelo ?: return
-    try {
-      val r = Recognizer(m, 16000f, "[\"bia\", \"[unk]\"]")
-      spk?.let { try { r.setSpeakerModel(it) } catch (_: Exception) {} }
-      fala = SpeechService(r, 16000f).also { it.startListening(this) }
-    } catch (e: Exception) { avisar("Microfone ocupado; tento de novo em 1 minuto"); h.postDelayed({ escutar() }, 60_000) }
+    val m = Modelos.pt ?: return
+    if (rodando) return
+    rodando = true
+    thread = Thread {
+      var rec: AudioRecord? = null
+      var r: Recognizer? = null
+      try {
+        val min = AudioRecord.getMinBufferSize(16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
+        rec = AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, 16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(min, 6400))
+        r = Recognizer(m, 16000f, "[\"bia\", \"[unk]\"]")
+        Modelos.spk?.let { try { r.setSpeakerModel(it) } catch (_: Exception) {} }
+        rec.startRecording()
+        val buf = ByteArray(3200)            // 100 ms
+        val frase = ByteArrayOutputStream()  // audio desde o ultimo fim de frase (ate 12 s)
+        while (rodando) {
+          val n = rec.read(buf, 0, buf.size)
+          if (n <= 0) continue
+          frase.write(buf, 0, n)
+          if (frase.size() > 16000 * 2 * 12) { val b = frase.toByteArray(); frase.reset(); frase.write(b, b.size - 16000 * 2 * 6, 16000 * 2 * 6) }
+          if (r.acceptWaveForm(buf, n)) {
+            val res = r.result
+            val audio = frase.toByteArray(); frase.reset()
+            h.post { ouviu(res, audio) }
+          }
+        }
+      } catch (e: Exception) {
+        h.post { avisar("Microfone ocupado; tento de novo em 1 minuto") }
+        rodando = false
+        h.postDelayed({ escutar() }, 60_000)
+      } finally {
+        try { rec?.stop() } catch (_: Exception) {}
+        try { rec?.release() } catch (_: Exception) {}
+        try { r?.close() } catch (_: Exception) {}
+      }
+    }.also { it.start() }
   }
 
-  private fun parar() { fala?.stop(); fala?.shutdown(); fala = null }
+  private fun parar() { rodando = false; try { thread?.join(1500) } catch (_: Exception) {}; thread = null }
 
-  private fun ouviu(json: String?) {
+  private fun ouviu(json: String?, audio: ByteArray) {
     val t = try { JSONObject(json ?: "{}").optString("text", "") } catch (e: Exception) { "" }
     if (!Regex("\\bbia\\b").containsMatchIn(t)) return
-    /* 06/11 17h39: nao dispara com som de outro app tocando (audio do WhatsApp, video, musica), durante ligacao,
-       nem nos 20 s depois de fechar a conversa */
-    val am = getSystemService(android.media.AudioManager::class.java)
-    if (am.isMusicActive || am.mode == android.media.AudioManager.MODE_IN_CALL || am.mode == android.media.AudioManager.MODE_IN_COMMUNICATION) { VozPerfil.registrar(this, "ignorado: som de outro app ou ligação"); return }
+    /* nao dispara com som de outro app tocando, durante ligacao, nem nos 20 s depois de fechar a conversa */
+    val am = getSystemService(AudioManager::class.java)
+    if (am.isMusicActive || am.mode == AudioManager.MODE_IN_CALL || am.mode == AudioManager.MODE_IN_COMMUNICATION) { VozPerfil.registrar(this, "ignorado: som de outro app ou ligação"); return }
     if (System.currentTimeMillis() < silencioAte) return
-    /* 06/11: biometria de voz. Com voz cadastrada, so abre se a frase parecer a voz do chefe. Sem cadastro, so abre
-       com o celular desbloqueado (bloqueado, quem chamar nao passa). */
     val bloqueado = getSystemService(KeyguardManager::class.java).isKeyguardLocked
     val perfil = VozPerfil.perfil(this)
     var vozOk = false
     if (perfil != null) {
       val (v, frames) = VozPerfil.vetor(json)
       val sim = if (v != null) VozPerfil.cos(v, perfil) else -1.0
-      val lim = VozPerfil.limiar(this)
-      vozOk = v != null && sim >= lim
+      vozOk = v != null && sim >= VozPerfil.limiar(this)
       VozPerfil.registrar(this, (if (v == null) "sem amostra" else "%.2f".format(sim)) + (if (vozOk) " ✓ você" else " ✗ não reconhecida") + " · ${frames / 100.0}s")
       if (!vozOk) return
     } else if (bloqueado) { VozPerfil.registrar(this, "celular bloqueado e voz não cadastrada"); return }
     parar()
+    /* frase com mais que o nome ("Bia, quanto tem de milho?"): o audio vai para a conversa responder direto */
+    var primeira: String? = null
+    if (audio.size > 16000 * 2 * 1.6) {
+      try { val f = File(cacheDir, "primeira.pcm"); f.writeBytes(audio); primeira = f.absolutePath } catch (_: Exception) {}
+    }
     if (bloqueado) acordarTela()
-    if (Settings.canDrawOverlays(this)) Abrir.bia(this, vozOk) else avisar("Toque para falar com a Bia")
+    if (Settings.canDrawOverlays(this)) Abrir.bia(this, vozOk, primeira) else avisar("Toque para falar com a Bia")
     h.postDelayed({ escutar() }, 15 * 60_000L)   // a Conversa manda "retomar" ao fechar
   }
 
@@ -115,20 +137,12 @@ class OuvirService : Service(), RecognitionListener {
     getSystemService(NotificationManager::class.java).notify(2, n)
   }
 
-  /* 05/11 (ele: "queria que ela fosse tipo o ok google do android"): o botao de assistente do Android abre a Friday
-     pela Assistente; antes ela manda "pausar" aqui para soltar o microfone para a pagina. */
+  /* pausar: a tela Conversa ou o cadastro de voz estao com o microfone (volta sozinho em 15 min); retomar: fecharam */
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-    /* pausar: a tela Conversa esta com o microfone (volta sozinho em 15 min se ela nao avisar); retomar: tela fechou */
     if (intent?.action == "pausar") { parar(); h.removeCallbacksAndMessages(null); h.postDelayed({ escutar() }, 15 * 60_000L) }
-    if (intent?.action == "retomar") { silencioAte = System.currentTimeMillis() + 20_000; h.removeCallbacksAndMessages(null); if (fala == null) h.postDelayed({ escutar() }, 1_000) }
+    if (intent?.action == "retomar") { silencioAte = System.currentTimeMillis() + 20_000; h.removeCallbacksAndMessages(null); h.postDelayed({ escutar() }, 1_000) }
     return START_STICKY
   }
 
-  override fun onResult(hyp: String?) = ouviu(hyp)
-  override fun onFinalResult(hyp: String?) = ouviu(hyp)
-  override fun onPartialResult(hyp: String?) {}
-  override fun onError(e: Exception?) { parar(); h.postDelayed({ escutar() }, 5_000) }
-  override fun onTimeout() { parar(); escutar() }
-
-  override fun onDestroy() { h.removeCallbacksAndMessages(null); parar(); modelo?.close(); try { spk?.close() } catch (_: Exception) {}; super.onDestroy() }
+  override fun onDestroy() { h.removeCallbacksAndMessages(null); parar(); super.onDestroy() }
 }
