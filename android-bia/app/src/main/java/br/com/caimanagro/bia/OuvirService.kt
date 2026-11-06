@@ -16,17 +16,21 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
+import android.app.KeyguardManager
+import android.os.PowerManager
 import org.json.JSONObject
 import org.vosk.LibVosk
 import org.vosk.LogLevel
 import org.vosk.Model
 import org.vosk.Recognizer
+import org.vosk.SpeakerModel
 import org.vosk.android.RecognitionListener
 import org.vosk.android.SpeechService
 import org.vosk.android.StorageService
 
 class OuvirService : Service(), RecognitionListener {
   private var modelo: Model? = null
+  private var spk: SpeakerModel? = null   // 06/11: biometria de voz
   private var fala: SpeechService? = null
   private val h = Handler(Looper.getMainLooper())
   private val PAUSA_MS = 120_000L   // tempo da conversa com a pagina aberta (o microfone fica com ela)
@@ -45,13 +49,23 @@ class OuvirService : Service(), RecognitionListener {
     LibVosk.setLogLevel(LogLevel.WARNINGS)
     /* 05/11 (ele: trocar o nome para Friday): "friday" nao existe no modelo de portugues, entao a palavra de
        ativacao usa o modelo pequeno de INGLES do Vosk (offline, gramatica so ["friday", "[unk]"]). */
-    StorageService.unpack(this, "model-pt", "model", { m -> modelo = m; escutar() }, { e -> avisar("Não consegui carregar o modelo de voz: ${e.message}") })
+    StorageService.unpack(this, "model-pt", "model", { m -> modelo = m; carregarBiometria() }, { e -> avisar("Não consegui carregar o modelo de voz: ${e.message}") })
+  }
+
+  /* 06/11: o modelo de locutor carrega numa thread (copia ~13 MB na primeira vez); sem ele a Bia ainda funciona
+     com o celular DESBLOQUEADO, mas nao abre por cima da tela bloqueada */
+  private fun carregarBiometria() {
+    Thread {
+      try { spk = SpeakerModel(VozPerfil.caminhoModelo(this)) } catch (e: Exception) { spk = null }
+      h.post { escutar() }
+    }.start()
   }
 
   private fun escutar() {
     val m = modelo ?: return
     try {
       val r = Recognizer(m, 16000f, "[\"bia\", \"[unk]\"]")
+      spk?.let { try { r.setSpeakerModel(it) } catch (_: Exception) {} }
       fala = SpeechService(r, 16000f).also { it.startListening(this) }
     } catch (e: Exception) { avisar("Microfone ocupado; tento de novo em 1 minuto"); h.postDelayed({ escutar() }, 60_000) }
   }
@@ -61,9 +75,31 @@ class OuvirService : Service(), RecognitionListener {
   private fun ouviu(json: String?) {
     val t = try { JSONObject(json ?: "{}").optString("text", "") } catch (e: Exception) { "" }
     if (!Regex("\\bbia\\b").containsMatchIn(t)) return
+    /* 06/11: biometria de voz. Com voz cadastrada, so abre se a frase parecer a voz do chefe. Sem cadastro, so abre
+       com o celular desbloqueado (bloqueado, quem chamar nao passa). */
+    val bloqueado = getSystemService(KeyguardManager::class.java).isKeyguardLocked
+    val perfil = VozPerfil.perfil(this)
+    var vozOk = false
+    if (perfil != null) {
+      val (v, frames) = VozPerfil.vetor(json)
+      val sim = if (v != null) VozPerfil.cos(v, perfil) else -1.0
+      val lim = VozPerfil.limiar(this)
+      vozOk = v != null && sim >= lim
+      VozPerfil.registrar(this, (if (v == null) "sem amostra" else "%.2f".format(sim)) + (if (vozOk) " ✓ você" else " ✗ não reconhecida") + " · ${frames / 100.0}s")
+      if (!vozOk) return
+    } else if (bloqueado) { VozPerfil.registrar(this, "celular bloqueado e voz não cadastrada"); return }
     parar()
-    if (Settings.canDrawOverlays(this)) Abrir.bia(this) else avisar("Toque para falar com a Bia")
+    if (bloqueado) acordarTela()
+    if (Settings.canDrawOverlays(this)) Abrir.bia(this, vozOk) else avisar("Toque para falar com a Bia")
     h.postDelayed({ escutar() }, 15 * 60_000L)   // a Conversa manda "retomar" ao fechar
+  }
+
+  @Suppress("DEPRECATION")
+  private fun acordarTela() {
+    try {
+      val pm = getSystemService(PowerManager::class.java)
+      pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP, "bia:acordar").acquire(10_000)
+    } catch (e: Exception) {}
   }
 
   private fun avisar(txt: String) {
@@ -88,5 +124,5 @@ class OuvirService : Service(), RecognitionListener {
   override fun onError(e: Exception?) { parar(); h.postDelayed({ escutar() }, 5_000) }
   override fun onTimeout() { parar(); escutar() }
 
-  override fun onDestroy() { h.removeCallbacksAndMessages(null); parar(); modelo?.close(); super.onDestroy() }
+  override fun onDestroy() { h.removeCallbacksAndMessages(null); parar(); modelo?.close(); try { spk?.close() } catch (_: Exception) {}; super.onDestroy() }
 }

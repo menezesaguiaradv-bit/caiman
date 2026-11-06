@@ -7,6 +7,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.WindowManager
+import android.app.KeyguardManager
+import android.os.Build
 import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
 import android.webkit.WebView
@@ -24,6 +26,7 @@ class Conversa : Activity() {
     super.onCreate(b)
     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     window.statusBarColor = 0xFF0E0505.toInt()
+    tratarBloqueio(intent)
     servico("pausar")
     web = WebView(this)
     web.setBackgroundColor(0xFF0E0505.toInt())
@@ -51,7 +54,23 @@ class Conversa : Activity() {
   }
 
   /* chamada de novo (gesto/palavra com a tela ja aberta): recarrega e liga de novo */
-  override fun onNewIntent(i: Intent?) { super.onNewIntent(i); web.loadUrl(Abrir.URL_AO_VIVO) }
+  override fun onNewIntent(i: Intent?) { super.onNewIntent(i); tratarBloqueio(i); web.loadUrl(Abrir.URL_AO_VIVO) }
+
+  /* 06/11 (ele: "quero que a Bia comece a operar com o celular bloqueado ... biometria vocal para so responder a mim"):
+     chamada pela voz reconhecida (voz=true) -> abre por cima da tela bloqueada e acende a tela.
+     Chamada por gesto/notificacao com o celular bloqueado -> pede o desbloqueio antes (ninguem le os dados sem ele). */
+  @Suppress("DEPRECATION")
+  private fun tratarBloqueio(i: Intent?) {
+    val km = getSystemService(KeyguardManager::class.java)
+    val voz = i?.getBooleanExtra("voz", false) == true
+    if (voz) {
+      if (Build.VERSION.SDK_INT >= 27) { setShowWhenLocked(true); setTurnScreenOn(true) }
+      else window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON)
+    } else {
+      if (Build.VERSION.SDK_INT >= 27) setShowWhenLocked(false)
+      if (km.isKeyguardLocked) km.requestDismissKeyguard(this, null)
+    }
+  }
 
   private fun servico(acao: String) {
     if (getSharedPreferences("bia", MODE_PRIVATE).getBoolean("ligado", false)) {

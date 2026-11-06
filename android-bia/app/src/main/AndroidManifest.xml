@@ -10,11 +10,13 @@
   <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
   <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
   <uses-permission android:name="android.permission.WAKE_LOCK" />
+  <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
   <application android:label="Bia" android:icon="@mipmap/ic_launcher" android:allowBackup="false" android:theme="@android:style/Theme.Material.NoActionBar">
     <activity android:name=".MainActivity" android:exported="true">
       <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
     </activity>
-    <activity android:name=".Conversa" android:exported="false" android:launchMode="singleTask" android:configChanges="orientation|screenSize|keyboardHidden|screenLayout" android:theme="@android:style/Theme.Material.NoActionBar" />
+    <activity android:name=".Conversa" android:exported="false" android:showWhenLocked="false" android:turnScreenOn="false" android:launchMode="singleTask" android:configChanges="orientation|screenSize|keyboardHidden|screenLayout" android:theme="@android:style/Theme.Material.NoActionBar" />
+    <activity android:name=".CadastroVoz" android:exported="false" android:screenOrientation="portrait" />
     <activity android:name=".Assistente" android:exported="true" android:theme="@android:style/Theme.Translucent.NoTitleBar" android:excludeFromRecents="true" android:noHistory="true">
       <intent-filter><action android:name="android.intent.action.ASSIST" /><category android:name="android.intent.category.DEFAULT" /></intent-filter>
       <intent-filter><action android:name="android.intent.action.VOICE_COMMAND" /><category android:name="android.intent.category.DEFAULT" /></intent-filter>

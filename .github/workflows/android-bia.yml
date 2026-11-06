@@ -23,6 +23,13 @@ jobs:
           mkdir -p android-bia/app/src/main/assets/model-pt
           cp -r vosk-model-small-pt-0.3/* android-bia/app/src/main/assets/model-pt/
           echo "pt-0.3" > android-bia/app/src/main/assets/model-pt/uuid
+      - name: Modelo de locutor (biometria de voz, Vosk offline)
+        run: |
+          curl -sSL -o spk.zip https://alphacephei.com/vosk/models/vosk-model-spk-0.4.zip
+          unzip -q spk.zip
+          mkdir -p android-bia/app/src/main/assets/model-spk
+          cp -r vosk-model-spk-0.4/* android-bia/app/src/main/assets/model-spk/
+          ls -R android-bia/app/src/main/assets/model-spk
       - name: Compilar
         working-directory: android-bia
         run: gradle --no-daemon assembleRelease
