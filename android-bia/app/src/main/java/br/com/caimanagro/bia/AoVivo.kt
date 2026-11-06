@@ -13,8 +13,6 @@ import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.AudioTrack
 import android.media.MediaRecorder
-import android.media.audiofx.AcousticEchoCanceler
-import android.media.audiofx.NoiseSuppressor
 import android.util.Base64
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -135,8 +133,7 @@ class AoVivo(private val ctx: Context, private val js: (String) -> Unit) {
       try {
         val min = AudioRecord.getMinBufferSize(16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
         rec = AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, 16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(min, 6400))
-        try { if (AcousticEchoCanceler.isAvailable()) AcousticEchoCanceler.create(rec.audioSessionId)?.enabled = true } catch (_: Exception) {}
-        try { if (NoiseSuppressor.isAvailable()) NoiseSuppressor.create(rec.audioSessionId)?.enabled = true } catch (_: Exception) {}
+        /* 06/11 19h: sem filtros do Android aqui — o cadastro da voz e feito sem eles; filtro muda a impressao da voz */
         r = Recognizer(m, 16000f)
         Modelos.spk?.let { try { r.setSpeakerModel(it) } catch (_: Exception) {} }
         rec.startRecording()
@@ -167,10 +164,10 @@ class AoVivo(private val ctx: Context, private val js: (String) -> Unit) {
     val texto = o.optString("text", "").trim()
     val (v, frames) = VozPerfil.vetor(json)
     if (texto.isEmpty() || frames < 35) return            // ruido curto
-    val perfil = VozPerfil.perfil(ctx)
-    if (perfil != null) {
-      val sim = if (v != null) VozPerfil.cos(v, perfil) else -1.0
-      if (sim < VozPerfil.limiar(ctx)) { evento("ignorado", "%.2f".format(sim)); return }
+    if (VozPerfil.perfil(ctx) != null) {
+      val (sim, ok) = VozPerfil.verificar(ctx, v, frames)
+      VozPerfil.registrar(ctx, "conversa: " + "%.2f".format(sim) + (if (ok) " ✓" else " ✗") + " · ${frames / 100.0}s")
+      if (!ok) { evento("ignorado", "%.2f".format(sim)); return }
     }
     if (falando || respostaAtiva) calar()
     mandarAudio(audio)

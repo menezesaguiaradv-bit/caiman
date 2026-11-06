@@ -118,8 +118,8 @@ class OuvirService : Service() {
     var vozOk = false
     if (perfil != null) {
       val (v, frames) = VozPerfil.vetor(json)
-      val sim = if (v != null) VozPerfil.cos(v, perfil) else -1.0
-      vozOk = v != null && sim >= VozPerfil.limiar(this)
+      val (sim, ok) = VozPerfil.verificar(this, v, frames)
+      vozOk = ok
       VozPerfil.registrar(this, (if (v == null) "sem amostra" else "%.2f".format(sim)) + (if (vozOk) " ✓ você" else " ✗ não reconhecida") + " · ${frames / 100.0}s")
       if (!vozOk) return
     } else if (bloqueado) { VozPerfil.registrar(this, "celular bloqueado e voz não cadastrada"); return }

@@ -19,7 +19,10 @@ import org.vosk.android.StorageService
 /* 06/11: cadastro da voz do chefe. Ele le 6 frases (todas comecam com "Bia", como ele vai chamar); cada frase de
    pelo menos 1 segundo vira uma amostra. A escuta da palavra fica pausada durante o cadastro. */
 class CadastroVoz : Activity(), RecognitionListener {
+  /* as 4 primeiras: so o nome, do jeito que ele chama (perfil curto); depois as frases da conversa (perfil longo) */
+  private val CURTAS = 4
   private val frases = listOf(
+    "Bia", "Bia", "Bia", "Bia",
     "Bia, é o chefe.",
     "Bia, como está o caixa hoje?",
     "Bia, quanto tem de milho no estoque?",
@@ -28,6 +31,8 @@ class CadastroVoz : Activity(), RecognitionListener {
     "Bia, obrigado, pode parar.",
   )
   private val amostras = mutableListOf<DoubleArray>()
+  private val curtas = mutableListOf<DoubleArray>()
+  private fun feitas() = curtas.size + amostras.size
   private lateinit var guia: TextView
   private lateinit var frase: TextView
   private var modelo: Model? = null
@@ -63,20 +68,24 @@ class CadastroVoz : Activity(), RecognitionListener {
   }
 
   private fun mostrar() {
-    guia.text = "Leia em voz alta, no seu jeito normal (${amostras.size + 1} de ${frases.size}):"
-    frase.text = "“${frases[amostras.size]}”"
+    val i = feitas()
+    guia.text = if (i < CURTAS) "Chame a Bia como você vai chamar no dia a dia (${i + 1} de ${frases.size}):"
+      else "Agora leia em voz alta, no seu jeito normal (${i + 1} de ${frases.size}):"
+    frase.text = "“${frases[i]}”"
   }
 
   private fun ouviu(json: String?) {
-    if (amostras.size >= frases.size) return
+    if (feitas() >= frases.size) return
     val (v, frames) = VozPerfil.vetor(json)
-    if (v == null || frames < 100) { if (v != null) guia.text = "Curta demais. Leia a frase inteira:"; return }
-    amostras += v
-    if (amostras.size < frases.size) { mostrar(); return }
+    val curta = feitas() < CURTAS
+    if (v == null || frames < (if (curta) 25 else 100)) { if (v != null) guia.text = if (curta) "Não peguei. Diga de novo: Bia" else "Curta demais. Leia a frase inteira:"; return }
+    if (curta) curtas += v else amostras += v
+    if (feitas() < frases.size) { mostrar(); return }
     fala?.stop()
+    val (mc, lc) = VozPerfil.salvar(this, curtas, true)
     val (media, lim) = VozPerfil.salvar(this, amostras)
     guia.text = "Pronto! Sua voz está cadastrada."
-    frase.text = "Consistência: ${"%.2f".format(media)} · limiar: ${"%.2f".format(lim)}"
+    frase.text = "Chamada: ${"%.2f".format(mc)} (limiar ${"%.2f".format(lc)}) · conversa: ${"%.2f".format(media)} (limiar ${"%.2f".format(lim)})"
     h.postDelayed({ finish() }, 2500)
   }
 

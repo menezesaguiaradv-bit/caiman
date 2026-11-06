@@ -14,26 +14,44 @@ import kotlin.math.sqrt
 object VozPerfil {
   private fun p(c: Context) = c.getSharedPreferences("bia", Context.MODE_PRIVATE)
 
-  fun perfil(c: Context): DoubleArray? = p(c).getString("voz_perfil", null)?.let { s ->
+  /* 06/11 19h (ele: "a Bia nao esta reconhecendo minha voz"): o cadastro era so de frases longas (2-3 s) e ele chama
+     dizendo so "Bia" (meio segundo): a impressao de um trecho curto sai bem diferente e a nota caia abaixo do limiar.
+     Agora ha DOIS perfis: o curto (ele diz "Bia" 4 vezes) para a chamada, e o longo para as frases da conversa. */
+  fun perfil(c: Context, curto: Boolean = false): DoubleArray? = p(c).getString(if (curto) "voz_perfil_curto" else "voz_perfil", null)?.let { s ->
     try { val a = JSONArray(s); DoubleArray(a.length()) { a.getDouble(it) } } catch (e: Exception) { null }
   }
-  fun limiar(c: Context): Double = p(c).getFloat("voz_limiar", 0.45f).toDouble()
+  fun limiar(c: Context, curto: Boolean = false): Double = p(c).getFloat(if (curto) "voz_limiar_curto" else "voz_limiar", if (curto) 0.35f else 0.45f).toDouble()
   fun ajustarLimiar(c: Context, delta: Double) {
-    val n = (limiar(c) + delta).coerceIn(0.20, 0.85)
-    p(c).edit().putFloat("voz_limiar", n.toFloat()).apply()
+    for (k in listOf(false, true)) {
+      val n = (limiar(c, k) + delta).coerceIn(0.15, 0.85)
+      p(c).edit().putFloat(if (k) "voz_limiar_curto" else "voz_limiar", n.toFloat()).apply()
+    }
+  }
+  /** confere a voz: frase curta (menos de 1,2 s) usa o perfil curto, se existir */
+  fun verificar(c: Context, v: DoubleArray?, frames: Int): Pair<Double, Boolean> {
+    if (v == null) return Pair(-1.0, false)
+    val curto = frames < 120 && perfil(c, true) != null
+    val pf = perfil(c, curto) ?: perfil(c) ?: return Pair(-1.0, false)
+    val sim = cos(v, pf)
+    return Pair(sim, sim >= limiar(c, curto))
   }
   fun ultima(c: Context): String = p(c).getString("voz_ultima", "") ?: ""
-  fun registrar(c: Context, txt: String) { p(c).edit().putString("voz_ultima", txt).apply() }
-  fun apagar(c: Context) { p(c).edit().remove("voz_perfil").remove("voz_ultima").apply() }
+  /* guarda as 5 ultimas notas (a tela do app mostra, para ele calibrar) */
+  fun registrar(c: Context, txt: String) {
+    val h = (p(c).getString("voz_ultima", "") ?: "").split("\n").filter { it.isNotBlank() }
+    p(c).edit().putString("voz_ultima", (listOf(txt) + h).take(5).joinToString("\n")).apply()
+  }
+  fun apagar(c: Context) { p(c).edit().remove("voz_perfil").remove("voz_perfil_curto").remove("voz_ultima").apply() }
 
-  fun salvar(c: Context, amostras: List<DoubleArray>): Pair<Double, Double> {
+  fun salvar(c: Context, amostras: List<DoubleArray>, curto: Boolean = false): Pair<Double, Double> {
     val dim = amostras[0].size
     val media = DoubleArray(dim)
     for (a in amostras) { val u = unit(a); for (i in 0 until dim) media[i] += u[i] / amostras.size }
     val sims = amostras.map { cos(it, media) }
     /* limiar automatico: um pouco abaixo da frase cadastrada mais "diferente" (mas entre 0,30 e 0,65) */
-    val lim = (sims.minOrNull()!! - 0.12).coerceIn(0.30, 0.65)
-    p(c).edit().putString("voz_perfil", JSONArray(media.toList()).toString()).putFloat("voz_limiar", lim.toFloat()).apply()
+    val lim = if (curto) (sims.minOrNull()!! - 0.15).coerceIn(0.20, 0.55) else (sims.minOrNull()!! - 0.12).coerceIn(0.30, 0.65)
+    p(c).edit().putString(if (curto) "voz_perfil_curto" else "voz_perfil", JSONArray(media.toList()).toString())
+      .putFloat(if (curto) "voz_limiar_curto" else "voz_limiar", lim.toFloat()).apply()
     return Pair(sims.average(), lim)
   }
 

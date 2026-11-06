@@ -88,7 +88,7 @@ class MainActivity : Activity() {
     botao.text = if (ligado) "Desligar a escuta" else "Ligar a escuta"
     val tem = VozPerfil.perfil(this) != null
     val ult = VozPerfil.ultima(this)
-    voz.text = if (tem) "🔒 Voz cadastrada — só você abre a Bia, inclusive com o celular bloqueado.\nRigidez: ${"%.2f".format(VozPerfil.limiar(this))}" + (if (ult.isNotEmpty()) "\nÚltima chamada: $ult" else "")
+    voz.text = if (tem) "🔒 Voz cadastrada — só você abre a Bia, inclusive com o celular bloqueado.\nRigidez: ${"%.2f".format(VozPerfil.limiar(this))}" + (if (ult.isNotEmpty()) "\nÚltimas notas (✓ = reconheceu):\n$ult" else "")
       else "Voz não cadastrada: a Bia só abre com o celular desbloqueado.\nCadastre a sua voz para ela abrir com o celular bloqueado e só para você."
     cadastrar.text = if (tem) "Cadastrar minha voz de novo" else "Cadastrar minha voz"
   }
