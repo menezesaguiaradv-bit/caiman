@@ -23,6 +23,7 @@ class MainActivity : Activity() {
   private lateinit var botao: Button
   private lateinit var voz: TextView
   private lateinit var cadastrar: Button
+  private lateinit var diario: TextView
 
   override fun onCreate(b: Bundle?) {
     super.onCreate(b)
@@ -43,6 +44,8 @@ class MainActivity : Activity() {
     ajuste.addView(Button(this).apply { text = "Mais solta"; setOnClickListener { VozPerfil.ajustarLimiar(this@MainActivity, -0.05); atualizar() } })
     val apagar = Button(this).apply { text = "Apagar minha voz"; setOnClickListener { VozPerfil.apagar(this@MainActivity); atualizar() } }
     l.addView(tit); l.addView(estado); l.addView(botao); l.addView(abrir); l.addView(voz); l.addView(cadastrar); l.addView(ajuste); l.addView(apagar); l.addView(ajuda)
+    diario = TextView(this).apply { textSize = 11f; setTextColor(0xFFA88C84.toInt()); setPadding(0, 32, 0, 0); typeface = android.graphics.Typeface.MONOSPACE }
+    l.addView(diario)
     setContentView(android.widget.ScrollView(this).apply { setBackgroundColor(0xFF0E0505.toInt()); addView(l) })
     pedirPermissoes()
     atualizar()
@@ -91,5 +94,6 @@ class MainActivity : Activity() {
     voz.text = if (tem) "🔒 Voz cadastrada — só você abre a Bia, inclusive com o celular bloqueado.\nRigidez: ${"%.2f".format(VozPerfil.limiar(this))}" + (if (ult.isNotEmpty()) "\nÚltimas notas (✓ = reconheceu):\n$ult" else "")
       else "Voz não cadastrada: a Bia só abre com o celular desbloqueado.\nCadastre a sua voz para ela abrir com o celular bloqueado e só para você."
     cadastrar.text = if (tem) "Cadastrar minha voz de novo" else "Cadastrar minha voz"
+    diario.text = "Diário da escuta (mais recente em cima):\n" + VozPerfil.lerDiario(this).ifBlank { "(vazio)" }
   }
 }

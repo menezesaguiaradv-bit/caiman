@@ -48,7 +48,10 @@ class OuvirService : Service() {
     val abrirApp = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
     val n = Notification.Builder(this, "ouvir").setContentTitle("Bia ouvindo").setContentText("Diga \"Bia\" para conversar")
       .setSmallIcon(android.R.drawable.ic_btn_speak_now).setContentIntent(abrirApp).setOngoing(true).build()
-    if (Build.VERSION.SDK_INT >= 29) startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE) else startForeground(1, n)
+    try {
+      if (Build.VERSION.SDK_INT >= 29) startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE) else startForeground(1, n)
+      VozPerfil.diario(this, "serviço iniciado")
+    } catch (e: Exception) { VozPerfil.diario(this, "Android barrou o serviço: ${e.javaClass.simpleName}"); stopSelf(); return }
     LibVosk.setLogLevel(LogLevel.WARNINGS)
     Modelos.carregar(this) { erro -> if (erro != null) avisar("Não consegui carregar o modelo de voz: $erro") else escutar() }
   }
@@ -67,6 +70,7 @@ class OuvirService : Service() {
         r = Recognizer(m, 16000f, "[\"bia\", \"[unk]\"]")
         Modelos.spk?.let { try { r.setSpeakerModel(it) } catch (_: Exception) {} }
         rec.startRecording()
+        h.post { VozPerfil.diario(this, "microfone ligado (escutando)"); notificar("Ouvindo · diga \"Bia\"") }
         val buf = ByteArray(3200)            // 100 ms
         val frase = ByteArrayOutputStream()  // audio desde o ultimo fim de frase (ate 12 s)
         /* 06/11 18h50 (ele: "nao esta funcionando com o app fechado em segundo plano"): o Android pode deixar o
@@ -93,7 +97,7 @@ class OuvirService : Service() {
           }
         }
       } catch (e: Exception) {
-        h.post { avisar("Microfone ocupado; tento de novo em 1 minuto") }
+        h.post { VozPerfil.diario(this, "erro no microfone: ${e.javaClass.simpleName} ${e.message ?: ""}"); notificar("Microfone ocupado · tento de novo em 1 min") }
         rodando = false
         h.postDelayed({ escutar() }, 60_000)
       } finally {
@@ -109,10 +113,11 @@ class OuvirService : Service() {
   private fun ouviu(json: String?, audio: ByteArray) {
     val t = try { JSONObject(json ?: "{}").optString("text", "") } catch (e: Exception) { "" }
     if (!Regex("\\bbia\\b").containsMatchIn(t)) return
+    VozPerfil.diario(this, "ouvi \"bia\"")
     /* nao dispara com som de outro app tocando, durante ligacao, nem nos 20 s depois de fechar a conversa */
     val am = getSystemService(AudioManager::class.java)
-    if (am.isMusicActive || am.mode == AudioManager.MODE_IN_CALL || am.mode == AudioManager.MODE_IN_COMMUNICATION) { VozPerfil.registrar(this, "ignorado: som de outro app ou ligação"); return }
-    if (System.currentTimeMillis() < silencioAte) return
+    if (am.isMusicActive || am.mode == AudioManager.MODE_IN_CALL || am.mode == AudioManager.MODE_IN_COMMUNICATION) { VozPerfil.diario(this, "ignorei: som de outro app (${am.isMusicActive}) ou ligação (modo ${am.mode})"); notificar("Ignorei: outro app tocando som"); return }
+    if (System.currentTimeMillis() < silencioAte) { VozPerfil.diario(this, "ignorei: 20 s depois de fechar a conversa"); return }
     val bloqueado = getSystemService(KeyguardManager::class.java).isKeyguardLocked
     val perfil = VozPerfil.perfil(this)
     var vozOk = false
@@ -121,8 +126,9 @@ class OuvirService : Service() {
       val (sim, ok) = VozPerfil.verificar(this, v, frames)
       vozOk = ok
       VozPerfil.registrar(this, (if (v == null) "sem amostra" else "%.2f".format(sim)) + (if (vozOk) " ✓ você" else " ✗ não reconhecida") + " · ${frames / 100.0}s")
-      if (!vozOk) return
-    } else if (bloqueado) { VozPerfil.registrar(this, "celular bloqueado e voz não cadastrada"); return }
+      VozPerfil.diario(this, "voz " + (if (vozOk) "reconhecida" else "NÃO reconhecida") + " (nota ${"%.2f".format(sim)}, ${frames / 100.0}s)")
+      if (!vozOk) { notificar("Voz não reconhecida (nota ${"%.2f".format(sim)})"); return }
+    } else if (bloqueado) { VozPerfil.registrar(this, "celular bloqueado e voz não cadastrada"); VozPerfil.diario(this, "ignorei: bloqueado e sem voz cadastrada"); notificar("Cadastre a voz para abrir com o celular bloqueado"); return }
     parar()
     /* frase com mais que o nome ("Bia, quanto tem de milho?"): o audio vai para a conversa responder direto */
     var primeira: String? = null
@@ -130,7 +136,10 @@ class OuvirService : Service() {
       try { val f = File(cacheDir, "primeira.pcm"); f.writeBytes(audio); primeira = f.absolutePath } catch (_: Exception) {}
     }
     if (bloqueado) acordarTela()
-    if (Settings.canDrawOverlays(this)) Abrir.bia(this, vozOk, primeira) else avisar("Toque para falar com a Bia")
+    if (Settings.canDrawOverlays(this)) {
+      try { Abrir.bia(this, vozOk, primeira); VozPerfil.diario(this, "abri a Bia" + (if (bloqueado) " (tela bloqueada)" else "")) }
+      catch (e: Exception) { VozPerfil.diario(this, "Android barrou abrir a tela: ${e.javaClass.simpleName}"); avisar("Toque para falar com a Bia") }
+    } else { VozPerfil.diario(this, "sem permissão de aparecer sobre outros apps"); avisar("Toque para falar com a Bia") }
     h.postDelayed({ escutar() }, 15 * 60_000L)   // a Conversa manda "retomar" ao fechar
   }
 
@@ -142,7 +151,20 @@ class OuvirService : Service() {
     } catch (e: Exception) {}
   }
 
+  /* atualiza a notificacao fixa com o ultimo acontecimento (ele ve sem abrir o app) */
+  private fun notificar(txt: String) {
+    try {
+      val hora = java.text.SimpleDateFormat("HH:mm", java.util.Locale("pt", "BR")).format(java.util.Date())
+      val abrirApp = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+      val n = Notification.Builder(this, "ouvir").setContentTitle("Bia ouvindo").setContentText("$hora · $txt")
+        .setSmallIcon(android.R.drawable.ic_btn_speak_now).setContentIntent(abrirApp).setOngoing(true).build()
+      getSystemService(NotificationManager::class.java).notify(1, n)
+    } catch (_: Exception) {}
+  }
+
   private fun avisarMudo() {
+    VozPerfil.diario(this, "Android deixou o microfone MUDO (30 s de silêncio absoluto)")
+    notificar("Microfone pausado pelo Android · toque para reativar")
     val pi = PendingIntent.getActivity(this, 3, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
     val n = Notification.Builder(this, "chamar").setContentTitle("Bia: escuta pausada pelo Android")
       .setContentText("Toque aqui para reativar o \"Bia\"").setSmallIcon(android.R.drawable.ic_btn_speak_now)
@@ -166,5 +188,6 @@ class OuvirService : Service() {
     return START_STICKY
   }
 
-  override fun onDestroy() { h.removeCallbacksAndMessages(null); parar(); super.onDestroy() }
+  override fun onDestroy() { VozPerfil.diario(this, "serviço encerrado (Android ou desligado)"); h.removeCallbacksAndMessages(null); parar(); super.onDestroy() }
+  override fun onTaskRemoved(i: Intent?) { VozPerfil.diario(this, "app tirado dos recentes"); super.onTaskRemoved(i) }
 }

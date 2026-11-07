@@ -6,8 +6,8 @@ android {
     applicationId = "br.com.caimanagro.bia"
     minSdk = 26
     targetSdk = 34
-    versionCode = 13
-    versionName = "2026.11.06-widget"
+    versionCode = 14
+    versionName = "2026.11.07-diario"
     ndk { abiFilters += listOf("arm64-v8a") }   // celulares atuais; corta o APK pela metade
   }
   /* 06/11: chave FIXA (cofre do GitHub: BIA_KEYSTORE em base64 + BIA_KEY_PASS). Com ela a versao nova instala por cima

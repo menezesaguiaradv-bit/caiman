@@ -41,6 +41,14 @@ object VozPerfil {
     val h = (p(c).getString("voz_ultima", "") ?: "").split("\n").filter { it.isNotBlank() }
     p(c).edit().putString("voz_ultima", (listOf(txt) + h).take(5).joinToString("\n")).apply()
   }
+  /* 07/11 (ele: "a Bia ainda nao esta funcionando em segundo plano"): diario da escuta (ultimos 25 eventos com hora),
+     mostrado na tela do app e resumido na notificacao "Bia ouvindo" */
+  fun diario(c: Context, txt: String) {
+    val hora = java.text.SimpleDateFormat("dd/MM HH:mm:ss", java.util.Locale("pt", "BR")).format(java.util.Date())
+    val h = (p(c).getString("diario", "") ?: "").split("\n").filter { it.isNotBlank() }
+    p(c).edit().putString("diario", (listOf("$hora $txt") + h).take(25).joinToString("\n")).apply()
+  }
+  fun lerDiario(c: Context): String = p(c).getString("diario", "") ?: ""
   fun apagar(c: Context) { p(c).edit().remove("voz_perfil").remove("voz_perfil_curto").remove("voz_ultima").apply() }
 
   fun salvar(c: Context, amostras: List<DoubleArray>, curto: Boolean = false): Pair<Double, Double> {
