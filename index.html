@@ -23028,12 +23028,96 @@ function renderHistAbates(){
     var e=a.loteId?_embDe(a.loteId):null;e=e||{};
     var cab=+a.qtd||0,nf=+e.valorNf||0,ac=+e.valorAcerto||0;
     tot.cab+=cab;tot.nf+=nf;tot.ac+=ac;tot.res+=+a.res||0;
-    h+='<tr><td '+td+'>'+fmtData(a.dataSaida)+'</td><td '+td+'><b>'+_escAL(a.pasto||"?")+'</b></td><td '+td+'>'+_escAL(a.fazenda||"")+'</td><td '+td+'>'+cab+'</td><td '+td+'>'+(a.dias||"—")+'</td><td '+td+'>'+n2(a.at)+'</td><td '+td+'>'+n2(a.precoV)+'</td>'+
+    h+='<tr id="hab-r-'+_escAL(a.id)+'" onclick="_histAbAbrir(\''+_escAL(a.id)+'\')" style="cursor:pointer" title="Toque para ver o lote"><td '+td+'>'+fmtData(a.dataSaida)+'</td><td '+td+'><b style="color:#23432D;text-decoration:underline">'+_escAL(a.pasto||"?")+'</b> <span id="hab-s-'+_escAL(a.id)+'" style="color:#999">▸</span></td><td '+td+'>'+_escAL(a.fazenda||"")+'</td><td '+td+'>'+cab+'</td><td '+td+'>'+(a.dias||"—")+'</td><td '+td+'>'+n2(a.at)+'</td><td '+td+'>'+n2(a.precoV)+'</td>'+
       '<td '+td+'>'+_escAL(e.loteVenda||a.numLote||"—")+'</td><td '+td+'>'+(e.nfVenda?_escAL(e.nfVenda)+'<br>':'')+R(nf)+'</td><td '+td+'>'+R(ac)+(e.dataAcerto?'<br><span style="color:#999">'+fmtData(e.dataAcerto)+'</span>':'')+'</td>'+
       '<td '+td+'><span style="color:'+((+a.res||0)<0?'#A32D2D':'#23432D')+'">'+R(a.res)+'</span></td><td '+td+'>'+((e.anexos||[]).length?_anexosHtml(e.anexos,null):'—')+'</td></tr>';
   });
   h+='<tr style="font-weight:700"><td '+td+'>Total</td><td '+td+'>'+A.length+' abate(s)</td><td '+td+'></td><td '+td+'>'+tot.cab.toLocaleString("pt-BR")+'</td><td '+td+'></td><td '+td+'></td><td '+td+'></td><td '+td+'></td><td '+td+'>'+R(tot.nf)+'</td><td '+td+'>'+R(tot.ac)+'</td><td '+td+'>'+R(tot.res)+'</td><td '+td+'></td></tr></table></div>';
-  el.innerHTML=h;
+  /* o detalhe fica FORA da tabela (dentro dela herdava a largura da tabela e saia da tela no celular) */
+  el.innerHTML=h+'<div id="emb-hist-det"></div>';
+  /* re-desenho (dados da Bia chegando) nao fecha o lote que ele abriu */
+  if(_habAberto)_histAbAbrir(_habAberto,true);
+}
+/* 08/11: ele: "quando eu clicar na linha do curral, apareca todos os dados daquele lote abatido desde o GMD, o %
+   de carcaca, o preco de nutricao, preco de venda, margem de lucro mensal, do periodo e anual" e "todos os animais
+   identificados naquele lote". Valores do encerramento (caiman_abates_v1) sao POR CABECA (recV = @ x R$/@). */
+var _habAberto=null;
+function _histAbAbrir(id,forcar){
+  var box=document.getElementById("emb-hist-det");if(!box)return;
+  var abrir=forcar||_habAberto!==id;
+  if(_habAberto){var r0=document.getElementById("hab-r-"+_habAberto),s0=document.getElementById("hab-s-"+_habAberto);if(r0)r0.style.background="";if(s0)s0.textContent="▸";}
+  if(!abrir){_habAberto=null;box.innerHTML="";return;}
+  _habAberto=id;
+  var r=document.getElementById("hab-r-"+id),sx=document.getElementById("hab-s-"+id);if(r)r.style.background="#F1EBDA";if(sx)sx.textContent="▾";
+  var a=getAbates().find(function(x){return String(x.id)===String(id);});
+  try{box.innerHTML=a?('<div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0 4px"><div style="font-size:15px;font-weight:700;color:#23432D">Curral '+_escAL(a.pasto||"?")+' · abate '+fmtData(a.dataSaida)+'</div><button onclick="_histAbAbrir(\''+_escAL(id)+'\')" style="border:1px solid #D9D2BF;background:#fff;border-radius:7px;padding:4px 10px;cursor:pointer;font-size:12px">Fechar ✕</button></div>'+_histAbDetalhe(a)):"Lote não encontrado.";}
+  catch(e){box.innerHTML="Erro: "+_escAL(e.message);}
+  if(!forcar)try{box.scrollIntoView({behavior:"smooth",block:"start"});}catch(e){}
+}
+function _histAbAnimais(a){
+  var pc=_pastoCore(a.pasto);
+  return getAnimais().filter(function(x){return x.encerrado&&_pastoCore(x.pasto)===pc&&(!a.fazenda||_fazBate(x.fazenda||"",a.fazenda))&&(!a.dataSaida||!x.dataVenda||x.dataVenda===a.dataSaida);});
+}
+function _histAbDetalhe(a){
+  var f=a.fech||{},e=(a.loteId?_embDe(a.loteId):null)||{},cab=+a.qtd||0,rom=null;
+  try{rom=(_romCache||[]).filter(function(r){return _kCurral(r.curral)===_kCurral(a.pasto)&&String(r.ts||"").slice(0,10)>=String(a.dataSaida||"").slice(0,10);}).pop()||null;}catch(x){}
+  var R=function(v){return v||v===0?"R$ "+Math.round(+v).toLocaleString("pt-BR"):"—";};
+  var N=function(v,c){return v||v===0?(+v).toLocaleString("pt-BR",{minimumFractionDigits:c,maximumFractionDigits:c}):"—";};
+  var P=function(v){return v||v===0?(v*100).toFixed(1).replace(".",",")+"%":"—";};
+  var pv=+a.pvSaida||+f.pesoVivoPesagem||0;
+  /* rendimento real de carcaca: @ x 15 / peso vivo de saida (so com peso de embarque); senao o do romaneio; senao o usado */
+  var rendReal=(pv>0&&+a.at>0)?(+a.at*15/pv):(rom&&rom.rendimento?+rom.rendimento:null);
+  var arrProd=+f.arrobasCab||0;
+  var custoArrProd=arrProd>0?((+a.cNutri||0)+(+a.cOp||0))/arrProd:null;
+  var nutriDia=(+a.dias>0)?(+a.cNutri||0)/a.dias:null;
+  function bl(tit,ls){return '<div style="background:#fff;border:1px solid #E3DCC8;border-radius:9px;padding:8px 10px"><div style="font-size:11px;font-weight:700;color:#B8944F;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">'+tit+'</div>'+
+    ls.map(function(x){return '<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;line-height:1.65"><span style="color:#7A7668">'+x[0]+'</span><b style="color:'+(x[2]||"#1f241f")+'">'+x[1]+'</b></div>';}).join("")+'</div>';}
+  var corRes=(+a.res||0)<0?"#A32D2D":"#23432D";
+  var h='<div style="background:#F6F2E6;border-radius:10px;padding:10px;margin:2px 0 4px;white-space:normal">';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">';
+  h+=bl("Zootécnico",[["Entrada",fmtData(a.dataEntrada)],["Abate",fmtData(a.dataSaida)],["Dias de cocho",a.dias||"—"],["Cabeças",cab],
+    ["Peso de entrada",+a.pesoE?N(a.pesoE,0)+" kg":"—"],["Peso de saída",(pv||f.pesoSaida)?N(pv||f.pesoSaida,0)+" kg"+(pv?"":" (est.)"):"—"],
+    ["Ganho",f.ganho?N(f.ganho,0)+" kg":"—"],["GMD",f.gmd?N(f.gmd,3)+" kg/dia"+(f.gmdFonte?" ("+f.gmdFonte+")":""):"—"],
+    ["GMD projetado",f.gmdProj?N(f.gmdProj,3):"—"],["GMD pela energia",f.gmdEner?N(f.gmdEner,3):"—"]]);
+  h+=bl("Carcaça",[["@/cab",N(a.at,2)],["@ do lote",cab&&a.at?N(a.at*cab,1):"—"],["Rendimento de carcaça",rendReal?P(rendReal)+(pv>0?"":" (romaneio)"):(f.rend?N(f.rend,1)+"% (usado)":"—")],
+    ["@ produzidas/cab",arrProd>0?N(arrProd,2):"—"],["MS/cab/dia",f.msCabDia?N(f.msCabDia,2)+" kg":"—"],["Conversão alimentar",f.convAlim?N(f.convAlim,2):"—"],["kg MS por @",f.msArroba?N(f.msArroba,1):"—"]]);
+  h+=bl("Custos por cabeça",[["Compra do boi",R(a.cCompra)],["Nutrição",R(a.cNutri)],["Nutrição por dia",nutriDia?"R$ "+N(nutriDia,2):"—"],["Operacional",R(a.cOp)],["Total",R(a.cTot)],
+    ["Custo da @ produzida",custoArrProd?R(custoArrProd):"—"],["Nutrição do lote (tratos)",f.custoNutriReal?R(f.custoNutriReal):"—"]]);
+  h+=bl("Venda por cabeça",[["Preço de venda",a.precoV?"R$ "+N(a.precoV,2)+"/@":"—"],["Receita da @",R(a.recV)],["PROAP",R(a.proap)],["Hedge",R(a.hedge)],["Receita total",R(a.recTot)],
+    ["Resultado",R(a.res),corRes],["Resultado do lote",cab?R((+a.res||0)*cab):"—",corRes]]);
+  h+=bl("Margem de lucro",[["Do período",P(a.mPer),corRes],["Mensal",P(a.mMes),corRes],["Anual",P(a.mAno),corRes]]);
+  if(e.loteVenda||e.nfVenda||e.valorNf||e.valorAcerto||e.frigorifico)
+    h+=bl("Venda e acerto",[["Frigorífico",_escAL(e.frigorifico||"—")],["Lote de venda",_escAL(e.loteVenda||"—")],["NF de venda",_escAL(e.nfVenda||"—")],["Valor da NF",R(e.valorNf)],["Acerto",R(e.valorAcerto)],
+      ["Acerto − NF",(+e.valorNf&&+e.valorAcerto)?R(e.valorAcerto-e.valorNf):"—",(+e.valorAcerto<+e.valorNf)?"#A32D2D":"#23432D"],["Acerto/cab",cab&&+e.valorAcerto?R(e.valorAcerto/cab):"—"]]);
+  h+='</div>';
+  /* grafico: custo por cabeca (compra, nutricao, operacional) contra a receita */
+  var rt=+a.recTot||0,parts=[["Compra",+a.cCompra||0,"#8A7A55"],["Nutrição",+a.cNutri||0,"#B8944F"],["Operacional",+a.cOp||0,"#D9C9A0"]];
+  var base=Math.max(rt,+a.cTot||0),corR=(+a.res||0)<0?"#A32D2D":"#23432D";
+  if(base>0){
+    h+='<div style="margin-top:10px;font-size:11px;font-weight:700;color:#B8944F;text-transform:uppercase;letter-spacing:.4px">Custo × receita por cabeça</div>';
+    var barra=function(lbl,segs){return '<div style="display:flex;align-items:center;gap:8px;margin-top:5px"><div style="width:62px;font-size:11.5px;color:#7A7668">'+lbl+'</div><div style="flex:1;display:flex;gap:2px;height:18px">'+
+      segs.map(function(sg){return sg[1]>0?'<div title="'+sg[0]+': '+R(sg[1])+'" style="width:'+(sg[1]/base*100).toFixed(2)+'%;background:'+sg[2]+';border-radius:3px"></div>':'';}).join("")+'</div></div>';};
+    h+=barra("Custo",parts)+barra("Receita",[["Receita",rt,corR]]);
+    h+='<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:4px;font-size:11px;color:#555">'+parts.map(function(x){return '<span><span style="display:inline-block;width:9px;height:9px;background:'+x[2]+';border-radius:2px;margin-right:4px"></span>'+x[0]+' '+R(x[1])+'</span>';}).join("")+
+      '<span><span style="display:inline-block;width:9px;height:9px;background:'+corR+';border-radius:2px;margin-right:4px"></span>Receita '+R(rt)+'</span></div>';
+  }
+  /* bois identificados que sairam neste abate (encerrados no mesmo curral e data) */
+  var B=_histAbAnimais(a);
+  h+='<div style="margin-top:12px;font-size:11px;font-weight:700;color:#B8944F;text-transform:uppercase;letter-spacing:.4px">Bois identificados neste lote ('+B.length+(cab?' de '+cab:'')+')</div>';
+  if(!B.length)h+='<div style="font-size:12px;color:#999;margin-top:4px">Nenhum boi identificado individualmente neste lote.</div>';
+  else{
+    var th='style="text-align:left;padding:4px 6px;font-size:10.5px;color:#7A7668;border-bottom:1px solid #E3DCC8;white-space:nowrap"',td='style="padding:4px 6px;font-size:11.5px;border-bottom:1px solid #EFE8D6;white-space:nowrap"';
+    h+='<div style="overflow-x:auto;max-height:360px;overflow-y:auto;background:#fff;border:1px solid #E3DCC8;border-radius:8px;margin-top:4px"><table style="border-collapse:collapse;width:100%"><tr><th '+th+'>Identificação eletrônica</th><th '+th+'>SISBOV</th><th '+th+'>Sexo</th><th '+th+'>Fornecedor</th><th '+th+'>Entrada</th><th '+th+'>Peso entrada</th><th '+th+'>Última pesagem</th><th '+th+'>GMD</th><th '+th+'>Custo do boi</th></tr>';
+    B.sort(function(x,y){return String(x.eletro||x.sisbov||"").localeCompare(String(y.eletro||y.sisbov||""));}).forEach(function(x){
+      var ps=[];try{ps=_pesDoAnimal(x.id).slice().sort(function(p,q){return p.data<q.data?-1:1;});}catch(_){}
+      var ul=ps.length?ps[ps.length-1]:null,pe=+x.peso||(ps.length?+ps[0].peso:0),de=x.dtE||(ps.length?ps[0].data:"");
+      var g=(ul&&pe&&de&&ul.data>de)?(ul.peso-pe)/diasEntre(de,ul.data):null;
+      h+='<tr><td '+td+'>'+_escAL(x.eletro||"—")+'</td><td '+td+'>'+_escAL(x.sisbov||"—")+'</td><td '+td+'>'+_escAL(x.sexo||"—")+'</td><td '+td+'>'+_escAL(x.fornecedor||"—")+'</td><td '+td+'>'+(de?fmtData(de):"—")+'</td>'+
+        '<td '+td+'>'+(pe?N(pe,0)+" kg":"—")+'</td><td '+td+'>'+(ul?N(ul.peso,0)+' kg <span style="color:#999">'+fmtData(ul.data)+'</span>':"—")+'</td><td '+td+'>'+(g!=null?N(g,3):"—")+'</td><td '+td+'>'+(+x.custoAnimal>0?R(x.custoAnimal):"—")+'</td></tr>';
+    });
+    h+='</table></div>';
+  }
+  return h+'</div>';
 }
 function renderEmbarque(){
   try{renderHistAbates();}catch(e){console.warn("renderHistAbates",e);}
@@ -26179,7 +26263,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.08-acerto</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.08-historico</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
