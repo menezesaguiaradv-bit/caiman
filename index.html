@@ -4195,8 +4195,24 @@ function podeVerAba(aba){
   return perm.abas.indexOf(aba)>=0;
 };
 const FAZENDA_RESTRITA={'fabricio':['Caiman','Maguary'],'robson':['Cruz Alta'],'renato':['Pinheiral'],'reginaldo':['Furna']};
+function abrirBiaNoApp(){
+  var p=document.getElementById("bia-painel");if(!p)return;
+  /* o app ja pediu login e PIN: a Bia (mesma aba, mesmo site) nao pede o PIN de novo */
+  try{sessionStorage.setItem("_bia_pin_ok","1");}catch(e){}
+  if(!document.getElementById("bia-frame")){
+    var f=document.createElement("iframe");f.id="bia-frame";f.src="bia.html?noapp=1";
+    f.setAttribute("allow","microphone; autoplay; clipboard-write");
+    f.style.cssText="position:absolute;inset:0;width:100%;height:100%;border:0;background:#0E0505";
+    p.appendChild(f);
+  }
+  p.style.display="block";
+  try{history.pushState({caimanBia:1},"");}catch(e){}
+}
+function fecharBiaNoApp(){var p=document.getElementById("bia-painel");if(p)p.style.display="none";}
+window.addEventListener("popstate",function(){var p=document.getElementById("bia-painel");if(p&&p.style.display!=="none")p.style.display="none";});
 function aplicarRestricoesUsuario(){
   const uid=getUserId();
+  try{var _bf=document.getElementById("bia-fab");if(_bf)_bf.style.display=(uid==="guilherme")?"":"none";}catch(e){}
   // Card Hedge/NDF: visível apenas para guilherme
   const cardHedge=document.getElementById("card-hedge");
   if(cardHedge){
@@ -26464,7 +26480,14 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.08-ficha2</div>
+<!-- 08/11/2026 (ele: "sera que a bia nao pode integrar o app? para eu conversar com ela por la?"): botao da Bia em todas
+     as telas. Abre a pagina da Bia (bia.html, mesmo site e mesmo login) por cima do app; fechar so esconde, a conversa
+     continua de onde parou. So aparece para o Guilherme (a Bia e a assistente dele: agenda, e-mail, financeiro). -->
+<button id="bia-fab" onclick="abrirBiaNoApp()" title="Conversar com a Bia" style="display:none;position:fixed;right:14px;bottom:30px;z-index:250;width:58px;height:58px;border-radius:50%;border:2px solid #E8B54A;background:radial-gradient(circle at 35% 30%,#C42A2A,#7A1414 70%);color:#FFE3A1;font-weight:800;font-size:15px;letter-spacing:.06em;box-shadow:0 6px 18px rgba(0,0,0,.28);cursor:pointer">BIA</button>
+<div id="bia-painel" style="display:none;position:fixed;inset:0;z-index:10000;background:#0E0505">
+  <button onclick="fecharBiaNoApp()" style="position:absolute;top:calc(env(safe-area-inset-top,0px) + 8px);left:8px;z-index:2;border:1px solid #43191A;background:rgba(30,11,11,.85);color:#FFF4E6;border-radius:18px;padding:7px 13px;font-size:13px;cursor:pointer">← Voltar ao app</button>
+</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.08-bia-app</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
