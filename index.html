@@ -8224,14 +8224,16 @@ function confirmarEnc(){
     };
   }catch(e){console.log("fechamento zootécnico:",e);}
 
-  const abates=getAbates();
-  abates.push({id:novoId(),loteId:l.id,fazenda:l.fazenda,pasto:l.pasto,numLote:l.numLote||"",produtor:l.produtor||"",qtd:l.qtd||0,
+  const abates=getAbates(),_abId=novoId();
+  abates.push({id:_abId,loteId:l.id,fazenda:l.fazenda,pasto:l.pasto,numLote:l.numLote||"",produtor:l.produtor||"",qtd:l.qtd||0,
     tipo:l.tipo||"Confinamento",
     dataEntrada:l.dtE,dataSaida:dataAbate,dias,pesoE:l.pesoE,at,precoV,proap,hedge,
     pvSaida:pvEmb||0,atEstimado:atEstimado,
     cCompra:custoBoi,cNutri:nutri,cOp:op,cTot,recV,recTot,res,mPer,mMes,mAno,encerradoEm:todayStr(),
-    fech:fechamento});
+    fech:fechamento,
+    snap:(function(){try{return _abateSnap(l,dataAbate);}catch(e){return null;}})()});  /* 08/11: retrato do lote para a ficha do Historico (Embarque) */
   setAbates(abates);lotes.splice(idx,1);setLotes(lotes);
+  try{_abateSnapComercial(_abId,l);}catch(e){}
   // Também marcar animais SISBOV daquele pasto/fazenda como encerrados
   const animais=getAnimais();
   let qtdSisbov=0;
@@ -23014,110 +23016,309 @@ function _embFinHtml(e,cab){
   if(nf&&ac){var d=ac-nf;t+='<br>Diferença acerto − NF: <b style="color:'+(d<0?'#A32D2D':'#23432D')+'">'+(d<0?'− ':'+ ')+R(Math.abs(d))+'</b> ('+(d/nf*100).toFixed(1).replace(".",",")+'%)';}
   return t+'</div>';
 }
-/* 08/11: ele: "podemos colocar um historico dos bois abatidos la" - abates encerrados (caiman_abates_v1) com o
-   que foi lancado no embarque daquele curral (lote de venda, NF, acerto, anexos). Mais recente primeiro. */
-function renderHistAbates(){
-  var el=document.getElementById("emb-hist");if(!el)return;
-  var A=getAbates().slice().sort(function(a,b){return String(b.dataSaida||"").localeCompare(String(a.dataSaida||""));});
-  if(!A.length){el.innerHTML='<div style="font-size:12px;color:#999">Nenhum abate encerrado ainda.</div>';return;}
-  var R=function(v){return v?"R$ "+Math.round(+v).toLocaleString("pt-BR"):"—";},n2=function(v){return v?(+v).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";};
-  var th='style="text-align:left;padding:5px 6px;font-size:11px;color:#7A7668;border-bottom:1px solid #E3DCC8;white-space:nowrap"',td='style="padding:5px 6px;font-size:12px;border-bottom:1px solid #F0EBDD;white-space:nowrap;vertical-align:top"';
-  var tot={cab:0,nf:0,ac:0,res:0};
-  var h='<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%"><tr><th '+th+'>Abate</th><th '+th+'>Curral</th><th '+th+'>Fazenda</th><th '+th+'>Cab.</th><th '+th+'>Dias</th><th '+th+'>@/cab</th><th '+th+'>R$/@</th><th '+th+'>Lote de venda</th><th '+th+'>NF de venda</th><th '+th+'>Acerto</th><th '+th+'>Resultado</th><th '+th+'>Anexos</th></tr>';
-  A.forEach(function(a){
-    var e=a.loteId?_embDe(a.loteId):null;e=e||{};
-    var cab=+a.qtd||0,nf=+e.valorNf||0,ac=+e.valorAcerto||0;
-    tot.cab+=cab;tot.nf+=nf;tot.ac+=ac;tot.res+=+a.res||0;
-    h+='<tr id="hab-r-'+_escAL(a.id)+'" onclick="_histAbAbrir(\''+_escAL(a.id)+'\')" style="cursor:pointer" title="Toque para ver o lote"><td '+td+'>'+fmtData(a.dataSaida)+'</td><td '+td+'><b style="color:#23432D;text-decoration:underline">'+_escAL(a.pasto||"?")+'</b> <span id="hab-s-'+_escAL(a.id)+'" style="color:#999">▸</span></td><td '+td+'>'+_escAL(a.fazenda||"")+'</td><td '+td+'>'+cab+'</td><td '+td+'>'+(a.dias||"—")+'</td><td '+td+'>'+n2(a.at)+'</td><td '+td+'>'+n2(a.precoV)+'</td>'+
-      '<td '+td+'>'+_escAL(e.loteVenda||a.numLote||"—")+'</td><td '+td+'>'+(e.nfVenda?_escAL(e.nfVenda)+'<br>':'')+R(nf)+'</td><td '+td+'>'+R(ac)+(e.dataAcerto?'<br><span style="color:#999">'+fmtData(e.dataAcerto)+'</span>':'')+'</td>'+
-      '<td '+td+'><span style="color:'+((+a.res||0)<0?'#A32D2D':'#23432D')+'">'+R(a.res)+'</span></td><td '+td+'>'+((e.anexos||[]).length?_anexosHtml(e.anexos,null):'—')+'</td></tr>';
-  });
-  h+='<tr style="font-weight:700"><td '+td+'>Total</td><td '+td+'>'+A.length+' abate(s)</td><td '+td+'></td><td '+td+'>'+tot.cab.toLocaleString("pt-BR")+'</td><td '+td+'></td><td '+td+'></td><td '+td+'></td><td '+td+'></td><td '+td+'>'+R(tot.nf)+'</td><td '+td+'>'+R(tot.ac)+'</td><td '+td+'>'+R(tot.res)+'</td><td '+td+'></td></tr></table></div>';
-  /* o detalhe fica FORA da tabela (dentro dela herdava a largura da tabela e saia da tela no celular) */
-  el.innerHTML=h+'<div id="emb-hist-det"></div>';
-  /* re-desenho (dados da Bia chegando) nao fecha o lote que ele abriu */
-  if(_habAberto)_histAbAbrir(_habAberto,true);
+/* 08/11 14h47: ele: "quero que essa aba seja somente para o confinamento. Os dados eu quero que sejam mais interativo,
+   igual nos currais do confinamento. Quero que abra uma janela com tudo que teve sobre o lote. Ate o projetado x
+   realizado, e todos os custos acumulados etc".
+   - Historico = cartoes (como a grade de currais), so abates do confinamento (tipo Confinamento ou origemConfinamento).
+   - Toque no cartao abre a FICHA DO LOTE em tela cheia, com abas.
+   - No encerramento o app agora guarda um RETRATO do lote (snap): projecoes do cadastro (custos, preco, abate previsto),
+     serie diaria (trato kg/MS/custo, peso estimado pela energia x projetado, nota de cocho), mortes, sanidade e o que a
+     Bia previa (bia_painel.comercial). Tratos e pesagens sao zerados no ciclo seguinte - sem o retrato a ficha perderia
+     o historico. Abate sem retrato (encerrado antes de 08/11) monta o que ainda existir no aparelho. */
+function _abEhConf(a){return a&&(a.tipo==="Confinamento"||!!a.origemConfinamento);}
+function _abLoteLike(a){return {id:a.loteId,pasto:a.pasto,fazenda:a.fazenda,qtd:a.qtd,dtE:a.dataEntrada,pesoE:a.pesoE,tipo:"Confinamento"};}
+function _abateSerie(l,ini,fim){
+  if(!ini||!fim||ini>fim)return [];
+  var T={};try{getTratos().forEach(function(t){if(String(t.loteId)!==String(l.id))return;var d=String(t.data||t.dataIni||"").slice(0,10);if(!d||d<ini||d>fim)return;
+    var x=T[d]||(T[d]={kg:0,ms:0,c:0});x.kg+=+t.kg||0;x.ms+=+t.kgms||0;x.c+=+t.custo||0;});}catch(e){}
+  var E={};try{_pcSerieEnergia(l,fim).forEach(function(s){E[s.dia]=s;});}catch(e){}
+  var out=[],d=ini,n=0;
+  while(d<=fim&&n<420){
+    var t=T[d],e=E[d],nota=null;try{var r=ncxDoDia(l.pasto||l.nome,d);if(r.length)nota=ncxNotaN(r[r.length-1]);}catch(_){}
+    if(t||e||nota!=null)out.push({d:d,kg:t?Math.round(t.kg):0,ms:t?Math.round(t.ms):0,c:t?Math.round(t.c):0,pe:e&&e.est?+e.est:null,pp:e&&e.proj?+(+e.proj).toFixed(1):null,n:nota});
+    d=addDias(d,1);n++;
+  }
+  return out;
 }
-/* 08/11: ele: "quando eu clicar na linha do curral, apareca todos os dados daquele lote abatido desde o GMD, o %
-   de carcaca, o preco de nutricao, preco de venda, margem de lucro mensal, do periodo e anual" e "todos os animais
-   identificados naquele lote". Valores do encerramento (caiman_abates_v1) sao POR CABECA (recV = @ x R$/@). */
-var _habAberto=null;
-function _histAbAbrir(id,forcar){
-  var box=document.getElementById("emb-hist-det");if(!box)return;
-  var abrir=forcar||_habAberto!==id;
-  if(_habAberto){var r0=document.getElementById("hab-r-"+_habAberto),s0=document.getElementById("hab-s-"+_habAberto);if(r0)r0.style.background="";if(s0)s0.textContent="▸";}
-  if(!abrir){_habAberto=null;box.innerHTML="";return;}
-  _habAberto=id;
-  var r=document.getElementById("hab-r-"+id),sx=document.getElementById("hab-s-"+id);if(r)r.style.background="#F1EBDA";if(sx)sx.textContent="▾";
-  var a=getAbates().find(function(x){return String(x.id)===String(id);});
-  try{box.innerHTML=a?('<div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0 4px"><div style="font-size:15px;font-weight:700;color:#23432D">Curral '+_escAL(a.pasto||"?")+' · abate '+fmtData(a.dataSaida)+'</div><button onclick="_histAbAbrir(\''+_escAL(id)+'\')" style="border:1px solid #D9D2BF;background:#fff;border-radius:7px;padding:4px 10px;cursor:pointer;font-size:12px">Fechar ✕</button></div>'+_histAbDetalhe(a)):"Lote não encontrado.";}
-  catch(e){box.innerHTML="Erro: "+_escAL(e.message);}
-  if(!forcar)try{box.scrollIntoView({behavior:"smooth",block:"start"});}catch(e){}
+function _abateSanidade(l,ini,fim){
+  var out=[];try{getSanidade().forEach(function(r){if(!r||!r.data||r.data<ini||(fim&&r.data>fim))return;
+    var bate=String(r.alvoId)===String(l.id);
+    if(!bate&&r.alvo!=="sisbov"){try{var lg=_sanLugar(r);if(lg&&_pastoCore(lg.pasto)===_pastoCore(l.pasto)&&(!lg.faz||_fazBate(l.fazenda||"",lg.faz)))bate=true;}catch(e){}}
+    if(bate)out.push({data:r.data,tipo:nomeTipoSan(r.tipo),produto:r.produto||"",carencia:r.dataCarencia||"",qtd:r.qtd||r.cabecas||"",obs:r.obs||""});});}catch(e){}
+  return out.sort(function(a,b){return a.data<b.data?-1:1;});
+}
+function _abateSnap(l,dataAbate){
+  var s={em:new Date().toISOString()};
+  try{
+    var ab=null;try{ab=dataAbatePrevista(l);}catch(e){}
+    var prev=(ab&&ab.data)||l.dtAbate||"",rend=(+l.rendVis||+l.rend||56.5);
+    var pp=null;try{pp=prev?pesoProjetadoLoteEm(l,prev):null;}catch(e){}
+    s.lote={qtd:+l.qtd||0,pesoE:+l.pesoE||0,dtE:l.dtE||"",dtAbatePrev:prev,rend:rend,gmdProj:(typeof GMD_PROJ_CONF!=="undefined"?GMD_PROJ_CONF:null),
+      pesoSaidaProj:pp?+(+pp).toFixed(1):null,atProj:pp?+(pp*rend/100/15).toFixed(2):null,
+      custoBoi:+l.custoBoi||0,cNutri:+l.cNutri||0,cOp:+l.cOp||0,precoV:+l.precoV||0,produtor:l.produtor||"",numLote:l.numLote||""};
+  }catch(e){}
+  try{s.serie=_abateSerie(l,l.dtE,dataAbate);}catch(e){s.serie=[];}
+  try{s.mortes=getMortesLote().filter(function(m){return String(m.loteId)===String(l.id);}).map(function(m){return {data:m.data,qtd:+m.qtd||1,causa:m.causa||"",peso:m.peso||"",obs:m.obs||""};});}catch(e){s.mortes=[];}
+  try{s.san=_abateSanidade(l,l.dtE||"",dataAbate);}catch(e){s.san=[];}
+  try{var c=_comLote(l);if(c)s.com=c;}catch(e){}
+  return s;
+}
+/* o que a Bia previa (bia_painel) - busca depois de gravar, se o cache nao estava carregado */
+async function _abateSnapComercial(abId,l){
+  try{await _dadosBiaComercial();var c=_comLote(l);if(!c)return;
+    var A=JSON.parse(localStorage.getItem("caiman_abates_v1")||"[]"),a=A.find(function(x){return String(x.id)===String(abId);});
+    if(a&&a.snap&&!a.snap.com){a.snap.com=c;localStorage.setItem("caiman_abates_v1",JSON.stringify(A));}}catch(e){}
+}
+function _abSnapDe(a){
+  if(a.snap)return a.snap;
+  var l=_abLoteLike(a);
+  return {lote:{qtd:+a.qtd||0,pesoE:+a.pesoE||0,dtE:a.dataEntrada||"",gmdProj:(a.fech&&a.fech.gmdProj)||null},serie:_abateSerie(l,a.dataEntrada,a.dataSaida),
+    mortes:getMortesLote().filter(function(m){return String(m.loteId)===String(a.loteId);}).map(function(m){return {data:m.data,qtd:+m.qtd||1,causa:m.causa||"",peso:m.peso||"",obs:m.obs||""};}),
+    san:_abateSanidade(l,a.dataEntrada||"",a.dataSaida||""),com:null,vivo:true};
+}
+
+/* ---- grafico de linhas em SVG (hover por dia com o valor de cada serie) ---- */
+function _svgLinhas(series,opt){
+  opt=opt||{};var W=480,H=opt.h||220,L=opt.L||58,R=10,T=10,B=26;
+  var xs={};series.forEach(function(s){s.pts.forEach(function(p){xs[p[0]]=1;});});
+  var X=Object.keys(xs).sort();if(X.length<2)return '<div style="font-size:12px;color:#999;padding:8px 0">Sem dados suficientes para o gráfico.</div>';
+  var ix={};X.forEach(function(x,i){ix[x]=i;});
+  var ys=[];series.forEach(function(s){s.pts.forEach(function(p){if(p[1]!=null&&isFinite(p[1]))ys.push(+p[1]);});});
+  if(!ys.length)return '';
+  var y0=opt.zero?0:Math.min.apply(null,ys),y1=Math.max.apply(null,ys);if(y1===y0){y1=y0+1;}var pad=(y1-y0)*0.08;if(!opt.zero)y0-=pad;y1+=pad;
+  var sx=function(i){return L+(W-L-R)*i/(X.length-1);},sy=function(v){return T+(H-T-B)*(1-(v-y0)/(y1-y0));};
+  var fmt=opt.fmt||function(v){return Math.round(v).toLocaleString("pt-BR");};
+  var g='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block" role="img">';
+  for(var k=0;k<=4;k++){var v=y0+(y1-y0)*k/4,y=sy(v);g+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y+'" y2="'+y+'" stroke="#EDE6D3" stroke-width="1"/><text x="'+(L-6)+'" y="'+(y+3)+'" text-anchor="end" font-size="12" fill="#8A8574">'+fmt(v)+'</text>';}
+  [0,Math.floor((X.length-1)/2),X.length-1].forEach(function(i){g+='<text x="'+sx(i)+'" y="'+(H-6)+'" text-anchor="'+(i===0?"start":i===X.length-1?"end":"middle")+'" font-size="12" fill="#8A8574">'+fmtData(X[i]).slice(0,5)+'</text>';});
+  series.forEach(function(s){var pts=s.pts.filter(function(p){return p[1]!=null&&isFinite(p[1]);});if(!pts.length)return;
+    g+='<polyline fill="none" stroke="'+s.cor+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"'+(s.tracejado?' stroke-dasharray="5 4"':'')+' points="'+pts.map(function(p){return sx(ix[p[0]]).toFixed(1)+","+sy(+p[1]).toFixed(1);}).join(" ")+'"/>';});
+  var w=(W-L-R)/(X.length-1);
+  X.forEach(function(x,i){var t=fmtData(x)+series.map(function(s){var p=s.pts.find(function(q){return q[0]===x;});return p&&p[1]!=null?"\n"+s.nome+": "+fmt(+p[1]):"";}).join("");
+    g+='<rect x="'+(sx(i)-w/2)+'" y="'+T+'" width="'+Math.max(w,2)+'" height="'+(H-T-B)+'" fill="transparent"><title>'+_escAL(t)+'</title></rect>';});
+  g+='</svg><div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#555;margin-top:2px">'+series.map(function(s){return '<span><span style="display:inline-block;width:14px;height:0;border-top:2px '+(s.tracejado?"dashed":"solid")+' '+s.cor+';vertical-align:middle;margin-right:4px"></span>'+_escAL(s.nome)+'</span>';}).join("")+'</div>';
+  return g;
+}
+
+var _faAtual=null,_faAba="resumo";
+function abrirFichaAbate(id){
+  var a=getAbates().find(function(x){return String(x.id)===String(id);});if(!a)return;
+  _faAtual=id;_faAba="resumo";
+  var m=document.getElementById("modal-ficha-abate");
+  if(!m){m=document.createElement("div");m.id="modal-ficha-abate";m.className="modal-overlay";m.style.cssText="display:none;z-index:320;padding:8px";
+    m.onclick=function(e){if(e.target===m)fecharFichaAbate();};document.body.appendChild(m);
+    var css=document.createElement("style");css.textContent="#modal-ficha-abate .modal{max-width:1000px;width:100%;height:calc(100vh - 16px);max-height:calc(100vh - 16px);overflow:auto;padding:18px}"+
+      "@media(max-width:640px){#modal-ficha-abate{padding:0!important}#modal-ficha-abate .modal{border-radius:0;height:100vh;max-height:100vh;padding:14px 12px}}"+
+      ".fa-tab{border:1px solid #D9D2BF;background:#fff;color:#23432D;border-radius:18px;padding:6px 12px;font-size:12.5px;cursor:pointer;white-space:nowrap}.fa-tab.on{background:#23432D;color:#F7F4EC;border-color:#23432D}";
+    document.head.appendChild(css);}
+  m.innerHTML='<div class="modal"><div id="fa-corpo"></div></div>';m.style.display="flex";
+  if(!_bpCache&&Date.now()-_bpTentou>60000)_dadosBiaComercial().then(function(){if(_faAtual===id)_faRender();});
+  _faRender();
+}
+function fecharFichaAbate(){var m=document.getElementById("modal-ficha-abate");if(m)m.style.display="none";_faAtual=null;}
+function _faIr(aba){_faAba=aba;_faRender();}
+function _faRender(){
+  var el=document.getElementById("fa-corpo");if(!el||!_faAtual)return;
+  var a=getAbates().find(function(x){return String(x.id)===String(_faAtual);});if(!a){el.innerHTML="Lote não encontrado.";return;}
+  var S=_abSnapDe(a),abas=[["resumo","Resumo"],["proj","Projetado × realizado"],["custos","Custos acumulados"],["consumo","Consumo e peso"],["san","Sanidade e mortes"],["venda","Venda e acerto"],["bois","Bois"]];
+  var h='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px"><div><div style="font-size:20px;font-weight:700;color:#23432D">Curral '+_escAL(a.pasto||"?")+'</div>'+
+    '<div style="font-size:12.5px;color:#7A7668">'+_escAL(a.fazenda||"")+' · '+(+a.qtd||0)+' cab. · '+fmtData(a.dataEntrada)+' → '+fmtData(a.dataSaida)+' · '+(a.dias||"?")+' dias'+(a.produtor?' · '+_escAL(a.produtor):'')+'</div></div>'+
+    '<button onclick="fecharFichaAbate()" style="border:1px solid #D9D2BF;background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px">Fechar ✕</button></div>'+
+    '<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:10px">'+abas.map(function(t){return '<button class="fa-tab'+(_faAba===t[0]?" on":"")+'" onclick="_faIr(\''+t[0]+'\')">'+t[1]+'</button>';}).join("")+'</div>';
+  var fn={resumo:_faResumo,proj:_faProj,custos:_faCustos,consumo:_faConsumo,san:_faSan,venda:_faVenda,bois:_faBois}[_faAba]||_faResumo;
+  try{h+=fn(a,S);}catch(e){h+='<div style="color:#A32D2D">Erro ao montar: '+_escAL(e.message)+'</div>';}
+  if(S.vivo)h+='<div style="font-size:11px;color:#999;margin-top:12px">Este lote foi encerrado antes do retrato automático (08/11): a série diária, mortes e sanidade vêm do que ainda existe no aparelho.</div>';
+  el.innerHTML=h;
+}
+var _faR=function(v){return v||v===0?"R$ "+Math.round(+v).toLocaleString("pt-BR"):"—";};
+var _faN=function(v,c){return v||v===0?(+v).toLocaleString("pt-BR",{minimumFractionDigits:c,maximumFractionDigits:c}):"—";};
+var _faP=function(v){return v||v===0?(v*100).toFixed(1).replace(".",",")+"%":"—";};
+function _faTile(rot,val,sub,cor){return '<div style="background:#FFFEFA;border:1px solid #E3DCC8;border-top:4px solid '+(cor||"#B8944F")+';border-radius:10px;padding:9px 11px"><div style="font-size:11px;color:#7A7668">'+rot+'</div><div style="font-size:20px;font-weight:700;color:#1f241f;line-height:1.2">'+val+'</div>'+(sub?'<div style="font-size:11px;color:#7A7668">'+sub+'</div>':'')+'</div>';}
+function _faBloco(tit,ls){return '<div style="background:#fff;border:1px solid #E3DCC8;border-radius:9px;padding:8px 10px"><div style="font-size:11px;font-weight:700;color:#B8944F;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">'+tit+'</div>'+
+  ls.map(function(x){return '<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;line-height:1.65"><span style="color:#7A7668">'+x[0]+'</span><b style="color:'+(x[2]||"#1f241f")+'">'+x[1]+'</b></div>';}).join("")+'</div>';}
+function _faSec(t){return '<div style="font-size:12px;font-weight:700;color:#B8944F;text-transform:uppercase;letter-spacing:.4px;margin:14px 0 6px">'+t+'</div>';}
+function _faDados(a,S){
+  var f=a.fech||{},cab=+a.qtd||0,pv=+a.pvSaida||+f.pesoVivoPesagem||0,rom=null;
+  try{rom=(_romCache||[]).filter(function(r){return _kCurral(r.curral)===_kCurral(a.pasto)&&String(r.ts||"").slice(0,10)>=String(a.dataSaida||"").slice(0,10);}).pop()||null;}catch(x){}
+  var rend=(pv>0&&+a.at>0)?(+a.at*15/pv):(rom&&rom.rendimento?+rom.rendimento:null);
+  /* nutricao: a lancada no encerramento (e a que entra no resultado); a dos tratos aparece a parte */
+  var nutriTratos=(+f.custoNutriReal>0&&cab)?f.custoNutriReal/cab:null;
+  var nutriReal=(+a.cNutri>0)?+a.cNutri:(nutriTratos||0);
+  var arrProd=+f.arrobasCab||0;
+  return {f:f,cab:cab,pv:pv,rom:rom,rend:rend,nutriReal:nutriReal,nutriTratos:nutriTratos,arrProd:arrProd,
+    custoArr:arrProd>0?((nutriReal)+(+a.cOp||0))/arrProd:null,custoKg:(+f.ganho>0)?((nutriReal)+(+a.cOp||0))/f.ganho:null};
+}
+function _faResumo(a,S){
+  var D=_faDados(a,S),f=D.f,cor=(+a.res||0)<0?"#A32D2D":"#23432D";
+  var h='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">'+
+    _faTile("Resultado do lote",_faR((+a.res||0)*D.cab),_faR(a.res)+"/cab",cor)+
+    _faTile("Margem mensal",_faP(a.mMes),"período "+_faP(a.mPer)+" · ano "+_faP(a.mAno),cor)+
+    _faTile("@/cab",_faN(a.at,2),"R$ "+_faN(a.precoV,2)+"/@")+
+    _faTile("GMD",f.gmd?_faN(f.gmd,3):"—",f.gmdFonte?"fonte: "+f.gmdFonte:"")+
+    _faTile("Rendimento de carcaça",D.rend?_faP(D.rend):(f.rend?_faN(f.rend,1)+"%":"—"),D.rend?(D.pv?"pelo peso de embarque":"pelo romaneio"):"usado no encerramento")+
+    _faTile("Custo da @ produzida",D.custoArr?_faR(D.custoArr):"—",D.arrProd?_faN(D.arrProd,2)+" @ produzidas/cab":"")+'</div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;margin-top:10px">'+
+    _faBloco("Zootécnico",[["Peso de entrada",+a.pesoE?_faN(a.pesoE,0)+" kg":"—"],["Peso de saída",(D.pv||f.pesoSaida)?_faN(D.pv||f.pesoSaida,0)+" kg"+(D.pv?"":" (est.)"):"—"],["Ganho",f.ganho?_faN(f.ganho,0)+" kg":"—"],
+      ["GMD real",f.gmd?_faN(f.gmd,3):"—"],["GMD projetado",f.gmdProj?_faN(f.gmdProj,3):"—"],["GMD pela energia",f.gmdEner?_faN(f.gmdEner,3):"—"]])+
+    _faBloco("Consumo",[["MS/cab/dia",f.msCabDia?_faN(f.msCabDia,2)+" kg":"—"],["MS/cab no ciclo",f.msCabTot?_faN(f.msCabTot,0)+" kg":"—"],["Conversão alimentar",f.convAlim?_faN(f.convAlim,2):"—"],["kg MS por @",f.msArroba?_faN(f.msArroba,1):"—"],
+      ["Trato (MN) do lote",f.consumoRealKg?_faN(f.consumoRealKg,0)+" kg":"—"]])+
+    _faBloco("Por cabeça",[["Custo total",_faR(a.cTot)],["Receita total",_faR(a.recTot)],["Resultado",_faR(a.res),(+a.res||0)<0?"#A32D2D":"#23432D"],["Mortes no ciclo",(S.mortes||[]).reduce(function(s,m){return s+(+m.qtd||1);},0)],["Tratamentos",(S.san||[]).length]])+'</div>';
+  return h;
+}
+function _faProj(a,S){
+  var D=_faDados(a,S),f=D.f,L=S.lote||{},c=S.com||null,cab=D.cab;
+  var diasProj=(L.dtE&&L.dtAbatePrev)?diasEntre(L.dtE,L.dtAbatePrev):null;
+  var atProj=(c&&+c.arrobas_cab)||L.atProj||null,precoProj=L.precoV||null;
+  var custoProj=(L.custoBoi||0)+(L.cNutri||0)+(L.cOp||0);
+  var recProj=(atProj&&precoProj)?atProj*precoProj:null;
+  var pesoProj=(+a.pesoE&&f.gmdProj&&a.dias)?(+a.pesoE+f.gmdProj*a.dias):(L.pesoSaidaProj||null);
+  /* [rotulo, projetado, realizado, formato, maior e melhor?] */
+  var R=[
+    ["Data de abate",L.dtAbatePrev||null,a.dataSaida||null,"data",null],
+    ["Dias de cocho",diasProj,+a.dias||null,"n0",false],
+    ["Peso de saída (kg)",pesoProj,D.pv||f.pesoSaida||null,"n0",true],
+    ["GMD (kg/dia)",f.gmdProj||L.gmdProj||null,f.gmd||null,"n3",true],
+    ["@/cab",atProj,+a.at||null,"n2",true],
+    ["Rendimento de carcaça",L.rend?L.rend/100:null,D.rend,"pct",true],
+    ["Trato MN do lote (kg)",f.consumoProjKg||null,f.consumoRealKg||null,"n0",null],
+    ["Compra do boi (R$/cab)",L.custoBoi||null,+a.cCompra||null,"rs",false],
+    ["Nutrição (R$/cab)",L.cNutri||null,D.nutriReal||null,"rs",false],
+    ["Nutrição pelos tratos (R$/cab)",L.cNutri||null,D.nutriTratos,"rs",false],
+    ["Operacional (R$/cab)",L.cOp||null,+a.cOp||null,"rs",false],
+    ["Custo total (R$/cab)",custoProj||null,+a.cTot||null,"rs",false],
+    ["Preço de venda (R$/@)",precoProj,+a.precoV||null,"rs2",true],
+    ["Receita (R$/cab)",recProj,+a.recTot||null,"rs",true],
+    ["Resultado (R$/cab)",(recProj!=null&&custoProj)?recProj-custoProj:(c&&c.resultado_cab_hoje!=null?+c.resultado_cab_hoje:null),(a.res!=null?+a.res:null),"rs",true],
+    ["Resultado do lote",(recProj!=null&&custoProj)?(recProj-custoProj)*cab:null,(a.res!=null?+a.res*cab:null),"rs",true],
+    ["Margem do período",c&&c.margem_hoje!=null?+c.margem_hoje/100:null,a.mPer!=null?+a.mPer:null,"pct",true]
+  ];
+  function fm(v,t){if(v==null||v==="")return "—";if(t==="data")return fmtData(v);if(t==="rs")return _faR(v);if(t==="rs2")return "R$ "+_faN(v,2);if(t==="pct")return _faP(v);return _faN(v,t==="n3"?3:t==="n2"?2:0);}
+  var th='style="text-align:left;padding:6px 8px;font-size:11px;color:#7A7668;border-bottom:1px solid #E3DCC8"',td='style="padding:6px 8px;font-size:12.5px;border-bottom:1px solid #F0EBDD;white-space:nowrap"';
+  var h='<div style="overflow-x:auto;background:#fff;border:1px solid #E3DCC8;border-radius:10px"><table style="border-collapse:collapse;width:100%"><tr><th '+th+'></th><th '+th+'>Projetado</th><th '+th+'>Realizado</th><th '+th+'>Diferença</th></tr>';
+  R.forEach(function(r){
+    var dif="—",cor="#555";
+    if(r[1]!=null&&r[2]!=null){
+      if(r[3]==="data"){var dd=diasEntre(r[1]<r[2]?r[1]:r[2],r[1]<r[2]?r[2]:r[1])*(r[2]>=r[1]?1:-1);dif=(dd>0?"+":"")+dd+" d";cor=dd>0?"#B8641F":"#23432D";}
+      else{var d=r[2]-r[1];var pct=r[1]?d/Math.abs(r[1]):null;
+        dif=(r[3]==="pct"?(d>=0?"+":"")+(d*100).toFixed(1).replace(".",",")+" p.p.":(d>=0?"+ ":"− ")+fm(Math.abs(d),r[3]).replace("R$ ","R$ ")+(pct!=null&&r[3]!=="pct"?" ("+(pct>=0?"+":"")+(pct*100).toFixed(1).replace(".",",")+"%)":""));
+        if(r[4]!=null&&Math.abs(d)>1e-9)cor=((d>0)===r[4])?"#23432D":"#A32D2D";}
+    }
+    h+='<tr><td '+td+'><b>'+r[0]+'</b></td><td '+td+'>'+fm(r[1],r[3])+'</td><td '+td+'>'+fm(r[2],r[3])+'</td><td '+td+'><span style="color:'+cor+';font-weight:700">'+dif+'</span></td></tr>';
+  });
+  h+='</table></div><div style="font-size:11px;color:#999;margin-top:6px">Projetado: cadastro do lote no encerramento (custos, preço, abate previsto) e a previsão da Bia (@/cab, margem). Verde = melhor que o projetado; vermelho = pior.'+(S.snap||!S.vivo?'':' Abate encerrado antes do retrato automático: parte do projetado não foi guardada.')+'</div>';
+  /* peso: estimado pela energia x projetado */
+  var se=(S.serie||[]).filter(function(x){return x.pe!=null||x.pp!=null;});
+  if(se.length>1){h+=_faSec("Peso: estimado pelo consumo × projetado")+'<div style="background:#fff;border:1px solid #E3DCC8;border-radius:10px;padding:8px">'+
+    _svgLinhas([{nome:"Estimado pela energia",cor:"#23432D",pts:se.map(function(x){return [x.d,x.pe];})},{nome:"Projetado",cor:"#B8944F",tracejado:true,pts:se.map(function(x){return [x.d,x.pp];})}],{fmt:function(v){return Math.round(v)+" kg";}})+'</div>';}
+  return h;
+}
+function _faCustos(a,S){
+  var D=_faDados(a,S),cab=D.cab,L=S.lote||{};
+  var it=[["Compra do boi",+a.cCompra||0],["Nutrição",D.nutriReal||0],["Operacional",+a.cOp||0]];
+  var tot=it.reduce(function(s,x){return s+x[1];},0);
+  var th='style="text-align:left;padding:6px 8px;font-size:11px;color:#7A7668;border-bottom:1px solid #E3DCC8"',td='style="padding:6px 8px;font-size:12.5px;border-bottom:1px solid #F0EBDD;white-space:nowrap"';
+  var h='<div style="overflow-x:auto;background:#fff;border:1px solid #E3DCC8;border-radius:10px"><table style="border-collapse:collapse;width:100%"><tr><th '+th+'>Custo</th><th '+th+'>Por cabeça</th><th '+th+'>Do lote</th><th '+th+'>Por dia/cab</th><th '+th+'>% do total</th></tr>'+
+    it.concat([["Total",tot]]).map(function(x,i){var b=i===it.length;return '<tr'+(b?' style="font-weight:700"':'')+'><td '+td+'>'+x[0]+'</td><td '+td+'>'+_faR(x[1])+'</td><td '+td+'>'+_faR(x[1]*cab)+'</td><td '+td+'>'+(a.dias?"R$ "+_faN(x[1]/a.dias,2):"—")+'</td><td '+td+'>'+(tot?_faP(x[1]/tot):"—")+'</td></tr>';}).join("")+
+    (D.nutriTratos?'<tr><td colspan="5" style="padding:6px 8px;font-size:11.5px;color:#7A7668;border-bottom:1px solid #F0EBDD">Nutrição pelos tratos do Saicon: '+_faR(D.nutriTratos)+'/cab ('+_faR(D.nutriTratos*cab)+' no lote)</td></tr>':'')+
+    '<tr><td '+td+'>PROAP + hedge</td><td '+td+'>'+_faR((+a.proap||0)+(+a.hedge||0))+'</td><td '+td+'>'+_faR(((+a.proap||0)+(+a.hedge||0))*cab)+'</td><td '+td+'></td><td '+td+'></td></tr></table></div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:10px">'+
+    _faTile("Custo da @ produzida",D.custoArr?_faR(D.custoArr):"—","nutrição + operacional")+
+    _faTile("Custo do kg ganho",D.custoKg?"R$ "+_faN(D.custoKg,2):"—","nutrição + operacional")+
+    _faTile("Custo da @ vendida",(+a.at>0)?_faR(tot/a.at):"—","custo total ÷ @/cab")+
+    _faTile("Ponto de equilíbrio",(+a.at>0)?"R$ "+_faN((tot-(+a.proap||0)-(+a.hedge||0))/a.at,2)+"/@":"—","preço que zera o resultado")+'</div>';
+  /* nutricao acumulada dia a dia (tratos) x projetada (linear ate o abate previsto) */
+  var se=S.serie||[],acc=0,pts=[],pj=[],diasP=(L.dtE&&L.dtAbatePrev)?diasEntre(L.dtE,L.dtAbatePrev):a.dias,totP=(L.cNutri||0)*cab;
+  se.forEach(function(x){acc+=x.c||0;pts.push([x.d,acc]);if(totP&&diasP)pj.push([x.d,Math.min(totP,totP*diasEntre(a.dataEntrada||L.dtE,x.d)/diasP)]);});
+  if(acc>0){h+=_faSec("Nutrição acumulada do lote")+'<div style="background:#fff;border:1px solid #E3DCC8;border-radius:10px;padding:8px">'+
+    _svgLinhas([{nome:"Realizado (tratos)",cor:"#23432D",pts:pts}].concat(pj.length?[{nome:"Projetado",cor:"#B8944F",tracejado:true,pts:pj}]:[]),{zero:true,L:96,fmt:function(v){return "R$ "+Math.round(v).toLocaleString("pt-BR");}})+'</div>';}
+  else h+='<div style="font-size:12px;color:#999;margin-top:10px">Sem custo diário de trato guardado para este lote (o custo por dia vem dos tratos com custo).</div>';
+  /* composicao: custo x receita por cabeca */
+  var rt=+a.recTot||0,base=Math.max(rt,tot),cs=["#8A7A55","#B8944F","#D9C9A0"],corR=(+a.res||0)<0?"#A32D2D":"#23432D";
+  if(base>0){
+    var barra=function(lbl,segs){return '<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><div style="width:62px;font-size:11.5px;color:#7A7668">'+lbl+'</div><div style="flex:1;display:flex;gap:2px;height:20px">'+
+      segs.map(function(sg){return sg[1]>0?'<div title="'+sg[0]+': '+_faR(sg[1])+'" style="width:'+(sg[1]/base*100).toFixed(2)+'%;background:'+sg[2]+';border-radius:3px"></div>':'';}).join("")+'</div></div>';};
+    h+=_faSec("Custo × receita por cabeça")+barra("Custo",it.map(function(x,i){return [x[0],x[1],cs[i]];}))+barra("Receita",[["Receita",rt,corR]])+
+      '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:5px;font-size:11px;color:#555">'+it.map(function(x,i){return '<span><span style="display:inline-block;width:9px;height:9px;background:'+cs[i]+';border-radius:2px;margin-right:4px"></span>'+x[0]+' '+_faR(x[1])+'</span>';}).join("")+
+      '<span><span style="display:inline-block;width:9px;height:9px;background:'+corR+';border-radius:2px;margin-right:4px"></span>Receita '+_faR(rt)+'</span></div>';
+  }
+  return h;
+}
+function _faConsumo(a,S){
+  var cab=+a.qtd||0,se=S.serie||[],h="";
+  var ms=se.filter(function(x){return x.ms>0;});
+  if(ms.length>1)h+=_faSec("MS por cabeça por dia")+'<div style="background:#fff;border:1px solid #E3DCC8;border-radius:10px;padding:8px">'+
+    _svgLinhas([{nome:"MS/cab/dia",cor:"#23432D",pts:ms.map(function(x){return [x.d,cab?x.ms/cab:x.ms];})}],{fmt:function(v){return _faN(v,1)+" kg";}})+'</div>';
+  var pe=se.filter(function(x){return x.pe!=null||x.pp!=null;});
+  if(pe.length>1)h+=_faSec("Peso estimado pela energia × projetado")+'<div style="background:#fff;border:1px solid #E3DCC8;border-radius:10px;padding:8px">'+
+    _svgLinhas([{nome:"Estimado pela energia",cor:"#23432D",pts:pe.map(function(x){return [x.d,x.pe];})},{nome:"Projetado",cor:"#B8944F",tracejado:true,pts:pe.map(function(x){return [x.d,x.pp];})}],{fmt:function(v){return Math.round(v)+" kg";}})+'</div>';
+  var nt=se.filter(function(x){return x.n!=null;});
+  if(nt.length){var sob=nt.filter(function(x){return x.n>=1;}).length,lim=nt.filter(function(x){return x.n<=-1;}).length;
+    h+=_faSec("Nota de cocho no ciclo")+'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px">'+_faTile("Dias com nota",nt.length)+_faTile("Dias com sobra",sob,"nota 1 ou mais","#A32D2D")+_faTile("Cocho limpo",lim,"nota −1 ou menos","#23432D")+'</div>'+
+      '<div style="display:flex;flex-wrap:wrap;gap:2px;margin-top:8px">'+nt.map(function(x){return '<span title="'+fmtData(x.d)+': nota '+x.n+'" style="width:9px;height:18px;border-radius:2px;background:'+_pcCorNota(x.n)+'"></span>';}).join("")+'</div>';}
+  if(!h)h='<div style="font-size:12px;color:#999">Sem série diária guardada para este lote.</div>';
+  return h;
+}
+function _faSan(a,S){
+  var td='style="padding:6px 8px;font-size:12.5px;border-bottom:1px solid #F0EBDD"',th='style="text-align:left;padding:6px 8px;font-size:11px;color:#7A7668;border-bottom:1px solid #E3DCC8"';
+  var M=S.mortes||[],tm=M.reduce(function(s,m){return s+(+m.qtd||1);},0),h=_faSec("Mortes ("+tm+(a.qtd?" · "+_faP(tm/((+a.qtd||0)+tm)):"")+")");
+  h+=M.length?'<div style="overflow-x:auto;background:#fff;border:1px solid #E3DCC8;border-radius:10px"><table style="border-collapse:collapse;width:100%"><tr><th '+th+'>Data</th><th '+th+'>Cab.</th><th '+th+'>Causa</th><th '+th+'>Peso</th><th '+th+'>Obs.</th></tr>'+
+    M.map(function(m){return '<tr><td '+td+'>'+fmtData(m.data)+'</td><td '+td+'>'+m.qtd+'</td><td '+td+'>'+_escAL(m.causa||"—")+'</td><td '+td+'>'+(m.peso?_escAL(m.peso)+" kg":"—")+'</td><td '+td+'>'+_escAL(m.obs||"")+'</td></tr>';}).join("")+'</table></div>':'<div style="font-size:12px;color:#999">Nenhuma morte registrada.</div>';
+  var Z=S.san||[];h+=_faSec("Sanidade ("+Z.length+")");
+  h+=Z.length?'<div style="overflow-x:auto;background:#fff;border:1px solid #E3DCC8;border-radius:10px"><table style="border-collapse:collapse;width:100%"><tr><th '+th+'>Data</th><th '+th+'>Tratamento</th><th '+th+'>Produto</th><th '+th+'>Carência até</th><th '+th+'>Obs.</th></tr>'+
+    Z.map(function(z){return '<tr><td '+td+'>'+fmtData(z.data)+'</td><td '+td+'>'+_escAL(z.tipo||"")+'</td><td '+td+'>'+_escAL(z.produto||"—")+'</td><td '+td+'>'+(z.carencia?fmtData(z.carencia):"—")+'</td><td '+td+'>'+_escAL(z.obs||"")+'</td></tr>';}).join("")+'</table></div>':'<div style="font-size:12px;color:#999">Nenhum tratamento lançado no lote.</div>';
+  return h;
+}
+function _faVenda(a,S){
+  var e=(a.loteId?_embDe(a.loteId):null)||{},cab=+a.qtd||0,D=_faDados(a,S);
+  var h='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px">'+
+    _faBloco("Embarque",[["Frigorífico",_escAL(e.frigorifico||"—")],["Data do embarque",e.dataEmbarque?fmtData(e.dataEmbarque):"—"],["Hora",_escAL(e.horaEmbarque||"—")],["Caminhões",_escAL(e.caminhoes||"—")],["GTA de saída",_escAL(e.gta||"—")]])+
+    _faBloco("Venda e acerto",[["Lote de venda",_escAL(e.loteVenda||a.numLote||"—")],["NF de venda",_escAL(e.nfVenda||"—")],["Valor da NF",_faR(e.valorNf)],["Acerto",_faR(e.valorAcerto)+(e.dataAcerto?" · "+fmtData(e.dataAcerto):"")],
+      ["Acerto − NF",(+e.valorNf&&+e.valorAcerto)?_faR(e.valorAcerto-e.valorNf):"—",(+e.valorAcerto<+e.valorNf)?"#A32D2D":"#23432D"],["Acerto/cab",cab&&+e.valorAcerto?_faR(e.valorAcerto/cab):"—"],
+      ["Acerto × receita lançada",(+e.valorAcerto&&+a.recTot&&cab)?_faR(e.valorAcerto-a.recTot*cab):"—"]])+
+    (D.rom?_faBloco("Romaneio (Bia)",[["@/cab",_faN(D.rom.arrobas_cab,2)],["Previsto",D.rom.previsto?_faN(D.rom.previsto,2):"—"],["Rendimento",D.rom.rendimento?_faP(D.rom.rendimento):"—"],["Preço",D.rom.preco?"R$ "+_faN(D.rom.preco,2)+"/@":"—"],["Líquido",_faR(D.rom.liquido)]]):"")+'</div>';
+  h+=_faSec("Anexos")+_anexosHtml(e.anexos||[],null);
+  return h;
+}
+function _faBois(a,S){
+  var B=_histAbAnimais(a),cab=+a.qtd||0;
+  var h=_faSec("Bois identificados neste lote ("+B.length+(cab?" de "+cab:"")+")");
+  if(!B.length)return h+'<div style="font-size:12px;color:#999">Nenhum boi identificado individualmente neste lote.</div>';
+  var th='style="text-align:left;padding:5px 7px;font-size:10.5px;color:#7A7668;border-bottom:1px solid #E3DCC8;white-space:nowrap;position:sticky;top:0;background:#fff"',td='style="padding:5px 7px;font-size:12px;border-bottom:1px solid #EFE8D6;white-space:nowrap"';
+  h+='<div style="overflow:auto;max-height:60vh;background:#fff;border:1px solid #E3DCC8;border-radius:10px"><table style="border-collapse:collapse;width:100%"><tr><th '+th+'>Identificação eletrônica</th><th '+th+'>SISBOV</th><th '+th+'>Sexo</th><th '+th+'>Fornecedor</th><th '+th+'>Entrada</th><th '+th+'>Peso entrada</th><th '+th+'>Última pesagem</th><th '+th+'>GMD</th><th '+th+'>Custo do boi</th></tr>';
+  B.sort(function(x,y){return String(x.eletro||x.sisbov||"").localeCompare(String(y.eletro||y.sisbov||""));}).forEach(function(x){
+    var ps=[];try{ps=_pesDoAnimal(x.id).slice().sort(function(p,q){return p.data<q.data?-1:1;});}catch(_){}
+    var ul=ps.length?ps[ps.length-1]:null,pe=+x.peso||(ps.length?+ps[0].peso:0),de=x.dtE||(ps.length?ps[0].data:"");
+    var g=(ul&&pe&&de&&ul.data>de)?(ul.peso-pe)/diasEntre(de,ul.data):null;
+    h+='<tr><td '+td+'>'+_escAL(x.eletro||"—")+'</td><td '+td+'>'+_escAL(x.sisbov||"—")+'</td><td '+td+'>'+_escAL(x.sexo||"—")+'</td><td '+td+'>'+_escAL(x.fornecedor||"—")+'</td><td '+td+'>'+(de?fmtData(de):"—")+'</td>'+
+      '<td '+td+'>'+(pe?_faN(pe,0)+" kg":"—")+'</td><td '+td+'>'+(ul?_faN(ul.peso,0)+' kg <span style="color:#999">'+fmtData(ul.data)+'</span>':"—")+'</td><td '+td+'>'+(g!=null?_faN(g,3):"—")+'</td><td '+td+'>'+(+x.custoAnimal>0?_faR(x.custoAnimal):"—")+'</td></tr>';
+  });
+  return h+'</table></div>';
 }
 function _histAbAnimais(a){
   var pc=_pastoCore(a.pasto);
   return getAnimais().filter(function(x){return x.encerrado&&_pastoCore(x.pasto)===pc&&(!a.fazenda||_fazBate(x.fazenda||"",a.fazenda))&&(!a.dataSaida||!x.dataVenda||x.dataVenda===a.dataSaida);});
 }
-function _histAbDetalhe(a){
-  var f=a.fech||{},e=(a.loteId?_embDe(a.loteId):null)||{},cab=+a.qtd||0,rom=null;
-  try{rom=(_romCache||[]).filter(function(r){return _kCurral(r.curral)===_kCurral(a.pasto)&&String(r.ts||"").slice(0,10)>=String(a.dataSaida||"").slice(0,10);}).pop()||null;}catch(x){}
-  var R=function(v){return v||v===0?"R$ "+Math.round(+v).toLocaleString("pt-BR"):"—";};
-  var N=function(v,c){return v||v===0?(+v).toLocaleString("pt-BR",{minimumFractionDigits:c,maximumFractionDigits:c}):"—";};
-  var P=function(v){return v||v===0?(v*100).toFixed(1).replace(".",",")+"%":"—";};
-  var pv=+a.pvSaida||+f.pesoVivoPesagem||0;
-  /* rendimento real de carcaca: @ x 15 / peso vivo de saida (so com peso de embarque); senao o do romaneio; senao o usado */
-  var rendReal=(pv>0&&+a.at>0)?(+a.at*15/pv):(rom&&rom.rendimento?+rom.rendimento:null);
-  var arrProd=+f.arrobasCab||0;
-  var custoArrProd=arrProd>0?((+a.cNutri||0)+(+a.cOp||0))/arrProd:null;
-  var nutriDia=(+a.dias>0)?(+a.cNutri||0)/a.dias:null;
-  function bl(tit,ls){return '<div style="background:#fff;border:1px solid #E3DCC8;border-radius:9px;padding:8px 10px"><div style="font-size:11px;font-weight:700;color:#B8944F;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">'+tit+'</div>'+
-    ls.map(function(x){return '<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;line-height:1.65"><span style="color:#7A7668">'+x[0]+'</span><b style="color:'+(x[2]||"#1f241f")+'">'+x[1]+'</b></div>';}).join("")+'</div>';}
-  var corRes=(+a.res||0)<0?"#A32D2D":"#23432D";
-  var h='<div style="background:#F6F2E6;border-radius:10px;padding:10px;margin:2px 0 4px;white-space:normal">';
-  h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">';
-  h+=bl("Zootécnico",[["Entrada",fmtData(a.dataEntrada)],["Abate",fmtData(a.dataSaida)],["Dias de cocho",a.dias||"—"],["Cabeças",cab],
-    ["Peso de entrada",+a.pesoE?N(a.pesoE,0)+" kg":"—"],["Peso de saída",(pv||f.pesoSaida)?N(pv||f.pesoSaida,0)+" kg"+(pv?"":" (est.)"):"—"],
-    ["Ganho",f.ganho?N(f.ganho,0)+" kg":"—"],["GMD",f.gmd?N(f.gmd,3)+" kg/dia"+(f.gmdFonte?" ("+f.gmdFonte+")":""):"—"],
-    ["GMD projetado",f.gmdProj?N(f.gmdProj,3):"—"],["GMD pela energia",f.gmdEner?N(f.gmdEner,3):"—"]]);
-  h+=bl("Carcaça",[["@/cab",N(a.at,2)],["@ do lote",cab&&a.at?N(a.at*cab,1):"—"],["Rendimento de carcaça",rendReal?P(rendReal)+(pv>0?"":" (romaneio)"):(f.rend?N(f.rend,1)+"% (usado)":"—")],
-    ["@ produzidas/cab",arrProd>0?N(arrProd,2):"—"],["MS/cab/dia",f.msCabDia?N(f.msCabDia,2)+" kg":"—"],["Conversão alimentar",f.convAlim?N(f.convAlim,2):"—"],["kg MS por @",f.msArroba?N(f.msArroba,1):"—"]]);
-  h+=bl("Custos por cabeça",[["Compra do boi",R(a.cCompra)],["Nutrição",R(a.cNutri)],["Nutrição por dia",nutriDia?"R$ "+N(nutriDia,2):"—"],["Operacional",R(a.cOp)],["Total",R(a.cTot)],
-    ["Custo da @ produzida",custoArrProd?R(custoArrProd):"—"],["Nutrição do lote (tratos)",f.custoNutriReal?R(f.custoNutriReal):"—"]]);
-  h+=bl("Venda por cabeça",[["Preço de venda",a.precoV?"R$ "+N(a.precoV,2)+"/@":"—"],["Receita da @",R(a.recV)],["PROAP",R(a.proap)],["Hedge",R(a.hedge)],["Receita total",R(a.recTot)],
-    ["Resultado",R(a.res),corRes],["Resultado do lote",cab?R((+a.res||0)*cab):"—",corRes]]);
-  h+=bl("Margem de lucro",[["Do período",P(a.mPer),corRes],["Mensal",P(a.mMes),corRes],["Anual",P(a.mAno),corRes]]);
-  if(e.loteVenda||e.nfVenda||e.valorNf||e.valorAcerto||e.frigorifico)
-    h+=bl("Venda e acerto",[["Frigorífico",_escAL(e.frigorifico||"—")],["Lote de venda",_escAL(e.loteVenda||"—")],["NF de venda",_escAL(e.nfVenda||"—")],["Valor da NF",R(e.valorNf)],["Acerto",R(e.valorAcerto)],
-      ["Acerto − NF",(+e.valorNf&&+e.valorAcerto)?R(e.valorAcerto-e.valorNf):"—",(+e.valorAcerto<+e.valorNf)?"#A32D2D":"#23432D"],["Acerto/cab",cab&&+e.valorAcerto?R(e.valorAcerto/cab):"—"]]);
-  h+='</div>';
-  /* grafico: custo por cabeca (compra, nutricao, operacional) contra a receita */
-  var rt=+a.recTot||0,parts=[["Compra",+a.cCompra||0,"#8A7A55"],["Nutrição",+a.cNutri||0,"#B8944F"],["Operacional",+a.cOp||0,"#D9C9A0"]];
-  var base=Math.max(rt,+a.cTot||0),corR=(+a.res||0)<0?"#A32D2D":"#23432D";
-  if(base>0){
-    h+='<div style="margin-top:10px;font-size:11px;font-weight:700;color:#B8944F;text-transform:uppercase;letter-spacing:.4px">Custo × receita por cabeça</div>';
-    var barra=function(lbl,segs){return '<div style="display:flex;align-items:center;gap:8px;margin-top:5px"><div style="width:62px;font-size:11.5px;color:#7A7668">'+lbl+'</div><div style="flex:1;display:flex;gap:2px;height:18px">'+
-      segs.map(function(sg){return sg[1]>0?'<div title="'+sg[0]+': '+R(sg[1])+'" style="width:'+(sg[1]/base*100).toFixed(2)+'%;background:'+sg[2]+';border-radius:3px"></div>':'';}).join("")+'</div></div>';};
-    h+=barra("Custo",parts)+barra("Receita",[["Receita",rt,corR]]);
-    h+='<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:4px;font-size:11px;color:#555">'+parts.map(function(x){return '<span><span style="display:inline-block;width:9px;height:9px;background:'+x[2]+';border-radius:2px;margin-right:4px"></span>'+x[0]+' '+R(x[1])+'</span>';}).join("")+
-      '<span><span style="display:inline-block;width:9px;height:9px;background:'+corR+';border-radius:2px;margin-right:4px"></span>Receita '+R(rt)+'</span></div>';
-  }
-  /* bois identificados que sairam neste abate (encerrados no mesmo curral e data) */
-  var B=_histAbAnimais(a);
-  h+='<div style="margin-top:12px;font-size:11px;font-weight:700;color:#B8944F;text-transform:uppercase;letter-spacing:.4px">Bois identificados neste lote ('+B.length+(cab?' de '+cab:'')+')</div>';
-  if(!B.length)h+='<div style="font-size:12px;color:#999;margin-top:4px">Nenhum boi identificado individualmente neste lote.</div>';
-  else{
-    var th='style="text-align:left;padding:4px 6px;font-size:10.5px;color:#7A7668;border-bottom:1px solid #E3DCC8;white-space:nowrap"',td='style="padding:4px 6px;font-size:11.5px;border-bottom:1px solid #EFE8D6;white-space:nowrap"';
-    h+='<div style="overflow-x:auto;max-height:360px;overflow-y:auto;background:#fff;border:1px solid #E3DCC8;border-radius:8px;margin-top:4px"><table style="border-collapse:collapse;width:100%"><tr><th '+th+'>Identificação eletrônica</th><th '+th+'>SISBOV</th><th '+th+'>Sexo</th><th '+th+'>Fornecedor</th><th '+th+'>Entrada</th><th '+th+'>Peso entrada</th><th '+th+'>Última pesagem</th><th '+th+'>GMD</th><th '+th+'>Custo do boi</th></tr>';
-    B.sort(function(x,y){return String(x.eletro||x.sisbov||"").localeCompare(String(y.eletro||y.sisbov||""));}).forEach(function(x){
-      var ps=[];try{ps=_pesDoAnimal(x.id).slice().sort(function(p,q){return p.data<q.data?-1:1;});}catch(_){}
-      var ul=ps.length?ps[ps.length-1]:null,pe=+x.peso||(ps.length?+ps[0].peso:0),de=x.dtE||(ps.length?ps[0].data:"");
-      var g=(ul&&pe&&de&&ul.data>de)?(ul.peso-pe)/diasEntre(de,ul.data):null;
-      h+='<tr><td '+td+'>'+_escAL(x.eletro||"—")+'</td><td '+td+'>'+_escAL(x.sisbov||"—")+'</td><td '+td+'>'+_escAL(x.sexo||"—")+'</td><td '+td+'>'+_escAL(x.fornecedor||"—")+'</td><td '+td+'>'+(de?fmtData(de):"—")+'</td>'+
-        '<td '+td+'>'+(pe?N(pe,0)+" kg":"—")+'</td><td '+td+'>'+(ul?N(ul.peso,0)+' kg <span style="color:#999">'+fmtData(ul.data)+'</span>':"—")+'</td><td '+td+'>'+(g!=null?N(g,3):"—")+'</td><td '+td+'>'+(+x.custoAnimal>0?R(x.custoAnimal):"—")+'</td></tr>';
-    });
-    h+='</table></div>';
-  }
-  return h+'</div>';
+/* historico em cartoes (como a grade de currais), so confinamento, mais recente primeiro */
+function renderHistAbates(){
+  var el=document.getElementById("emb-hist");if(!el)return;
+  var A=getAbates().filter(_abEhConf).sort(function(a,b){return String(b.dataSaida||"").localeCompare(String(a.dataSaida||""));});
+  if(!A.length){el.innerHTML='<div style="font-size:12px;color:#999">Nenhum abate do confinamento encerrado ainda. Quando um curral for encerrado, ele aparece aqui com a ficha completa.</div>';return;}
+  var tot={cab:0,res:0,ac:0};
+  var h='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px">';
+  A.forEach(function(a){
+    var e=(a.loteId?_embDe(a.loteId):null)||{},f=a.fech||{},cab=+a.qtd||0,res=(+a.res||0)*cab,cor=res<0?"#A32D2D":"#23432D";
+    tot.cab+=cab;tot.res+=res;tot.ac+=+e.valorAcerto||0;
+    var li=function(r,v,c){return '<div style="display:flex;justify-content:space-between;gap:6px;font-size:11.5px;line-height:1.55"><span style="color:#7A7668">'+r+'</span><b style="color:'+(c||'#1f241f')+'">'+v+'</b></div>';};
+    h+='<button onclick="abrirFichaAbate(\''+_escAL(a.id)+'\')" style="text-align:left;font:inherit;background:#FFFEFA;border:1px solid #E3DCC8;border-top:5px solid '+cor+';border-radius:10px;padding:10px 12px;cursor:pointer;color:#1f241f">'+
+      '<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:17px;font-weight:700">'+_escAL(a.pasto||"?")+'</span><span style="font-size:11px;color:#7A7668">'+fmtData(a.dataSaida)+'</span></div>'+
+      '<div style="font-size:22px;font-weight:700;color:#23432D;line-height:1.1;margin:2px 0 4px">'+cab.toLocaleString("pt-BR")+' <span style="font-size:12px;font-weight:500;color:#7A7668">cab. · '+(a.dias||"?")+' dias</span></div>'+
+      li("@/cab",_faN(a.at,2))+li("GMD",f.gmd?_faN(f.gmd,3):"—")+li("R$/@",a.precoV?_faN(a.precoV,2):"—")+li("Margem mensal",_faP(a.mMes),cor)+li("Resultado",_faR(res),cor)+
+      (e.loteVenda?li("Lote de venda",_escAL(e.loteVenda)):"")+
+    '</button>';
+  });
+  h+='</div><div style="font-size:12px;color:#23432D;margin-top:8px"><b>'+A.length+'</b> abate(s) · <b>'+tot.cab.toLocaleString("pt-BR")+'</b> cab. · resultado <b style="color:'+(tot.res<0?"#A32D2D":"#23432D")+'">'+_faR(tot.res)+'</b>'+(tot.ac?' · acertos '+_faR(tot.ac):'')+'</div>'+
+    '<div style="font-size:11px;color:#999;margin-top:4px">Toque no curral para abrir a ficha completa do lote.</div>';
+  el.innerHTML=h;
 }
 function renderEmbarque(){
   try{renderHistAbates();}catch(e){console.warn("renderHistAbates",e);}
@@ -26263,7 +26464,7 @@ if(typeof autoSyncEnviar==="function"){
 </div>
 </div></div>
 
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.08-historico</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.08-ficha2</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
