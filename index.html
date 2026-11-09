@@ -23343,6 +23343,48 @@ function _histAbAnimais(a){
 /* 08/11 21h22 (ele: "quero que tenha a possibilidade de exportar relatorio em pdf, e com os pesos individuais"):
    PDF da ficha do lote abatido - padrao Caiman (logo, linha verde), com graficos e a tabela de bois com TODAS as
    pesagens individuais (pagina em paisagem). Bois/pesagens vem do retrato (snap.bois) quando existe. */
+/* 08/11 21h27 (ele: "coloque o verde mais escuro que estamos usando no relatorio. Tente fazer no layout que estavamos
+   fazendo"): mesmo layout dos relatorios novos da Bia (pdfResultado): logo a esquerda + titulo verde-escuro e subtitulo
+   dourado, etiquetas a direita, linha verde-escura, cartoes com faixa verde-escura, cabecalho de tabela verde-escuro. */
+var _PV={vm:[35,67,45],ouro:[184,148,79],linha:[219,214,204],fundo:[247,246,242],cinza:[115,115,110],preto:[31,31,31],verm:[163,45,45]};
+function _pdfCabFicha(doc,titulo,sub,tags){
+  var W=doc.internal.pageSize.getWidth(),E=12,D=W-12,lh=12,lw=lh*(585/141);
+  try{doc.addImage("data:image/png;base64,"+LOGO_PDF_B64,"PNG",E,9,lw,lh);}catch(e){}
+  doc.setFont("helvetica","bold");doc.setFontSize(15);doc.setTextColor(_PV.vm[0],_PV.vm[1],_PV.vm[2]);doc.text(_pdfTxt(titulo),E+lw+6,15.5);
+  doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(_PV.ouro[0],_PV.ouro[1],_PV.ouro[2]);doc.text(_pdfTxt(sub),E+lw+6,20.5);
+  var fx=D;(tags||[]).slice().reverse().forEach(function(t){
+    doc.setFont("helvetica","bold");doc.setFontSize(7.5);var lv=doc.getTextWidth(_pdfTxt(t[1]));doc.setFont("helvetica","normal");doc.setFontSize(5.8);var lr=doc.getTextWidth(_pdfTxt(t[0]).toUpperCase());
+    var lg=Math.max(lv,lr)+6;fx-=lg;
+    doc.setFillColor(_PV.fundo[0],_PV.fundo[1],_PV.fundo[2]);doc.setDrawColor(_PV.linha[0],_PV.linha[1],_PV.linha[2]);doc.setLineWidth(0.3);doc.rect(fx,9.5,lg,10.5,"FD");
+    doc.setTextColor(_PV.cinza[0],_PV.cinza[1],_PV.cinza[2]);doc.text(_pdfTxt(t[0]).toUpperCase(),fx+3,13.3);
+    doc.setFont("helvetica","bold");doc.setFontSize(7.5);doc.setTextColor(_PV.preto[0],_PV.preto[1],_PV.preto[2]);doc.text(_pdfTxt(t[1]),fx+3,18);fx-=2.2;});
+  doc.setDrawColor(_PV.vm[0],_PV.vm[1],_PV.vm[2]);doc.setLineWidth(0.55);doc.line(E,25,D,25);
+  return 31;
+}
+function _pdfFaixaV(doc,y,titulo){
+  var W=doc.internal.pageSize.getWidth();
+  if(y>doc.internal.pageSize.getHeight()-40){_pdfRodapeAuto(doc);doc.addPage("a4",W>doc.internal.pageSize.getHeight()?"landscape":"portrait");y=16;}
+  doc.setFillColor(_PV.vm[0],_PV.vm[1],_PV.vm[2]);doc.rect(12,y,W-24,6.3,"F");
+  doc.setFont("helvetica","bold");doc.setFontSize(8);doc.setTextColor(255,255,255);doc.text(_pdfTxt(titulo).toUpperCase(),15,y+4.3);
+  return y+10;
+}
+function _pdfLinhaV(doc,y,rot,val,cor){
+  var W=doc.internal.pageSize.getWidth();
+  doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(_PV.cinza[0],_PV.cinza[1],_PV.cinza[2]);doc.text(_pdfTxt(rot),15,y);
+  doc.setFont("helvetica","bold");cor=cor||_PV.preto;doc.setTextColor(cor[0],cor[1],cor[2]);doc.text(_pdfTxt(val),W-15,y,{align:"right"});
+  doc.setDrawColor(_PV.linha[0],_PV.linha[1],_PV.linha[2]);doc.setLineWidth(0.15);doc.line(15,y+1.8,W-15,y+1.8);
+  return y+6;
+}
+function _pdfCartoes(doc,y,cards){
+  var W=doc.internal.pageSize.getWidth(),E=12,g=4,cw=(W-24-g*(cards.length-1))/cards.length;
+  cards.forEach(function(c,i){var x=E+i*(cw+g);
+    doc.setFillColor(_PV.fundo[0],_PV.fundo[1],_PV.fundo[2]);doc.setDrawColor(_PV.linha[0],_PV.linha[1],_PV.linha[2]);doc.setLineWidth(0.3);doc.rect(x,y,cw,20,"FD");
+    doc.setFillColor(_PV.vm[0],_PV.vm[1],_PV.vm[2]);doc.rect(x,y,cw,6.5,"F");
+    doc.setFont("helvetica","bold");doc.setFontSize(7);doc.setTextColor(255,255,255);doc.text(_pdfTxt(c[0]).toUpperCase(),x+cw/2,y+4.4,{align:"center"});
+    var cor=c[2]||_PV.preto;doc.setFontSize(12.5);doc.setTextColor(cor[0],cor[1],cor[2]);doc.text(_pdfTxt(c[1]),x+cw/2,y+13.3,{align:"center"});
+    if(c[3]){doc.setFont("helvetica","normal");doc.setFontSize(6.5);doc.setTextColor(_PV.cinza[0],_PV.cinza[1],_PV.cinza[2]);doc.text(_pdfTxt(c[3]),x+cw/2,y+17.6,{align:"center"});}});
+  return y+25;
+}
 function _abBoisDe(a,S){
   if(S&&Array.isArray(S.bois)&&S.bois.length)return S.bois;
   return _histAbAnimais(a).map(function(x){var ps=[];try{ps=_pesDoAnimal(x.id).slice();}catch(_){}
@@ -23359,7 +23401,7 @@ function _pdfTxt(s){return String(s==null?"":s).replace(/−/g,"-").replace(/[�
 /* grade simples com quebra de pagina (serve para retrato e paisagem) */
 function _pdfGrade(doc,y,cols,rows,opt){
   opt=opt||{};var W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight(),x0=opt.x||15,fs=opt.fs||8,lh=fs*0.42+1.4;
-  var cab=function(){doc.setFillColor(241,248,233);doc.rect(x0,y,cols.reduce(function(s,c){return s+c.w;},0),lh+2,"F");doc.setFont("helvetica","bold");doc.setFontSize(fs);doc.setTextColor(46,125,50);
+  var cab=function(){doc.setFillColor(_PV.vm[0],_PV.vm[1],_PV.vm[2]);doc.rect(x0,y,cols.reduce(function(s,c){return s+c.w;},0),lh+2,"F");doc.setFont("helvetica","bold");doc.setFontSize(fs);doc.setTextColor(255,255,255);
     var x=x0;cols.forEach(function(c){doc.text(_pdfTxt(c.t),c.al==="r"?x+c.w-1.2:x+1.2,y+lh,{align:c.al==="r"?"right":"left"});x+=c.w;});y+=lh+3;};
   cab();
   rows.forEach(function(r,ri){
@@ -23367,10 +23409,10 @@ function _pdfGrade(doc,y,cols,rows,opt){
     var linhas=cols.map(function(c,i){return doc.splitTextToSize(_pdfTxt(r[i]),c.w-2.4);});
     var nl=Math.max.apply(null,linhas.map(function(l){return l.length;}));var hh=nl*lh+1.6;
     if(y+hh>H-20){_pdfRodapeAuto(doc);doc.addPage("a4",W>H?"landscape":"portrait");y=18;cab();doc.setFont("helvetica",r._b?"bold":"normal");doc.setFontSize(fs);}
-    if(ri%2===1){doc.setFillColor(250,248,242);doc.rect(x0,y-1,cols.reduce(function(s,c){return s+c.w;},0),hh,"F");}
-    var x=x0;cols.forEach(function(c,i){var cor=(r._cor&&r._cor[i])||[40,40,40];doc.setTextColor(cor[0],cor[1],cor[2]);
+    if(ri%2===1){doc.setFillColor(_PV.fundo[0],_PV.fundo[1],_PV.fundo[2]);doc.rect(x0,y-1,cols.reduce(function(s,c){return s+c.w;},0),hh,"F");}
+    var x=x0;cols.forEach(function(c,i){var cor=(r._cor&&r._cor[i])||_PV.preto;doc.setTextColor(cor[0],cor[1],cor[2]);
       doc.text(linhas[i],c.al==="r"?x+c.w-1.2:x+1.2,y+lh-0.6,{align:c.al==="r"?"right":"left"});x+=c.w;});
-    y+=hh;
+    y+=hh;doc.setDrawColor(_PV.linha[0],_PV.linha[1],_PV.linha[2]);doc.setLineWidth(0.12);doc.line(x0,y-1,x0+cols.reduce(function(s,c){return s+c.w;},0),y-1);
   });
   return y+3;
 }
@@ -23379,8 +23421,8 @@ function _pdfGrafLinhas(doc,y,tit,series,fmt){
   var x0=24,w=164,h=48;
   var X={};series.forEach(function(s){s.pts.forEach(function(p){if(p[1]!=null)X[p[0]]=1;});});X=Object.keys(X).sort();
   if(X.length<2)return y;
-  if(y+h+18>doc.internal.pageSize.getHeight()-20){_pdfRodapeAuto(doc);doc.addPage("a4","portrait");y=18;}
-  doc.setFont("helvetica","bold");doc.setFontSize(9);doc.setTextColor(26,58,26);doc.text(_pdfTxt(tit),20,y);y+=3;
+  if(y+h+26>doc.internal.pageSize.getHeight()-20){_pdfRodapeAuto(doc);doc.addPage("a4","portrait");y=16;}
+  y=_pdfFaixaV(doc,y,tit)+2;
   var ix={};X.forEach(function(x,i){ix[x]=i;});var ys=[];series.forEach(function(s){s.pts.forEach(function(p){if(p[1]!=null)ys.push(+p[1]);});});
   var a=Math.min.apply(null,ys),b=Math.max.apply(null,ys);if(a===b)b=a+1;var pd=(b-a)*.08;a-=pd;b+=pd;if(series.zero)a=0;
   var sx=function(i){return x0+w*i/(X.length-1);},sy=function(v){return y+h-(v-a)/(b-a)*h;};
@@ -23401,10 +23443,10 @@ function _pdfHistograma(doc,y,tit,vals,un){
   var x0=24,w=164,h=40,mn=Math.min.apply(null,vals),mx=Math.max.apply(null,vals),nb=Math.min(12,Math.max(5,Math.round(Math.sqrt(vals.length))));
   var bw=(mx-mn)/nb||1,cnt=new Array(nb).fill(0);vals.forEach(function(v){var i=Math.min(nb-1,Math.floor((v-mn)/bw));cnt[i]++;});
   var top=Math.max.apply(null,cnt);
-  if(y+h+16>doc.internal.pageSize.getHeight()-20){_pdfRodapeAuto(doc);doc.addPage("a4","portrait");y=18;}
-  doc.setFont("helvetica","bold");doc.setFontSize(9);doc.setTextColor(26,58,26);doc.text(_pdfTxt(tit),20,y);y+=8;
+  if(y+h+26>doc.internal.pageSize.getHeight()-20){_pdfRodapeAuto(doc);doc.addPage("a4","portrait");y=16;}
+  y=_pdfFaixaV(doc,y,tit)+6;
   var cw=w/nb;
-  cnt.forEach(function(c,i){var hh=c/top*h;doc.setFillColor(46,125,50);doc.rect(x0+i*cw+0.6,y+h-hh,cw-1.2,hh,"F");
+  cnt.forEach(function(c,i){var hh=c/top*h;doc.setFillColor(_PV.vm[0],_PV.vm[1],_PV.vm[2]);doc.rect(x0+i*cw+0.6,y+h-hh,cw-1.2,hh,"F");
     doc.setFontSize(6.5);doc.setTextColor(60,60,60);doc.setFont("helvetica","normal");if(c)doc.text(String(c),x0+i*cw+cw/2,y+h-hh-1,{align:"center"});
     doc.setTextColor(130,125,110);doc.text(String(Math.round(mn+i*bw)),x0+i*cw+cw/2,y+h+4,{align:"center"});});
   doc.setFontSize(7);doc.text(_pdfTxt(un||"kg (início de cada faixa) · nº de bois"),x0+w,y+h+8,{align:"right"});
@@ -23416,72 +23458,70 @@ function gerarPDFFichaAbate(id){
   try{
   var S=_abSnapDe(a),D=_faDados(a,S),f=D.f,cab=D.cab,e=(a.loteId?_embDe(a.loteId):null)||{};
   var R=function(v){return v||v===0?"R$ "+Math.round(+v).toLocaleString("pt-BR"):"-";},N=_faN,P=_faP;
-  var doc=_pdfDoc(),y=_pdfCabecalho(doc,"Relatório de Abate - Curral "+(a.pasto||"?"));
-  doc.setFontSize(9);doc.setTextColor(90,90,90);doc.setFont("helvetica","normal");
-  doc.text(_pdfTxt((a.fazenda||"")+" · "+cab+" cab. · entrada "+fmtData(a.dataEntrada)+" · abate "+fmtData(a.dataSaida)+" · "+(a.dias||"?")+" dias"+(a.produtor?" · "+a.produtor:"")),105,y-4,{align:"center"});
+  var doc=_pdfDoc(),corRes=(+a.res||0)<0?_PV.verm:_PV.vm;
+  var y=_pdfCabFicha(doc,"Abate - Curral "+(a.pasto||"?"),"Confinamento "+(a.fazenda||"")+" · entrada "+fmtData(a.dataEntrada),[["Cabeças",String(cab)],["Abate",fmtData(a.dataSaida)],["Dias",String(a.dias||"-")]]);
+  y=_pdfCartoes(doc,y,[["Resultado do lote",R((+a.res||0)*cab),corRes,R(a.res)+"/cab"],["Margem mensal",P(a.mMes),corRes,"período "+P(a.mPer)+" · ano "+P(a.mAno)],
+    ["@/cab",N(a.at,2),null,"R$ "+N(a.precoV,2)+"/@"],["GMD",f.gmd?N(f.gmd,3):"-",null,f.gmdFonte?"fonte: "+f.gmdFonte:"kg/dia"]]);
+  y=_pdfFaixaV(doc,y,"Resultado");
+  [["Rendimento de carcaça",D.rend?P(D.rend):(f.rend?N(f.rend,1)+"% (usado)":"-")],["Custo da @ produzida",D.custoArr?R(D.custoArr):"-"],
+   ["Peso de entrada / saída",(+a.pesoE?N(a.pesoE,0):"-")+" / "+((D.pv||f.pesoSaida)?N(D.pv||f.pesoSaida,0)+(D.pv?"":" (est.)"):"-")+" kg"]].forEach(function(r){y=_pdfLinhaV(doc,y,r[0],r[1]);});
   y+=2;
-  y=_pdfSecao(doc,y,"Resultado");
-  [["Resultado do lote",R((+a.res||0)*cab)],["Resultado por cabeça",R(a.res)],["Margem do período / mensal / anual",P(a.mPer)+" / "+P(a.mMes)+" / "+P(a.mAno)],
-   ["@/cab · R$/@",N(a.at,2)+" @ · R$ "+N(a.precoV,2)],["GMD",f.gmd?N(f.gmd,3)+" kg/dia"+(f.gmdFonte?" ("+f.gmdFonte+")":""):"-"],
-   ["Rendimento de carcaça",D.rend?P(D.rend):(f.rend?N(f.rend,1)+"% (usado)":"-")],["Custo da @ produzida",D.custoArr?R(D.custoArr):"-"]].forEach(function(r){y=_pdfLinha(doc,y,_pdfTxt(r[0]),_pdfTxt(r[1]));});
-  y+=3;
-  y=_pdfSecao(doc,y,"Projetado x realizado");
+  y=_pdfFaixaV(doc,y,"Projetado x realizado");
   var PR=_faProjLinhas(a,S),fm=function(v,t){if(v==null||v==="")return "-";if(t==="data")return fmtData(v);if(t==="rs")return R(v);if(t==="rs2")return "R$ "+N(v,2);if(t==="pct")return P(v);return N(v,t==="n3"?3:t==="n2"?2:0);};
-  y=_pdfGrade(doc,y,[{t:"",w:62},{t:"Projetado",w:36,al:"r"},{t:"Realizado",w:36,al:"r"},{t:"Diferença",w:36,al:"r"}],
-    PR.map(function(r){var dif="-",cor=[90,90,90];
+  y=_pdfGrade(doc,y,[{t:"",w:66},{t:"Projetado",w:40,al:"r"},{t:"Realizado",w:40,al:"r"},{t:"Diferença",w:40,al:"r"}],
+    PR.map(function(r){var dif="-",cor=_PV.cinza;
       if(r[1]!=null&&r[2]!=null){if(r[3]==="data"){var dd=diasEntre(r[1]<r[2]?r[1]:r[2],r[1]<r[2]?r[2]:r[1])*(r[2]>=r[1]?1:-1);dif=(dd>0?"+":"")+dd+" d";}
         else{var d=r[2]-r[1];dif=r[3]==="pct"?(d>=0?"+":"")+(d*100).toFixed(1).replace(".",",")+" p.p.":(d>=0?"+ ":"- ")+fm(Math.abs(d),r[3]);
-          if(r[4]!=null&&Math.abs(d)>1e-9)cor=((d>0)===r[4])?[35,67,45]:[163,45,45];}}
-      return {0:r[0],1:fm(r[1],r[3]),2:fm(r[2],r[3]),3:dif,_cor:{3:cor}};}),{x:20,fs:8});
+          if(r[4]!=null&&Math.abs(d)>1e-9)cor=((d>0)===r[4])?_PV.vm:_PV.verm;}}
+      return {0:r[0],1:fm(r[1],r[3]),2:fm(r[2],r[3]),3:dif,_cor:{3:cor}};}),{x:12,fs:8});
   var se=(S.serie||[]).filter(function(x){return x.pe!=null||x.pp!=null;});
   if(se.length>1)y=_pdfGrafLinhas(doc,y+2,"Peso estimado pelo consumo x projetado (kg)",[{nome:"Estimado pela energia",cor:[35,67,45],pts:se.map(function(x){return [x.d,x.pe];})},{nome:"Projetado",cor:[184,148,79],tracejado:true,pts:se.map(function(x){return [x.d,x.pp];})}],function(v){return Math.round(v);});
-  y=_pdfSecao(doc,y+2,"Custos acumulados");
+  y=_pdfFaixaV(doc,y+2,"Custos acumulados");
   var it=[["Compra do boi",+a.cCompra||0],["Nutrição",D.nutriReal||0],["Operacional",+a.cOp||0]],tot=it.reduce(function(s,x){return s+x[1];},0);
-  y=_pdfGrade(doc,y,[{t:"Custo",w:50},{t:"Por cabeça",w:30,al:"r"},{t:"Do lote",w:34,al:"r"},{t:"Por dia/cab",w:28,al:"r"},{t:"% do total",w:28,al:"r"}],
-    it.concat([["Total",tot]]).map(function(x,i){return {0:x[0],1:R(x[1]),2:R(x[1]*cab),3:a.dias?"R$ "+N(x[1]/a.dias,2):"-",4:tot?P(x[1]/tot):"-",_b:i===it.length};}),{x:20,fs:8});
-  if(D.nutriTratos){doc.setFontSize(7.5);doc.setTextColor(120,120,120);doc.text(_pdfTxt("Nutrição pelos tratos do Saicon: "+R(D.nutriTratos)+"/cab ("+R(D.nutriTratos*cab)+" no lote)"),20,y);y+=5;}
+  y=_pdfGrade(doc,y,[{t:"Custo",w:58},{t:"Por cabeça",w:32,al:"r"},{t:"Do lote",w:36,al:"r"},{t:"Por dia/cab",w:30,al:"r"},{t:"% do total",w:30,al:"r"}],
+    it.concat([["Total",tot]]).map(function(x,i){return {0:x[0],1:R(x[1]),2:R(x[1]*cab),3:a.dias?"R$ "+N(x[1]/a.dias,2):"-",4:tot?P(x[1]/tot):"-",_b:i===it.length};}),{x:12,fs:8});
+  if(D.nutriTratos){doc.setFontSize(7.5);doc.setTextColor(_PV.cinza[0],_PV.cinza[1],_PV.cinza[2]);doc.text(_pdfTxt("Nutrição pelos tratos do Saicon: "+R(D.nutriTratos)+"/cab ("+R(D.nutriTratos*cab)+" no lote)"),15,y);y+=5;}
   [["Custo do kg ganho",D.custoKg?"R$ "+N(D.custoKg,2):"-"],["Custo da @ vendida",(+a.at>0)?R(tot/a.at):"-"],["Ponto de equilíbrio",(+a.at>0)?"R$ "+N((tot-(+a.proap||0)-(+a.hedge||0))/a.at,2)+"/@":"-"],
-   ["Receita por cabeça (PROAP "+R(a.proap)+", hedge "+R(a.hedge)+")",R(a.recTot)]].forEach(function(r){y=_pdfLinha(doc,y,_pdfTxt(r[0]),_pdfTxt(r[1]));});
+   ["Receita por cabeça (PROAP "+R(a.proap)+", hedge "+R(a.hedge)+")",R(a.recTot)]].forEach(function(r){y=_pdfLinhaV(doc,y,r[0],r[1]);});
   var acc=0,pts=[],pj=[],L=S.lote||{},diasP=(L.dtE&&L.dtAbatePrev)?diasEntre(L.dtE,L.dtAbatePrev):a.dias,totP=(L.cNutri||0)*cab;
   (S.serie||[]).forEach(function(x){acc+=x.c||0;pts.push([x.d,acc]);if(totP&&diasP)pj.push([x.d,Math.min(totP,totP*diasEntre(a.dataEntrada||L.dtE,x.d)/diasP)]);});
   if(acc>0){var ss=[{nome:"Realizado (tratos)",cor:[35,67,45],pts:pts}].concat(pj.length?[{nome:"Projetado",cor:[184,148,79],tracejado:true,pts:pj}]:[]);ss.zero=true;
     y=_pdfGrafLinhas(doc,y+3,"Nutrição acumulada do lote (R$)",ss,function(v){return Math.round(v).toLocaleString("pt-BR");});}
-  y=_pdfSecao(doc,y+2,"Consumo");
+  y=_pdfFaixaV(doc,y+2,"Consumo");
   [["MS/cab/dia",f.msCabDia?N(f.msCabDia,2)+" kg":"-"],["Conversão alimentar",f.convAlim?N(f.convAlim,2):"-"],["kg MS por @",f.msArroba?N(f.msArroba,1):"-"],
-   ["Trato MN do lote (realizado / projetado)",(f.consumoRealKg?N(f.consumoRealKg,0):"-")+" / "+(f.consumoProjKg?N(f.consumoProjKg,0):"-")+" kg"]].forEach(function(r){y=_pdfLinha(doc,y,_pdfTxt(r[0]),_pdfTxt(r[1]));});
+   ["Trato MN do lote (realizado / projetado)",(f.consumoRealKg?N(f.consumoRealKg,0):"-")+" / "+(f.consumoProjKg?N(f.consumoProjKg,0):"-")+" kg"]].forEach(function(r){y=_pdfLinhaV(doc,y,r[0],r[1]);});
   var nt=(S.serie||[]).filter(function(x){return x.n!=null;});
-  if(nt.length)y=_pdfLinha(doc,y,"Nota de cocho: dias com nota / com sobra / cocho limpo",nt.length+" / "+nt.filter(function(x){return x.n>=1;}).length+" / "+nt.filter(function(x){return x.n<=-1;}).length);
+  if(nt.length)y=_pdfLinhaV(doc,y,"Nota de cocho: dias com nota / com sobra / cocho limpo",nt.length+" / "+nt.filter(function(x){return x.n>=1;}).length+" / "+nt.filter(function(x){return x.n<=-1;}).length);
   y+=3;
   if(y>230){_pdfRodapeAuto(doc);doc.addPage("a4","portrait");y=18;}
-  y=_pdfSecao(doc,y,"Venda e acerto");
+  y=_pdfFaixaV(doc,y,"Venda e acerto");
   [["Frigorífico",e.frigorifico||"-"],["Embarque",(e.dataEmbarque?fmtData(e.dataEmbarque):"-")+(e.horaEmbarque?" "+e.horaEmbarque:"")+(e.caminhoes?" · "+e.caminhoes+" caminhões":"")],["GTA de saída",e.gta||"-"],
    ["Lote de venda",e.loteVenda||a.numLote||"-"],["NF de venda",(e.nfVenda?e.nfVenda+" · ":"")+R(e.valorNf)],["Acerto",(+e.valorAcerto?R(e.valorAcerto):"falta lançar")+(e.dataAcerto?" · "+fmtData(e.dataAcerto):"")],
-   ["Acerto - NF",(+e.valorNf&&+e.valorAcerto)?R(e.valorAcerto-e.valorNf):"-"]].forEach(function(r){y=_pdfLinha(doc,y,_pdfTxt(r[0]),_pdfTxt(r[1]));});
+   ["Acerto - NF",(+e.valorNf&&+e.valorAcerto)?R(e.valorAcerto-e.valorNf):"-"]].forEach(function(r){y=_pdfLinhaV(doc,y,r[0],r[1]);});
   y+=3;
   var M=S.mortes||[],Z=S.san||[];
   if(M.length||Z.length){
     if(y>235){_pdfRodapeAuto(doc);doc.addPage("a4","portrait");y=18;}
-    y=_pdfSecao(doc,y,"Sanidade e mortes");
-    if(M.length)y=_pdfGrade(doc,y,[{t:"Morte",w:25},{t:"Cab.",w:14,al:"r"},{t:"Causa",w:70},{t:"Obs.",w:61}],M.map(function(m){return {0:fmtData(m.data),1:m.qtd,2:m.causa||"-",3:m.obs||""};}),{x:20,fs:8});
-    if(Z.length)y=_pdfGrade(doc,y,[{t:"Tratamento",w:25},{t:"Tipo",w:50},{t:"Produto",w:55},{t:"Carência até",w:40}],Z.map(function(z){return {0:fmtData(z.data),1:z.tipo||"",2:z.produto||"-",3:z.carencia?fmtData(z.carencia):"-"};}),{x:20,fs:8});
+    y=_pdfFaixaV(doc,y,"Sanidade e mortes");
+    if(M.length)y=_pdfGrade(doc,y,[{t:"Morte",w:26},{t:"Cab.",w:14,al:"r"},{t:"Causa",w:76},{t:"Obs.",w:70}],M.map(function(m){return {0:fmtData(m.data),1:m.qtd,2:m.causa||"-",3:m.obs||""};}),{x:12,fs:8});
+    if(Z.length)y=_pdfGrade(doc,y,[{t:"Tratamento",w:26},{t:"Tipo",w:58},{t:"Produto",w:62},{t:"Carência até",w:40}],Z.map(function(z){return {0:fmtData(z.data),1:z.tipo||"",2:z.produto||"-",3:z.carencia?fmtData(z.carencia):"-"};}),{x:12,fs:8});
   }
   _pdfRodapeAuto(doc);
   /* ---- bois identificados com os pesos individuais (paisagem) ---- */
   var B=_abBoisDe(a,S).map(function(b){var c=_abBoiCalc(b);return {b:b,c:c};}).sort(function(p,q){return String(p.b.eletro||p.b.sisbov).localeCompare(String(q.b.eletro||q.b.sisbov));});
-  doc.addPage("a4","landscape");var y2=18;
-  doc.setFont("helvetica","bold");doc.setFontSize(13);doc.setTextColor(26,58,26);doc.text(_pdfTxt("Bois identificados - Curral "+(a.pasto||"?")+" · abate "+fmtData(a.dataSaida)),148.5,y2,{align:"center"});
-  doc.setDrawColor(46,125,50);doc.setLineWidth(0.6);doc.line(15,y2+3,282,y2+3);y2+=10;
+  doc.addPage("a4","landscape");
+  var y2=_pdfCabFicha(doc,"Bois identificados - Curral "+(a.pasto||"?"),"Pesos individuais · abate "+fmtData(a.dataSaida),[["Bois",String(B.length)],["Cabeças do lote",String(cab)]]);
   if(!B.length){doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setTextColor(120,120,120);doc.text("Nenhum boi identificado individualmente neste lote.",15,y2);}
   else{
     var uls=B.filter(function(x){return x.c.ul;}).map(function(x){return +x.c.ul[1];}),gm=B.filter(function(x){return x.c.gmd!=null;}).map(function(x){return x.c.gmd;});
     var med=function(v){return v.reduce(function(s,x){return s+x;},0)/v.length;},dp=function(v){var m=med(v);return Math.sqrt(v.reduce(function(s,x){return s+(x-m)*(x-m);},0)/v.length);};
-    doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(70,70,70);
+    doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(_PV.cinza[0],_PV.cinza[1],_PV.cinza[2]);
     doc.text(_pdfTxt(B.length+" bois identificados de "+cab+(uls.length?" · último peso: média "+N(med(uls),0)+" kg, mín "+N(Math.min.apply(null,uls),0)+", máx "+N(Math.max.apply(null,uls),0)+", desvio "+N(dp(uls),0)+" kg":"")+(gm.length?" · GMD médio "+N(med(gm),3)+" (mín "+N(Math.min.apply(null,gm),3)+", máx "+N(Math.max.apply(null,gm),3)+")":"")),15,y2);y2+=6;
-    y2=_pdfGrade(doc,y2,[{t:"#",w:9,al:"r"},{t:"Identificação eletrônica",w:36},{t:"SISBOV",w:33},{t:"Sexo",w:10},{t:"Fornecedor",w:34},{t:"Entrada",w:18},{t:"Peso ent.",w:16,al:"r"},{t:"Pesagens (data: kg)",w:67},{t:"Últ. peso",w:16,al:"r"},{t:"Ganho",w:13,al:"r"},{t:"GMD",w:15,al:"r"}],
+    y2=_pdfGrade(doc,y2,[{t:"#",w:9,al:"r"},{t:"Identificação eletrônica",w:37},{t:"SISBOV",w:34},{t:"Sexo",w:10},{t:"Fornecedor",w:36},{t:"Entrada",w:18},{t:"Peso ent.",w:16,al:"r"},{t:"Pesagens (data: kg)",w:70},{t:"Últ. peso",w:16,al:"r"},{t:"Ganho",w:14,al:"r"},{t:"GMD",w:13,al:"r"}],
       B.map(function(x,i){var c=x.c,b=x.b;return {0:i+1,1:b.eletro||"-",2:b.sisbov||"-",3:b.sexo||"-",4:b.fornecedor||"-",5:c.de?fmtData(c.de):"-",6:c.pe?N(c.pe,0):"-",
-        7:c.ps.length?c.ps.map(function(p){return fmtData(p[0]).slice(0,5)+": "+Math.round(p[1]);}).join("  "):"-",8:c.ul?N(c.ul[1],0):"-",9:(c.ul&&c.pe)?N(c.ul[1]-c.pe,0):"-",10:c.gmd!=null?N(c.gmd,3):"-"};}),{x:15,fs:7.5});
+        7:c.ps.length?c.ps.map(function(p){return fmtData(p[0]).slice(0,5)+": "+Math.round(p[1]);}).join("  "):"-",8:c.ul?N(c.ul[1],0):"-",9:(c.ul&&c.pe)?N(c.ul[1]-c.pe,0):"-",10:c.gmd!=null?N(c.gmd,3):"-"};}),{x:12,fs:7.5});
     _pdfRodapeAuto(doc);
-    if(uls.length>=3){doc.addPage("a4","portrait");var y3=_pdfHistograma(doc,22,"Distribuição do último peso individual ("+uls.length+" bois)",uls);
+    if(uls.length>=3){doc.addPage("a4","portrait");var y3=_pdfHistograma(doc,_pdfCabFicha(doc,"Distribuição dos pesos - Curral "+(a.pasto||"?"),"Abate "+fmtData(a.dataSaida),[])+2,"Distribuição do último peso individual ("+uls.length+" bois)",uls);
       if(gm.length>=3)_pdfHistogramaGmd(doc,y3+6,gm);_pdfRodapeAuto(doc);}
   }
   _pdfEntregar(doc,"Relatorio_Abate_Curral_"+(a.pasto||"")+"_"+(a.dataSaida||""));
@@ -26692,7 +26732,7 @@ if(typeof autoSyncEnviar==="function"){
 <div id="bia-painel" style="display:none;position:fixed;inset:0;z-index:10000;background:#0E0505">
   <button onclick="fecharBiaNoApp()" style="position:absolute;top:calc(env(safe-area-inset-top,0px) + 8px);left:8px;z-index:2;border:1px solid #43191A;background:rgba(30,11,11,.85);color:#FFF4E6;border-radius:18px;padding:7px 13px;font-size:13px;cursor:pointer">← Voltar ao app</button>
 </div>
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.08-pdf</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.08-pdf2</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
