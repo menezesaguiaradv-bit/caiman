@@ -126,7 +126,42 @@ header img{height:22px;filter:brightness(0) invert(.94) sepia(.15);opacity:.55}
 .chk li::before{content:"";flex:none;width:18px;height:18px;margin-top:3px;border-radius:5px;border:2px solid var(--dou)}
 .selo{position:fixed;right:8px;bottom:2px;font-size:10px;color:#5A3030;z-index:1}
 @media (prefers-reduced-motion:reduce){#mic.ouvindo{box-shadow:none}}
+/* ---------- 08/11 (ele: "coloque o app da bia dentro do aplicativo ... mantenha o layout do app, mesmas cores do nosso
+   app verde"): com ?tema=app a pagina veste as cores do Caiman Gestao (verde-escuro, creme e dourado). O site da Bia
+   e o app Android continuam vermelho e dourado. ---------- */
+html.tema-app{--vd:#23432D;--dou:#B8944F;--cre:#F7F4EC;--fundo:#F7F4EC;--fundo2:#EFEADB;--cartao:#FFFEFA;--borda:#E3DCC8;
+  --tx:#1F241F;--tx2:#4A4F45;--tx3:#7A7668;--linha-dia:#23432D;--linha-acum:#B8944F;--alerta:#A32D2D}
+html.tema-app #gate{background:var(--fundo)}
+html.tema-app .gcx img{filter:none;opacity:1}
+html.tema-app #g-login h1,html.tema-app .hmarca b{background:none;-webkit-background-clip:initial;background-clip:initial;color:#23432D;text-shadow:none}
+html.tema-app .btg{background:#23432D;color:#F7F4EC}
+html.tema-app header img{filter:none;opacity:1;height:24px}
+html.tema-app #aovivo{border-color:#23432D;color:#23432D;background:#fff}
+html.tema-app #aovivo.on{background:#23432D;color:#F7F4EC;border-color:#23432D;box-shadow:0 0 0 4px rgba(35,67,45,.18)}
+html.tema-app .hbt{background:#fff;color:#23432D}
+html.tema-app #estado{color:#23432D;font-weight:600}
+html.tema-app .tile{background:#FFFEFA;box-shadow:0 1px 2px rgba(35,67,45,.06)}
+html.tema-app .tile::before{background:#23432D;opacity:1}
+html.tema-app .tile.ativo{border-color:#23432D;box-shadow:0 0 0 1px #23432D}
+html.tema-app #barra{background:linear-gradient(0deg,var(--fundo) 70%,rgba(247,244,236,0))}
+html.tema-app #mic{background:#23432D;border-color:#B8944F;color:#F7F4EC}
+html.tema-app #mic.ouvindo{background:#B8944F;color:#fff;box-shadow:0 0 0 8px rgba(184,148,79,.22)}
+html.tema-app .rnd{background:#fff;color:#23432D}
+html.tema-app #fechar{border-color:#23432D;color:#23432D;background:#fff}
+html.tema-app .sec{color:#23432D;font-weight:700}
+html.tema-app .card.foco{border-color:#23432D;box-shadow:0 0 0 1px #23432D}
+html.tema-app .tab td,html.tema-app .chk li{border-bottom-color:#EFE8D6}
+html.tema-app .chk li::before{border-color:#23432D}
+html.tema-app .dica{background:#fff;color:#1F241F;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+html.tema-app .graf svg text{fill:#7A7668}
+html.tema-app .graf svg line[stroke="#2E1212"]{stroke:#EDE6D3}
+html.tema-app .graf svg line[stroke="#6B3A36"]{stroke:#B8944F}
+html.tema-app .selo{display:none}
+/* no app a barra verde de cima ja tem o nome e o "Falar ao vivo": tira os repetidos */
+html.tema-app .hmarca,html.tema-app #aovivo{display:none}
+html.tema-app header{height:46px;justify-content:flex-end}
 </style>
+<script>try{if(/[?&]tema=app\b/.test(location.search))document.documentElement.classList.add("tema-app");}catch(e){}</script>
 </head>
 <body>
 
@@ -190,7 +225,7 @@ header img{height:22px;filter:brightness(0) invert(.94) sepia(.15);opacity:.55}
   <div class="cab"><h2 id="t-tit"></h2><button id="fechar">Fechar</button></div>
   <div id="corpo"></div>
 </div>
-<div class="selo">v2026.11.06-minhavoz</div>
+<div class="selo">v2026.11.08-tema-app</div>
 
 <script>
 "use strict";
@@ -489,19 +524,20 @@ function quadro(t){
   nivel+=(alvo-nivel)*.18;
   const vel=calmo?0:(ESTADO==="pensando"?3.2:ESTADO==="ouvindo"?1.6:1);
   const rot=t/6000*vel;
-  const corA=ESTADO==="ouvindo"?"255,244,220":"232,181,74";
+  const TA=document.documentElement.classList.contains("tema-app");   /* 08/11: nucleo nas cores do app (verde e dourado) */
+  const corA=TA?(ESTADO==="ouvindo"?"35,67,45":"184,148,79"):(ESTADO==="ouvindo"?"255,244,220":"232,181,74");
   /* brilho central */
   const rb=R*(.30+.12*nivel);
   const g=ctx.createRadialGradient(cx,cy,0,cx,cy,rb*1.9);
-  g.addColorStop(0,"rgba("+corA+","+(.55+.35*nivel)+")");g.addColorStop(.35,"rgba(158,27,27,.6)");g.addColorStop(1,"rgba(14,5,5,0)");
+  g.addColorStop(0,"rgba("+corA+","+(.55+.35*nivel)+")");g.addColorStop(.35,TA?"rgba(35,67,45,.35)":"rgba(158,27,27,.6)");g.addColorStop(1,TA?"rgba(247,244,236,0)":"rgba(14,5,5,0)");
   ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,rb*1.9,0,Math.PI*2);ctx.fill();
   ctx.strokeStyle="rgba("+corA+",.9)";ctx.lineWidth=R*.012;ctx.beginPath();ctx.arc(cx,cy,rb,0,Math.PI*2);ctx.stroke();
   /* aneis com segmentos */
   const aneis=[[.52,8,.08,1],[.64,3,.42,-.6],[.76,24,.025,.35],[.88,2,.62,-.25]];
   aneis.forEach(([f,n,arco,sent],k)=>{
     const r=R*f*(1+.04*nivel*(k%2?1:-1));
-    ctx.strokeStyle=k%2?"rgba(176,30,30,.95)":"rgba(232,181,74,"+(.35+.4*nivel)+")";
-    if(k===1)ctx.strokeStyle="rgba(224,69,58,.6)";
+    ctx.strokeStyle=k%2?(TA?"rgba(35,67,45,.9)":"rgba(176,30,30,.95)"):(TA?"rgba(184,148,79,":"rgba(232,181,74,")+(.35+.4*nivel)+")";
+    if(k===1)ctx.strokeStyle=TA?"rgba(110,139,94,.6)":"rgba(224,69,58,.6)";
     ctx.lineWidth=R*(k===2?.02:.008);
     for(let i=0;i<n;i++){const a=rot*sent*(ESTADO==="pensando"?2:1)+i*Math.PI*2/n;ctx.beginPath();ctx.arc(cx,cy,r,a,a+arco*Math.PI*2);ctx.stroke();}
   });
@@ -512,7 +548,7 @@ function quadro(t){
     ctx.closePath();ctx.stroke();
   }
   /* marcas finas do mostrador */
-  ctx.strokeStyle="rgba(255,228,180,.2)";ctx.lineWidth=1;
+  ctx.strokeStyle=TA?"rgba(35,67,45,.2)":"rgba(255,228,180,.2)";ctx.lineWidth=1;
   for(let i=0;i<72;i++){const a=i/72*Math.PI*2+rot*.2,r1=R*.95,r2=R*(i%6?.93:.9);ctx.beginPath();ctx.moveTo(cx+r1*Math.cos(a),cy+r1*Math.sin(a));ctx.lineTo(cx+r2*Math.cos(a),cy+r2*Math.sin(a));ctx.stroke();}
   requestAnimationFrame(quadro);
 }
@@ -690,6 +726,11 @@ async function aoVivoEvento(ev){
     else if(t==="error"){console.warn("ao vivo:",ev.error);if(ev.error&&/expired|session/i.test(ev.error.message||""))aoVivoDesligar("A sessão expirou. Toque em Ao vivo de novo.");}
 }
 $("aovivo").onclick=aoVivoLigar;
+/* 08/11: o app Caiman Gestao (iframe) liga e encerra a conversa ao vivo pelos botoes dele e, ao fechar a Bia, encerra
+   a conversa para soltar o microfone. */
+window.biaAoVivoAtivo=function(){return !!AV.ativo;};
+window.biaAoVivoLigar=function(){if(!AV.ativo)aoVivoLigar();};
+window.biaAoVivoEncerrar=function(){if(AV.ativo)aoVivoDesligar();};
 
 document.addEventListener("keydown",(e)=>{if(e.key==="Escape"&&!$("tela").hidden)fecharPainel();});
 window.addEventListener("popstate",()=>{if(!$("tela").hidden)esconderPainel();});

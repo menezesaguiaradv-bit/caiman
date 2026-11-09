@@ -4199,17 +4199,30 @@ function abrirBiaNoApp(){
   var p=document.getElementById("bia-painel");if(!p)return;
   /* o app ja pediu login e PIN: a Bia (mesma aba, mesmo site) nao pede o PIN de novo */
   try{sessionStorage.setItem("_bia_pin_ok","1");}catch(e){}
+  p.style.display="flex";   /* antes de criar o iframe: escondido ele nasce sem tamanho e o nucleo da Bia sai achatado */
   if(!document.getElementById("bia-frame")){
-    var f=document.createElement("iframe");f.id="bia-frame";f.src="bia.html?noapp=1";
+    var f=document.createElement("iframe");f.id="bia-frame";f.src="bia.html?noapp=1&tema=app";
     f.setAttribute("allow","microphone; autoplay; clipboard-write");
-    f.style.cssText="position:absolute;inset:0;width:100%;height:100%;border:0;background:#0E0505";
-    p.appendChild(f);
+    f.style.cssText="position:absolute;inset:0;width:100%;height:100%;border:0;background:#F7F4EC";
+    document.getElementById("bia-frame-wrap").appendChild(f);
   }
-  p.style.display="block";
+  p.style.display="flex";
+  _biaAoVivoVigia();
   try{history.pushState({caimanBia:1},"");}catch(e){}
 }
-function fecharBiaNoApp(){var p=document.getElementById("bia-painel");if(p)p.style.display="none";}
-window.addEventListener("popstate",function(){var p=document.getElementById("bia-painel");if(p&&p.style.display!=="none")p.style.display="none";});
+/* fechar a Bia encerra a conversa ao vivo (solta o microfone); o texto da conversa continua la */
+function _biaWin(){var f=document.getElementById("bia-frame");try{return f&&f.contentWindow;}catch(e){return null;}}
+function fecharBiaNoApp(){var p=document.getElementById("bia-painel");try{var w=_biaWin();if(w&&w.biaAoVivoEncerrar)w.biaAoVivoEncerrar();}catch(e){}if(p)p.style.display="none";}
+function biaAoVivoApp(){
+  var w=_biaWin();if(!w)return;
+  try{if(w.biaAoVivoAtivo&&w.biaAoVivoAtivo()){w.biaAoVivoEncerrar();}else if(w.biaAoVivoLigar){w.biaAoVivoLigar();}else{alert("A Bia ainda está abrindo. Tente de novo em 2 segundos.");}}catch(e){}
+  setTimeout(_biaAoVivoBotao,300);
+}
+function _biaAoVivoBotao(){var b=document.getElementById("bia-aovivo-bt"),w=_biaWin(),on=false;try{on=!!(w&&w.biaAoVivoAtivo&&w.biaAoVivoAtivo());}catch(e){}
+  if(!b)return;b.textContent=on?"■ Encerrar":"● Falar ao vivo";b.style.background=on?"#F7F4EC":"#B8944F";b.style.color=on?"#A32D2D":"#1F241F";b.style.borderColor=on?"#F7F4EC":"#B8944F";}
+var _biaVig=null;
+function _biaAoVivoVigia(){if(_biaVig)return;_biaVig=setInterval(function(){var p=document.getElementById("bia-painel");if(!p||p.style.display==="none"){clearInterval(_biaVig);_biaVig=null;return;}_biaAoVivoBotao();},1000);}
+window.addEventListener("popstate",function(){var p=document.getElementById("bia-painel");if(p&&p.style.display!=="none")fecharBiaNoApp();});
 function aplicarRestricoesUsuario(){
   const uid=getUserId();
   try{var _bf=document.getElementById("bia-fab");if(_bf)_bf.style.display=(uid==="guilherme")?"":"none";}catch(e){}
@@ -26966,11 +26979,19 @@ if(typeof autoSyncEnviar==="function"){
 <!-- 08/11/2026 (ele: "sera que a bia nao pode integrar o app? para eu conversar com ela por la?"): botao da Bia em todas
      as telas. Abre a pagina da Bia (bia.html, mesmo site e mesmo login) por cima do app; fechar so esconde, a conversa
      continua de onde parou. So aparece para o Guilherme (a Bia e a assistente dele: agenda, e-mail, financeiro). -->
-<button id="bia-fab" onclick="abrirBiaNoApp()" title="Conversar com a Bia" style="display:none;position:fixed;right:14px;bottom:30px;z-index:250;width:58px;height:58px;border-radius:50%;border:2px solid #E8B54A;background:radial-gradient(circle at 35% 30%,#C42A2A,#7A1414 70%);color:#FFE3A1;font-weight:800;font-size:15px;letter-spacing:.06em;box-shadow:0 6px 18px rgba(0,0,0,.28);cursor:pointer">BIA</button>
-<div id="bia-painel" style="display:none;position:fixed;inset:0;z-index:10000;background:#0E0505">
-  <button onclick="fecharBiaNoApp()" style="position:absolute;top:calc(env(safe-area-inset-top,0px) + 8px);left:8px;z-index:2;border:1px solid #43191A;background:rgba(30,11,11,.85);color:#FFF4E6;border-radius:18px;padding:7px 13px;font-size:13px;cursor:pointer">← Voltar ao app</button>
+<!-- 08/11 22h36 (ele: "coloque o app da bia ... dentro do aplicativo, de modo que eu fale com ela ao vivo igual fizemos no
+     site dela ... mantenha o layout do app, mesmas cores do nosso app verde"): a Bia abre com a barra verde do app,
+     a pagina dela com ?tema=app (verde, creme e dourado) e o botao "Falar ao vivo" (conversa sem interrupcao, WebRTC). -->
+<button id="bia-fab" onclick="abrirBiaNoApp()" title="Conversar com a Bia" style="display:none;position:fixed;right:14px;bottom:30px;z-index:250;width:58px;height:58px;border-radius:50%;border:2px solid #B8944F;background:radial-gradient(circle at 35% 30%,#3A6B48,#1B3524 72%);color:#F7F4EC;font-weight:800;font-size:15px;letter-spacing:.08em;box-shadow:0 6px 18px rgba(0,0,0,.25);cursor:pointer">BIA</button>
+<div id="bia-painel" style="display:none;position:fixed;inset:0;z-index:10000;background:#F7F4EC;flex-direction:column">
+  <div style="flex:none;display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 8px) 12px 8px;background:#23432D;color:#F7F4EC;box-shadow:0 2px 6px rgba(0,0,0,.15)">
+    <button onclick="fecharBiaNoApp()" style="border:1px solid rgba(247,244,236,.35);background:transparent;color:#F7F4EC;border-radius:8px;padding:7px 11px;font-size:13px;cursor:pointer">← App</button>
+    <div style="flex:1;min-width:0"><div style="font-weight:800;font-size:17px;letter-spacing:.12em">BIA</div><div style="font-size:11px;color:#D9C9A0;margin-top:-1px">Grupo Caiman Agro</div></div>
+    <button id="bia-aovivo-bt" onclick="biaAoVivoApp()" style="border:2px solid #B8944F;background:#B8944F;color:#1F241F;border-radius:20px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">● Falar ao vivo</button>
+  </div>
+  <div id="bia-frame-wrap" style="flex:1;position:relative;min-height:0"></div>
 </div>
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.08-custoarroba2</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.08-bia-verde</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
