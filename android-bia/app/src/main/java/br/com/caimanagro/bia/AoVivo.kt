@@ -83,7 +83,7 @@ class AoVivo(private val ctx: Context, private val js: (String) -> Unit) {
         val f = primeira
         if (f != null) { mandarAudio(f.readBytes()); primeira = null; try { f.delete() } catch (_: Exception) {} }
         else ws?.send(JSONObject().put("type", "response.create").put("response", JSONObject()
-          .put("instructions", "Cumprimente o chefe em uma frase curta e animada e pergunte em que pode ajudar.")).toString())
+          .put("instructions", "Cumprimente o Guilherme (pelo nome, nunca de chefe) em uma frase curta e animada e pergunte em que pode ajudar.")).toString())
       }
       "response.created" -> respostaAtiva = true
       "response.done" -> respostaAtiva = false
