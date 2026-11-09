@@ -23010,13 +23010,14 @@ var _embTodos=false;
 function _embCampo(id,campo,el){var v=el.type==="checkbox"?el.checked:el.value;
   _embGravar(id,function(e){if(campo.indexOf("ck_")===0){e.checklist=e.checklist||{};e.checklist[campo.slice(3)]=v;}else e[campo]=v;});
   if(campo==="horaEmbarque"||campo==="dataAbate"||campo==="dataEmbarque"||campo==="valorNf"||campo==="valorAcerto")_r(renderEmbarque,"renderEmbarque");
+  if(typeof _faAtual!=="undefined"&&_faAtual){try{_faRender();renderHistAbates();}catch(_){}}
 }
 function _embAnexar(id,tipo){
   _escolherArquivo(async function(f){
     try{alerta("embarque","Enviando "+f.name+"…","ok");
       var a=await _anexoSubir("embarque/"+_pastaSegura(id),f);a.tipo=tipo;
       _embGravar(id,function(e){e.anexos=e.anexos||[];e.anexos.push(a);});
-      alerta("embarque","✓ "+tipo+" anexada.","ok");_r(renderEmbarque,"renderEmbarque");
+      alerta("embarque","✓ "+tipo+" anexada.","ok");_r(renderEmbarque,"renderEmbarque");if(_faAtual)try{_faRender();}catch(_){}
     }catch(e){alerta("embarque","Não anexei: "+e.message,"err");}
   });
 }
@@ -23119,7 +23120,7 @@ function _svgLinhas(series,opt){
 var _faAtual=null,_faAba="resumo";
 function abrirFichaAbate(id){
   var a=getAbates().find(function(x){return String(x.id)===String(id);});if(!a)return;
-  _faAtual=id;_faAba="resumo";
+  _faAtual=id;_faAba="resumo";_faEdit=0;
   var m=document.getElementById("modal-ficha-abate");
   if(!m){m=document.createElement("div");m.id="modal-ficha-abate";m.className="modal-overlay";m.style.cssText="display:none;z-index:320;padding:8px";
     m.onclick=function(e){if(e.target===m)fecharFichaAbate();};document.body.appendChild(m);
@@ -23284,9 +23285,23 @@ function _faSan(a,S){
     Z.map(function(z){return '<tr><td '+td+'>'+fmtData(z.data)+'</td><td '+td+'>'+_escAL(z.tipo||"")+'</td><td '+td+'>'+_escAL(z.produto||"—")+'</td><td '+td+'>'+(z.carencia?fmtData(z.carencia):"—")+'</td><td '+td+'>'+_escAL(z.obs||"")+'</td></tr>';}).join("")+'</table></div>':'<div style="font-size:12px;color:#999">Nenhum tratamento lançado no lote.</div>';
   return h;
 }
+var _faEdit=0;
+function _faVendaForm(a,e){
+  var id=String(a.loteId),inpS="width:100%;font-size:13px;padding:7px 8px;border:1px solid #D9D2BF;border-radius:7px;background:#fff;box-sizing:border-box";
+  var inp=function(c,t,v,ph){return '<input type="'+t+'" value="'+_escAL(v||"")+'" placeholder="'+_escAL(ph||"")+'" onchange="_embCampo(\''+_escAL(id)+'\',\''+c+'\',this)" style="'+inpS+'">';};
+  var fld=function(lab,x){return '<div><div style="font-size:11px;color:#7A7668;margin-bottom:2px">'+lab+'</div>'+x+'</div>';};
+  return '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px">'+
+    fld("Frigorífico",inp("frigorifico","text",e.frigorifico))+fld("Data do embarque",inp("dataEmbarque","date",e.dataEmbarque))+fld("Hora do embarque",inp("horaEmbarque","time",e.horaEmbarque))+
+    fld("Caminhões",inp("caminhoes","number",e.caminhoes))+fld("Nº da GTA de saída",inp("gta","text",e.gta))+fld("Nº do lote de venda",inp("loteVenda","text",e.loteVenda))+
+    fld("Nº da NF de venda",inp("nfVenda","text",e.nfVenda))+fld("Valor da NF de venda (R$)",inp("valorNf","number",e.valorNf))+
+    fld("Valor do acerto (R$)",inp("valorAcerto","number",e.valorAcerto,"líquido recebido"))+fld("Data do acerto",inp("dataAcerto","date",e.dataAcerto))+'</div>'+
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'+["GTA","NF venda","Romaneio","Acerto"].map(function(t){return '<button onclick="_embAnexar(\''+_escAL(id)+'\',\''+t+'\')" style="background:#fff;color:#23432D;border:1px solid #23432D;padding:6px 10px;border-radius:7px;font-size:12px;cursor:pointer">📎 '+t+'</button>';}).join("")+'</div>'+
+    '<button onclick="_faEdit=0;_faRender()" style="margin-top:10px;background:#23432D;color:#F7F4EC;border:none;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Pronto</button>';
+}
 function _faVenda(a,S){
   var e=(a.loteId?_embDe(a.loteId):null)||{},cab=+a.qtd||0,D=_faDados(a,S);
-  var h='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px">'+
+  if(_faEdit&&a.loteId)return _faVendaForm(a,e);
+  var h=(a.loteId?'<div style="display:flex;justify-content:flex-end;margin-bottom:8px"><button onclick="_faEdit=1;_faRender()" style="background:#fff;color:#23432D;border:1px solid #23432D;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Editar venda e acerto</button></div>':'')+'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px">'+
     _faBloco("Embarque",[["Frigorífico",_escAL(e.frigorifico||"—")],["Data do embarque",e.dataEmbarque?fmtData(e.dataEmbarque):"—"],["Hora",_escAL(e.horaEmbarque||"—")],["Caminhões",_escAL(e.caminhoes||"—")],["GTA de saída",_escAL(e.gta||"—")]])+
     _faBloco("Venda e acerto",[["Lote de venda",_escAL(e.loteVenda||a.numLote||"—")],["NF de venda",_escAL(e.nfVenda||"—")],["Valor da NF",_faR(e.valorNf)],["Acerto",_faR(e.valorAcerto)+(e.dataAcerto?" · "+fmtData(e.dataAcerto):"")],
       ["Acerto − NF",(+e.valorNf&&+e.valorAcerto)?_faR(e.valorAcerto-e.valorNf):"—",(+e.valorAcerto<+e.valorNf)?"#A32D2D":"#23432D"],["Acerto/cab",cab&&+e.valorAcerto?_faR(e.valorAcerto/cab):"—"],
@@ -23330,11 +23345,33 @@ function renderHistAbates(){
       '<div style="font-size:22px;font-weight:700;color:#23432D;line-height:1.1;margin:2px 0 4px">'+cab.toLocaleString("pt-BR")+' <span style="font-size:12px;font-weight:500;color:#7A7668">cab. · '+(a.dias||"?")+' dias</span></div>'+
       li("@/cab",_faN(a.at,2))+li("GMD",f.gmd?_faN(f.gmd,3):"—")+li("R$/@",a.precoV?_faN(a.precoV,2):"—")+li("Margem mensal",_faP(a.mMes),cor)+li("Resultado",_faR(res),cor)+
       (e.loteVenda?li("Lote de venda",_escAL(e.loteVenda)):"")+
+      (!(+e.valorAcerto)?'<div style="margin-top:5px;font-size:11px;font-weight:700;color:#8A5A12;background:#FFF6E8;border-radius:6px;padding:2px 7px;display:inline-block">Falta o acerto</div>':'')+
     '</button>';
   });
   h+='</div><div style="font-size:12px;color:#23432D;margin-top:8px"><b>'+A.length+'</b> abate(s) · <b>'+tot.cab.toLocaleString("pt-BR")+'</b> cab. · resultado <b style="color:'+(tot.res<0?"#A32D2D":"#23432D")+'">'+_faR(tot.res)+'</b>'+(tot.ac?' · acertos '+_faR(tot.ac):'')+'</div>'+
     '<div style="font-size:11px;color:#999;margin-top:4px">Toque no curral para abrir a ficha completa do lote.</div>';
   el.innerHTML=h;
+}
+var _embEdit={};
+function _embConcluir(id){_embGravar(id,function(e){if(!e.concluido)e.concluidoEm=new Date().toISOString();e.concluido=true;});_embEdit[id]=0;_r(renderEmbarque,"renderEmbarque");}
+function _embEditar(id){_embEdit[id]=1;_r(renderEmbarque,"renderEmbarque");}
+function _embResumoHtml(l,e,dAb,cab){
+  var id=String(l.id),R=function(v){return +v?"R$ "+Math.round(+v).toLocaleString("pt-BR"):"—";};
+  var li=function(r,v,c){return '<div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;line-height:1.7"><span style="color:#7A7668">'+r+'</span><b style="color:'+(c||"#1f241f")+'">'+v+'</b></div>';};
+  var falta=!(+e.valorAcerto);
+  return '<div class="sec" style="border-left:5px solid #23432D;background:#FFFEFA;margin-bottom:12px">'+
+    '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap"><div style="font-size:18px;font-weight:700">'+_escAL(String(l.pasto||l.nome||"?"))+' <span style="font-size:12px;font-weight:500;color:#7A7668">'+cab.toLocaleString("pt-BR")+' cab.</span></div>'+
+      '<span style="font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:12px;background:'+(falta?"#FFF6E8":"#EAF3E6")+';color:'+(falta?"#8A5A12":"#23432D")+'">'+(falta?"Embarcado · falta o acerto":"Embarcado · acerto lançado")+'</span></div>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0 18px;margin-top:6px">'+
+      li("Frigorífico",_escAL(e.frigorifico||"—"))+li("Abate",dAb?fmtData(dAb):"—")+li("Embarque",(e.dataEmbarque?fmtData(e.dataEmbarque):"—")+(e.horaEmbarque?" · "+_escAL(e.horaEmbarque):""))+
+      li("Caminhões",_escAL(e.caminhoes||"—"))+li("GTA de saída",_escAL(e.gta||"—"))+li("Lote de venda",_escAL(e.loteVenda||"—"))+
+      li("NF de venda",(e.nfVenda?_escAL(e.nfVenda)+" · ":"")+R(e.valorNf))+li("Acerto",R(e.valorAcerto)+(e.dataAcerto?" · "+fmtData(e.dataAcerto):""),falta?"#B8641F":null)+
+      ((+e.valorNf&&+e.valorAcerto)?li("Acerto − NF",(e.valorAcerto-e.valorNf<0?"− ":"+ ")+R(Math.abs(e.valorAcerto-e.valorNf)),e.valorAcerto<e.valorNf?"#A32D2D":"#23432D"):"")+
+    '</div>'+((e.anexos||[]).length?'<div style="margin-top:6px">'+_anexosHtml(e.anexos,null)+'</div>':'')+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button onclick="_embEditar(\''+_escAL(id)+'\')" style="background:#fff;color:#23432D;border:1px solid #23432D;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">Editar</button>'+
+      '<button onclick="abrirEnc('+JSON.stringify(l.id).replace(/"/g,"&quot;")+')" style="background:#fff;color:#A32D2D;border:1px solid #F2C4C4;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer">Encerrar lote (abate)</button></div>'+
+    '<div style="font-size:11px;color:#999;margin-top:6px">Depois do encerramento o curral vai para o Histórico; o acerto continua editável na ficha do lote (aba Venda e acerto).</div>'+
+  '</div>';
 }
 function renderEmbarque(){
   try{renderHistAbates();}catch(e){console.warn("renderHistAbates",e);}
@@ -23359,6 +23396,9 @@ function renderEmbarque(){
     var carretas=Math.ceil(cab/36),trucks=Math.ceil(cab/18);
     function inp(campo,tipo,val,ph){return '<input type="'+tipo+'" value="'+_escAL(val||"")+'" placeholder="'+_escAL(ph||"")+'" onchange="_embCampo(\''+_escAL(id)+'\',\''+campo+'\',this)" style="'+inpS+'">';}
     function fld(lab,html){return '<div><div style="font-size:11px;color:#7A7668;margin-bottom:2px">'+lab+'</div>'+html+'</div>';}
+    /* 08/11 21h (ele: "quando o boi for para o embarque, deixe um botao de editar, pois ai quando houver o abate eu
+       completo com o acerto etc"): embarque concluido vira um resumo fechado com Editar (e Encerrar lote) */
+    if(e.concluido&&!_embEdit[id]){h+=_embResumoHtml(l,e,dAb,cab);return;}
     h+='<div class="sec" style="border-left:5px solid '+(carOk?(feitos===EMB_CHECK.length?"#23432D":"#B8944F"):"#A32D2D")+';background:#FFFEFA;margin-bottom:12px">'+
       '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap"><div style="font-size:18px;font-weight:700">'+_escAL(String(l.pasto||l.nome||"?"))+' <span style="font-size:12px;font-weight:500;color:#7A7668">'+cab.toLocaleString("pt-BR")+' cab.</span></div>'+
       '<div style="font-size:12px;color:#23432D;font-weight:700">Abate '+(dAb?fmtData(dAb):"—")+(falta!=null?(falta>=0?" · faltam "+falta+" d":" · passou"):"")+' · '+feitos+'/'+EMB_CHECK.length+' itens</div></div>'+
@@ -23388,6 +23428,8 @@ function renderEmbarque(){
       '<div style="margin-top:8px"><div style="font-size:11px;color:#7A7668;margin-bottom:3px">Anexos</div>'+_anexosHtml((e.anexos||[]),"_embTirarAnexo.bind(null,\''+_escAL(id)+'\')")+
         '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">'+["GTA","NF venda","Romaneio","Acerto"].map(function(t){return '<button onclick="_embAnexar(\''+_escAL(id)+'\',\''+t+'\')" style="background:#fff;color:#23432D;border:1px solid #23432D;padding:6px 10px;border-radius:7px;font-size:12px;cursor:pointer">📎 '+t+'</button>';}).join("")+'</div></div>'+
       '<div style="margin-top:8px">'+fld("Observações",'<textarea rows="2" onchange="_embCampo(\''+_escAL(id)+'\',\'obs\',this)" style="'+inpS+'">'+_escAL(e.obs||"")+'</textarea>')+'</div>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button onclick="_embConcluir(\''+_escAL(id)+'\')" style="background:#23432D;color:#F7F4EC;border:none;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">'+(e.concluido?"Salvar alterações":"Concluir embarque")+'</button>'+
+        (e.concluido?'<button onclick="_embEdit[\''+_escAL(id)+'\']=0;_r(renderEmbarque,\'renderEmbarque\')" style="background:#fff;color:#555;border:1px solid #D9D2BF;padding:9px 14px;border-radius:8px;font-size:13px;cursor:pointer">Cancelar</button>':'')+'</div>'+
     '</div>';
   });
   el.innerHTML=h;
@@ -26487,7 +26529,7 @@ if(typeof autoSyncEnviar==="function"){
 <div id="bia-painel" style="display:none;position:fixed;inset:0;z-index:10000;background:#0E0505">
   <button onclick="fecharBiaNoApp()" style="position:absolute;top:calc(env(safe-area-inset-top,0px) + 8px);left:8px;z-index:2;border:1px solid #43191A;background:rgba(30,11,11,.85);color:#FFF4E6;border-radius:18px;padding:7px 13px;font-size:13px;cursor:pointer">← Voltar ao app</button>
 </div>
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.08-bia-app</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.08-editar</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
