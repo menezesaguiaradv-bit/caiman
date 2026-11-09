@@ -23482,6 +23482,7 @@ function _acLinhas(ano){
   });
   _lotesOrdemAbate().forEach(function(o){
     var l=o.l,ab=o.ab||"";if(ab&&(ab<ini||ab>fim))return;
+    if(/\b(uti|enfermaria|hospital)\b/i.test(String(l.pasto||l.nome||"")))return;   /* UTI/enfermaria nao e lote de venda (igual a Bia) */
     var cab=+l.qtd||0,com=_comLote(l),e=_embDe(l.id)||{};
     /* @ estimada = peso projetado no abate x rendimento de carcaca de 56,5% (ele: "pode colocar o rendimento de carcaca
        como 56,5%") / 15. A previsao da Bia (bia_painel) ja usa os mesmos 56,5%; sem ela, calcula aqui. */
@@ -26969,7 +26970,7 @@ if(typeof autoSyncEnviar==="function"){
 <div id="bia-painel" style="display:none;position:fixed;inset:0;z-index:10000;background:#0E0505">
   <button onclick="fecharBiaNoApp()" style="position:absolute;top:calc(env(safe-area-inset-top,0px) + 8px);left:8px;z-index:2;border:1px solid #43191A;background:rgba(30,11,11,.85);color:#FFF4E6;border-radius:18px;padding:7px 13px;font-size:13px;cursor:pointer">← Voltar ao app</button>
 </div>
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.08-custoarroba</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.08-custoarroba2</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
