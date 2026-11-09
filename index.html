@@ -23487,7 +23487,8 @@ function _dgPreco(dia){var L=_dgCache||[];if(!L.length)return null;var r=null;fo
    custo da @ produzida = (nutricao + operacional ate hoje) / @ produzidas ate hoje, por cabeca.
    - @ produzidas = @ de hoje (peso projetado de hoje x 56,5% / 15) - @ de entrada (peso de entrada x 50% / 15),
      a mesma convencao da Bia (bia_painel.comercial);
-   - nutricao = soma do custo dos tratos do lote (Saicon); sem tratos com custo, o cNutri do cadastro proporcional aos dias;
+   - nutricao = soma do custo dos tratos do lote (Saicon) - cada dieta no seu preco (ele, 09/11: "o preco da dieta e o
+     mesmo, mas as dietas possuem precos diferentes"); sem tratos com custo, o cNutri do cadastro proporcional aos dias;
    - operacional = cOp do cadastro proporcional aos dias. Abatido: (cNutri + cOp) / @ produzidas do encerramento. */
 function _acCustoArrHoje(l,ab){
   var hoje=todayStr(),cab=+l.qtd||0;if(!l.dtE||!cab||!+l.pesoE)return null;
@@ -23498,7 +23499,8 @@ function _acCustoArrHoje(l,ab){
   var arrProd=ph*AC_REND/15-(+l.pesoE)*0.5/15;if(!(arrProd>0.3))return null;
   var nut=0,fonteN="tratos";try{nut=(custoPlanVsReal(l).real||0)/cab;}catch(_){}
   if(!(nut>0)){nut=(+l.cNutri||0)*Math.min(1,dias/diasTot);fonteN="cadastro";}
-  var op=(+l.cOp||0)*Math.min(1,dias/diasTot),custo=nut+op;
+  /* operacional: cOp do cadastro proporcional; sem ele, R$ 2,50/cab/dia (o mesmo padrao da Bia em margemLotes) */
+  var op=(+l.cOp>0)?(+l.cOp)*Math.min(1,dias/diasTot):2.5*dias,custo=nut+op;
   return {valor:custo/arrProd,arrProd:arrProd,custoCab:custo,fonteN:fonteN,dias:dias};
 }
 function _acLinhas(ano){
@@ -27039,7 +27041,7 @@ body.bia-encaixada #app-ver{display:none}
   </div>
   <div id="bia-frame-wrap" style="flex:1;position:relative;min-height:0"></div>
 </div>
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.09-bia-encaixada</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.09-arroba-prod</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
