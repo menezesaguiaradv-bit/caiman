@@ -160,6 +160,24 @@ html.tema-app .selo{display:none}
 /* no app a barra verde de cima ja tem o nome e o "Falar ao vivo": tira os repetidos */
 html.tema-app .hmarca,html.tema-app #aovivo{display:none}
 html.tema-app header{height:46px;justify-content:flex-end}
+/* 09/11 (ele: "quero poder trabalhar no app e com a bia ao mesmo tempo"): modo COMPACTO, usado quando a Bia fica
+   encaixada embaixo do app no celular - nucleo pequeno a esquerda, a fala dela ao lado, a barra embaixo. */
+html.compacto #app{padding:6px 10px 70px;min-height:0}
+html.compacto header,html.compacto #tiles-a,html.compacto #tiles-b{display:none!important}
+html.compacto #palco{display:flex;gap:10px;align-items:center}
+html.compacto #centro{display:flex;gap:10px;align-items:center;width:100%}
+html.compacto #nucleo{width:92px;height:92px;flex:none;margin:0}
+html.compacto #estado{font-size:8.5px;letter-spacing:.12em;bottom:-2px}
+html.compacto #conversa{margin:0;text-align:left;flex:1;min-width:0;max-height:118px;overflow:auto}
+html.compacto #ouvido{font-size:12px;min-height:0}
+html.compacto #resposta{font-size:14px;line-height:1.4;margin-top:2px}
+html.compacto #barra{padding:6px 10px calc(6px + env(safe-area-inset-bottom));gap:8px}
+html.compacto #barra .grupo{gap:8px}
+html.compacto #txt{height:44px;font-size:15px;padding:0 14px}
+html.compacto .rnd{width:44px;height:44px}
+html.compacto #mic{width:52px;height:52px}
+html.compacto .rnd svg{width:21px;height:21px}
+html.compacto #mic svg{width:24px;height:24px}
 </style>
 <script>try{if(/[?&]tema=app\b/.test(location.search))document.documentElement.classList.add("tema-app");}catch(e){}</script>
 </head>
@@ -225,7 +243,7 @@ html.tema-app header{height:46px;justify-content:flex-end}
   <div class="cab"><h2 id="t-tit"></h2><button id="fechar">Fechar</button></div>
   <div id="corpo"></div>
 </div>
-<div class="selo">v2026.11.08-tema-app</div>
+<div class="selo">v2026.11.09-compacto</div>
 
 <script>
 "use strict";
@@ -513,7 +531,10 @@ function tam(){const r=cv.getBoundingClientRect(),dpr=Math.min(2,window.devicePi
 window.addEventListener("resize",tam);
 const calmo=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 function quadro(t){
-  if(!cv.width)tam();
+  /* 09/11 (ele: "o circulo esta oval"): o canvas nascia com o tamanho padrao (300 x 150) enquanto a tela estava escondida
+     e nunca era refeito - o nucleo saia achatado. Agora confere o tamanho real a cada quadro e refaz quando muda. */
+  {const r=cv.getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);
+   if(r.width>0&&(Math.abs(cv.width-r.width*dpr)>2||Math.abs(cv.height-r.height*dpr)>2))tam();}
   const W=cv.width,H=cv.height,cx=W/2,cy=H/2,R=Math.min(W,H)/2;
   ctx.clearRect(0,0,W,H);
   let alvo=0;
@@ -729,6 +750,8 @@ $("aovivo").onclick=aoVivoLigar;
 /* 08/11: o app Caiman Gestao (iframe) liga e encerra a conversa ao vivo pelos botoes dele e, ao fechar a Bia, encerra
    a conversa para soltar o microfone. */
 window.biaAoVivoAtivo=function(){return !!AV.ativo;};
+/* 09/11: o app avisa por mensagem quando a Bia esta encaixada no celular (layout compacto) */
+window.addEventListener("message",function(e){try{if(e.data&&typeof e.data.biaCompacto==="boolean"){document.documentElement.classList.toggle("compacto",e.data.biaCompacto);window.dispatchEvent(new Event("resize"));}}catch(_){}});
 window.biaAoVivoLigar=function(){if(!AV.ativo)aoVivoLigar();};
 window.biaAoVivoEncerrar=function(){if(AV.ativo)aoVivoDesligar();};
 
