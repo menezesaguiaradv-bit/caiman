@@ -23463,7 +23463,8 @@ function _pdfCartoes(doc,y,cards){
     doc.setFillColor(_PV.fundo[0],_PV.fundo[1],_PV.fundo[2]);doc.setDrawColor(_PV.linha[0],_PV.linha[1],_PV.linha[2]);doc.setLineWidth(0.3);doc.rect(x,y,cw,20,"FD");
     doc.setFillColor(_PV.vm[0],_PV.vm[1],_PV.vm[2]);doc.rect(x,y,cw,6.5,"F");
     doc.setFont("helvetica","bold");doc.setFontSize(7);doc.setTextColor(255,255,255);doc.text(_pdfTxt(c[0]).toUpperCase(),x+cw/2,y+4.4,{align:"center"});
-    var cor=c[2]||_PV.preto;doc.setFontSize(12.5);doc.setTextColor(cor[0],cor[1],cor[2]);doc.text(_pdfTxt(c[1]),x+cw/2,y+13.3,{align:"center"});
+    var cor=c[2]||_PV.preto,fs=12.5;doc.setFontSize(fs);while(fs>8&&doc.getTextWidth(_pdfTxt(c[1]))>cw-3){fs-=0.5;doc.setFontSize(fs);}
+    doc.setTextColor(cor[0],cor[1],cor[2]);doc.text(_pdfTxt(c[1]),x+cw/2,y+13.3,{align:"center"});
     if(c[3]){doc.setFont("helvetica","normal");doc.setFontSize(6.5);doc.setTextColor(_PV.cinza[0],_PV.cinza[1],_PV.cinza[2]);doc.text(_pdfTxt(c[3]),x+cw/2,y+17.6,{align:"center"});}});
   return y+25;
 }
@@ -23509,7 +23510,8 @@ function _acLinhas(ano){
     if(!a.dataSaida||a.dataSaida<ini||a.dataSaida>fim)return;
     var e=(a.loteId?_embDe(a.loteId):null)||{},cab=+a.qtd||0;
     var arr=(+e.arrobasRomaneio>0)?+e.arrobasRomaneio:(+a.at||0)*cab;
-    var x={id:"ab:"+a.id,abId:a.id,curral:a.pasto,abate:a.dataSaida,cab:cab,arr:arr,custo:(+a.cTot||0)*cab,abatido:true,loteId:a.loteId};
+    var x={id:"ab:"+a.id,abId:a.id,curral:a.pasto,abate:a.dataSaida,cab:cab,arr:arr,custo:(+a.cTot||0)*cab,abatido:true,loteId:a.loteId,
+      dias:+a.dias||((a.dataEntrada&&a.dataSaida)?diasEntre(a.dataEntrada,a.dataSaida):0)};
     var apA=(a.fech&&+a.fech.arrobasCab)||((+a.at||0)-(+a.pesoE||0)*0.5/15);
     if(apA>0.3&&((+a.cNutri||0)+(+a.cOp||0))>0){x.cArrProd=((+a.cNutri||0)+(+a.cOp||0))/apA;x.arrProdCab=apA;}
     if(+e.valorAcerto>0){x.receita=+e.valorAcerto;x.fonte="real";x.fonteTxt="acerto"+(e.dataAcerto?" "+fmtData(e.dataAcerto):"");}
@@ -23529,22 +23531,35 @@ function _acLinhas(ano){
       if(pp>0)atc=pp*AC_REND/15;}catch(_){}}
     var arr=(+e.arrobasRomaneio>0)?+e.arrobasRomaneio:(atc?atc*cab:0);
     var custoCab=com&&+com.custo_cab?+com.custo_cab:((+l.custoBoi||0)+(+l.cNutri||0)+(+l.cOp||0));
-    var x={id:"lt:"+l.id,curral:l.pasto||l.nome,abate:ab,cab:cab,arr:arr,custo:custoCab*cab,abatido:false,loteId:l.id};
+    var x={id:"lt:"+l.id,curral:l.pasto||l.nome,abate:ab,cab:cab,arr:arr,custo:custoCab*cab,abatido:false,loteId:l.id,
+      dias:(l.dtE&&ab&&ab>l.dtE)?diasEntre(l.dtE,ab):0};
     var ch=_acCustoArrHoje(l,ab);if(ch){x.cArrProd=ch.valor;x.arrProdCab=ch.arrProd;x.cArrFonte=ch.fonteN;}
     if(+e.valorAcerto>0){x.receita=+e.valorAcerto;x.fonte="real";x.fonteTxt="acerto";}
     else if(+e.precoPago>0&&arr){x.receita=arr*e.precoPago;x.fonte="real";x.fonteTxt="preço pago";}
     else{var dg=_dgPreco(ab&&ab<=hoje?ab:hoje);x.receita=dg&&arr?arr*dg[1]:null;x.fonte="estimado";x.fonteTxt=dg?"Datagro MS "+fmtData(dg[0]):"sem Datagro";x.dg=dg;}
     x.preco=(x.receita&&arr)?x.receita/arr:null;out.push(x);
   });
+  /* 09/11 (ele: "coloque nesse relatorio acumulado a margem de lucro mensal, anual e do periodo"): a MESMA conta do
+     encerramento do lote - periodo = resultado / receita; mensal = (1 + periodo)^(30,44 / dias) - 1; anual =
+     (1 + periodo)^(365 / dias) - 1, com dias = entrada ate o abate. */
+  out.forEach(function(x){var m=_acMargens(x.receita!=null?x.receita-x.custo:null,x.receita,x.dias);x.mPer=m.per;x.mMes=m.mes;x.mAno=m.ano;});
   /* regra dele: currais sempre na ordem de abate */
   return out.sort(function(a,b){return (a.abate||"9999")<(b.abate||"9999")?-1:(a.abate||"9999")>(b.abate||"9999")?1:0;});
+}
+function _acMargens(res,rec,dias){
+  if(res==null||!(rec>0))return {per:null,mes:null,ano:null};
+  var per=res/rec;if(!(dias>0)||per<=-1)return {per:per,mes:null,ano:null};
+  return {per:per,mes:Math.pow(1+per,30.44/dias)-1,ano:Math.pow(1+per,365/dias)-1};
 }
 function _acTotais(L){
   var t={cab:0,arr:0,rec:0,custo:0,real:0,lanc:0,est:0};
   L.forEach(function(x){if(x.receita==null)return;   /* sem receita (nem estimada) nao entra no total, senao o custo distorce o resultado */
     t.cab+=x.cab;t.arr+=x.arr||0;t.rec+=x.receita||0;t.custo+=x.custo||0;
     if(x.fonte==="real")t.real+=x.receita||0;else if(x.fonte==="lancado")t.lanc+=x.receita||0;else t.est+=x.receita||0;});
-  t.res=t.rec-t.custo;t.preco=t.arr?t.rec/t.arr:null;t.margem=t.custo?t.res/t.custo:null;
+  t.res=t.rec-t.custo;t.preco=t.arr?t.rec/t.arr:null;
+  /* dias do ano = media dos ciclos pesada pela receita */
+  var sd=0,sr=0;L.forEach(function(x){if(x.receita!=null&&x.dias>0){sd+=x.dias*x.receita;sr+=x.receita;}});t.dias=sr?sd/sr:0;
+  var mg=_acMargens(t.res,t.rec,t.dias);t.margem=mg.per;t.mMes=mg.mes;t.mAno=mg.ano;
   /* custo da @ produzida do ano: media ponderada pelas @ produzidas de cada curral */
   var sc=0,sa=0;L.forEach(function(x){if(x.cArrProd&&x.arrProdCab){sc+=x.cArrProd*x.arrProdCab*x.cab;sa+=x.arrProdCab*x.cab;}});
   t.cArrProd=sa?sc/sa:null;t.arrProd=sa;return t;
@@ -23565,7 +23580,8 @@ function renderAcumulado(){
   var tile=function(r,v,sub,cor){return '<div style="background:#FFFEFA;border:1px solid #E3DCC8;border-radius:10px;overflow:hidden"><div style="background:#23432D;color:#fff;font-size:10.5px;font-weight:700;text-align:center;padding:4px 6px;text-transform:uppercase;letter-spacing:.3px">'+r+'</div><div style="text-align:center;padding:6px 6px 8px"><div style="font-size:18px;font-weight:700;color:'+(cor||"#1f241f")+'">'+v+'</div>'+(sub?'<div style="font-size:10.5px;color:#7A7668">'+sub+'</div>':'')+'</div></div>';};
   h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">'+
     tile("Receita do ano",R(T.rec),T.est?"estimado "+R(T.est):"tudo real ou lançado")+
-    tile("Resultado",R(T.res),T.margem!=null?"margem "+_faP(T.margem):"",T.res<0?"#A32D2D":"#23432D")+
+    tile("Resultado",R(T.res),"",T.res<0?"#A32D2D":"#23432D")+
+    tile("Margem de lucro",T.margem!=null?_faP(T.margem):"—","mês "+(T.mMes!=null?_faP(T.mMes):"—")+" · ano "+(T.mAno!=null?_faP(T.mAno):"—"),T.res<0?"#A32D2D":"#23432D")+
     tile("Cabeças · @",T.cab.toLocaleString("pt-BR"),_faN(T.arr,0)+" @")+
     tile("Preço médio",T.preco?"R$ "+_faN(T.preco,2):"—","por @ (ponderado)")+
     tile("Custo da @ produzida",T.cArrProd?R(T.cArrProd):"—","até hoje · "+_faN(T.arrProd,0)+" @ produzidas"+(dgU?" · MS R$ "+_faN(dgU[1],2):""),(T.cArrProd&&dgU&&T.cArrProd>dgU[1])?"#A32D2D":"#23432D")+'</div>';
@@ -23574,16 +23590,17 @@ function renderAcumulado(){
     h+='<div style="margin:10px 0 2px;display:flex;height:16px;border-radius:5px;overflow:hidden;gap:2px">'+(pr?'<div title="Real" style="width:'+pr+'%;background:'+_AC_COR.real+'"></div>':'')+(pl?'<div title="Lançado" style="width:'+pl+'%;background:'+_AC_COR.lancado+'"></div>':'')+(pe?'<div title="Estimado" style="width:'+pe+'%;background:'+_AC_COR.estimado+'"></div>':'')+'</div>'+
       '<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#555">'+["real","lancado","estimado"].map(function(k){var v=k==="real"?T.real:k==="lancado"?T.lanc:T.est;return '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:'+_AC_COR[k]+';margin-right:4px"></span>'+_AC_TXT[k]+' '+R(v)+'</span>';}).join("")+'</div>';}
   var th='style="text-align:left;padding:6px 7px;font-size:11px;color:#fff;background:#23432D;white-space:nowrap"',td='style="padding:6px 7px;font-size:12px;border-bottom:1px solid #F0EBDD;white-space:nowrap"';
-  h+='<div style="overflow-x:auto;background:#fff;border:1px solid #E3DCC8;border-radius:10px;margin-top:10px"><table style="border-collapse:collapse;width:100%"><tr><th '+th+'>Curral</th><th '+th+'>Abate</th><th '+th+'>Cab.</th><th '+th+'>@ total</th><th '+th+'>R$/@</th><th '+th+'>Receita</th><th '+th+'>Custo</th><th '+th+'>Resultado</th><th '+th+'>Custo @ prod.</th><th '+th+'>Fonte</th><th '+th+'></th></tr>';
+  h+='<div style="overflow-x:auto;background:#fff;border:1px solid #E3DCC8;border-radius:10px;margin-top:10px"><table style="border-collapse:collapse;width:100%"><tr><th '+th+'>Curral</th><th '+th+'>Abate</th><th '+th+'>Cab.</th><th '+th+'>@ total</th><th '+th+'>R$/@</th><th '+th+'>Receita</th><th '+th+'>Custo</th><th '+th+'>Resultado</th><th '+th+'>Margem período</th><th '+th+'>Mensal</th><th '+th+'>Anual</th><th '+th+'>Custo @ prod.</th><th '+th+'>Fonte</th><th '+th+'></th></tr>';
   var acc=0;
   L.forEach(function(x,i){acc+=x.receita||0;var res=(x.receita||0)-(x.custo||0);
     h+='<tr style="background:'+(i%2?"#F7F6F2":"#fff")+'"><td '+td+'><b>'+_escAL(x.curral||"?")+'</b>'+(x.abatido?' <span style="font-size:10px;color:#7A7668">abatido</span>':'')+'</td><td '+td+'>'+(x.abate?fmtData(x.abate):"—")+'</td><td '+td+'>'+x.cab+'</td><td '+td+'>'+_faN(x.arr,0)+'</td><td '+td+'>'+(x.preco?_faN(x.preco,2):"—")+'</td><td '+td+'>'+R(x.receita)+'</td><td '+td+'>'+R(x.custo)+'</td>'+
       '<td '+td+'><span style="color:'+(res<0?"#A32D2D":"#23432D")+'">'+(x.receita!=null?R(res):"—")+'</span></td>'+
+      ['mPer','mMes','mAno'].map(function(k){return '<td '+td+'><span style="color:'+((x[k]||0)<0?"#A32D2D":"#23432D")+'">'+(x[k]!=null?_faP(x[k]):"—")+'</span></td>';}).join("")+
       '<td '+td+'>'+(x.cArrProd?'<b style="color:'+((dgU&&x.cArrProd>dgU[1])?"#A32D2D":"#1f241f")+'">'+R(x.cArrProd)+'</b> <span style="font-size:10px;color:#7A7668">'+_faN(x.arrProdCab,2)+' @/cab</span>':"—")+'</td>'+
       '<td '+td+'><span style="font-size:10.5px;font-weight:700;color:#fff;background:'+_AC_COR[x.fonte]+';border-radius:9px;padding:2px 7px">'+_AC_TXT[x.fonte]+'</span> <span style="font-size:10.5px;color:#7A7668">'+_escAL(x.fonteTxt||"")+'</span></td>'+
       '<td '+td+'><button onclick="_acPreencher(\''+_escAL(x.id)+'\')" style="border:1px solid #23432D;background:#fff;color:#23432D;border-radius:7px;padding:3px 9px;font-size:11.5px;cursor:pointer">'+(x.fonte==="real"?"Editar":"Preencher real")+'</button></td></tr>';});
-  h+='<tr style="font-weight:700;background:#EFEADB"><td '+td+'>Total</td><td '+td+'></td><td '+td+'>'+T.cab.toLocaleString("pt-BR")+'</td><td '+td+'>'+_faN(T.arr,0)+'</td><td '+td+'>'+(T.preco?_faN(T.preco,2):"—")+'</td><td '+td+'>'+R(T.rec)+'</td><td '+td+'>'+R(T.custo)+'</td><td '+td+'><span style="color:'+(T.res<0?"#A32D2D":"#23432D")+'">'+R(T.res)+'</span></td><td '+td+'>'+(T.cArrProd?R(T.cArrProd):"—")+'</td><td '+td+'></td><td '+td+'></td></tr></table></div>';
-  h+='<div style="font-size:11px;color:#999;margin-top:6px">Real = acerto do frigorífico (ou @ do romaneio × preço pago). Lançado = valores do encerramento do lote. Estimado = peso projetado no abate × 56,5% de carcaça ÷ 15 × Datagro MS'+(dgU?' (último: R$ '+_faN(dgU[1],2)+' em '+fmtData(dgU[0])+')':'')+' — no dia do abate, se já passou. Ao preencher o real, a linha troca sozinha. Custo da @ produzida = nutrição (tratos do Saicon) + operacional até hoje ÷ @ produzidas até hoje (peso de hoje × 56,5% − peso de entrada × 50%, em @); abatido = valores do encerramento. Vermelho = acima do Datagro MS.</div>';
+  h+='<tr style="font-weight:700;background:#EFEADB"><td '+td+'>Total</td><td '+td+'></td><td '+td+'>'+T.cab.toLocaleString("pt-BR")+'</td><td '+td+'>'+_faN(T.arr,0)+'</td><td '+td+'>'+(T.preco?_faN(T.preco,2):"—")+'</td><td '+td+'>'+R(T.rec)+'</td><td '+td+'>'+R(T.custo)+'</td><td '+td+'><span style="color:'+(T.res<0?"#A32D2D":"#23432D")+'">'+R(T.res)+'</span></td><td '+td+'>'+(T.margem!=null?_faP(T.margem):"—")+'</td><td '+td+'>'+(T.mMes!=null?_faP(T.mMes):"—")+'</td><td '+td+'>'+(T.mAno!=null?_faP(T.mAno):"—")+'</td><td '+td+'>'+(T.cArrProd?R(T.cArrProd):"—")+'</td><td '+td+'></td><td '+td+'></td></tr></table></div>';
+  h+='<div style="font-size:11px;color:#999;margin-top:6px">Real = acerto do frigorífico (ou @ do romaneio × preço pago). Lançado = valores do encerramento do lote. Estimado = peso projetado no abate × 56,5% de carcaça ÷ 15 × Datagro MS'+(dgU?' (último: R$ '+_faN(dgU[1],2)+' em '+fmtData(dgU[0])+')':'')+' — no dia do abate, se já passou. Ao preencher o real, a linha troca sozinha. Custo da @ produzida = nutrição (tratos do Saicon) + operacional até hoje ÷ @ produzidas até hoje (peso de hoje × 56,5% − peso de entrada × 50%, em @); abatido = valores do encerramento. Vermelho = acima do Datagro MS. Margem: período = resultado ÷ receita; mensal e anual = a do período levada a 30,44 e 365 dias pelo ciclo do curral (entrada ao abate) — a mesma conta do encerramento do lote; no total, ciclo médio pesado pela receita.</div>';
   el.innerHTML=h;
 }
 /* preencher o real: acerto, @ do romaneio e preco pago (gravam no mesmo caiman_embarques do curral) */
@@ -23617,20 +23634,20 @@ function gerarPDFAcumulado(ano){
     var L=_acLinhas(ano),T=_acTotais(L),R=function(v){return v||v===0?"R$ "+Math.round(v).toLocaleString("pt-BR"):"-";};
     var doc=_pdfDocPaisagem(),dgU=(_dgCache&&_dgCache.length)?_dgCache[_dgCache.length-1]:null;
     var y=_pdfCabFicha(doc,"Acumulado de abates "+ano,"Confinamento Pinheiral · real, lançado e estimado pelo Datagro MS",[["Currais",String(L.length)],["Cabeças",T.cab.toLocaleString("pt-BR")],["Datagro MS",dgU?"R$ "+_faN(dgU[1],2):"-"]]);
-    y=_pdfCartoes(doc,y,[["Receita do ano",R(T.rec),null,T.est?"estimado "+R(T.est):"real ou lançado"],["Custo",R(T.custo),null,""],["Resultado",R(T.res),T.res<0?_PV.verm:_PV.vm,T.margem!=null?"margem "+_faP(T.margem):""],
+    y=_pdfCartoes(doc,y,[["Receita do ano",R(T.rec),null,T.est?"estimado "+R(T.est):"real ou lançado"],["Custo",R(T.custo),null,""],["Resultado",R(T.res),T.res<0?_PV.verm:_PV.vm,""],["Margem",T.margem!=null?_faP(T.margem):"-",T.res<0?_PV.verm:_PV.vm,"mês "+(T.mMes!=null?_faP(T.mMes):"-")+" · ano "+(T.mAno!=null?_faP(T.mAno):"-")],
       ["@ do ano",_faN(T.arr,0),null,T.preco?"média R$ "+_faN(T.preco,2)+"/@":""],["Custo @ produzida",T.cArrProd?R(T.cArrProd):"-",(T.cArrProd&&dgU&&T.cArrProd>dgU[1])?_PV.verm:_PV.vm,"até hoje"],["Já é real",T.rec?_faP(T.real/T.rec):"-",null,R(T.real)]]);
     y=_pdfFaixaV(doc,y,"Currais na ordem de abate");
     var cF={real:_PV.vm,lancado:[110,139,94],estimado:_PV.ouro};
-    y=_pdfGrade(doc,y,[{t:"Curral",w:22},{t:"Abate",w:22},{t:"Cab.",w:14,al:"r"},{t:"@ total",w:22,al:"r"},{t:"R$/@",w:20,al:"r"},{t:"Receita",w:32,al:"r"},{t:"Custo",w:32,al:"r"},{t:"Resultado",w:30,al:"r"},{t:"Custo @ prod.",w:24,al:"r"},{t:"Fonte",w:18},{t:"Detalhe",w:37}],
-      L.map(function(x){var res=(x.receita||0)-(x.custo||0);return {0:(x.curral||"?")+(x.abatido?" (abatido)":""),1:x.abate?fmtData(x.abate):"-",2:x.cab,3:_faN(x.arr,0),4:x.preco?_faN(x.preco,2):"-",5:R(x.receita),6:R(x.custo),7:x.receita!=null?R(res):"-",8:x.cArrProd?R(x.cArrProd):"-",9:_AC_TXT[x.fonte],10:x.fonteTxt||"",
-        _cor:{7:res<0?_PV.verm:_PV.vm,8:(x.cArrProd&&dgU&&x.cArrProd>dgU[1])?_PV.verm:_PV.preto,9:cF[x.fonte]}};}).concat([{0:"Total",2:T.cab.toLocaleString("pt-BR"),3:_faN(T.arr,0),4:T.preco?_faN(T.preco,2):"-",5:R(T.rec),6:R(T.custo),7:R(T.res),8:T.cArrProd?R(T.cArrProd):"-",_b:true,_cor:{7:T.res<0?_PV.verm:_PV.vm}}]),{x:12,fs:8});
+    y=_pdfGrade(doc,y,[{t:"Curral",w:22},{t:"Abate",w:19},{t:"Cab.",w:11,al:"r"},{t:"@ total",w:17,al:"r"},{t:"R$/@",w:16,al:"r"},{t:"Receita",w:27,al:"r"},{t:"Custo",w:27,al:"r"},{t:"Resultado",w:25,al:"r"},{t:"Marg. per.",w:17,al:"r"},{t:"Mensal",w:15,al:"r"},{t:"Anual",w:16,al:"r"},{t:"@ prod.",w:20,al:"r"},{t:"Fonte",w:16},{t:"Detalhe",w:25}],
+      L.map(function(x){var res=(x.receita||0)-(x.custo||0);return {0:(x.curral||"?")+(x.abatido?" (abatido)":""),1:x.abate?fmtData(x.abate):"-",2:x.cab,3:_faN(x.arr,0),4:x.preco?_faN(x.preco,2):"-",5:R(x.receita),6:R(x.custo),7:x.receita!=null?R(res):"-",8:x.mPer!=null?_faP(x.mPer):"-",9:x.mMes!=null?_faP(x.mMes):"-",10:x.mAno!=null?_faP(x.mAno):"-",11:x.cArrProd?R(x.cArrProd):"-",12:_AC_TXT[x.fonte],13:x.fonteTxt||"",
+        _cor:{7:res<0?_PV.verm:_PV.vm,8:res<0?_PV.verm:_PV.vm,9:res<0?_PV.verm:_PV.vm,10:res<0?_PV.verm:_PV.vm,11:(x.cArrProd&&dgU&&x.cArrProd>dgU[1])?_PV.verm:_PV.preto,12:cF[x.fonte]}};}).concat([{0:"Total",2:T.cab.toLocaleString("pt-BR"),3:_faN(T.arr,0),4:T.preco?_faN(T.preco,2):"-",5:R(T.rec),6:R(T.custo),7:R(T.res),8:T.margem!=null?_faP(T.margem):"-",9:T.mMes!=null?_faP(T.mMes):"-",10:T.mAno!=null?_faP(T.mAno):"-",11:T.cArrProd?R(T.cArrProd):"-",_b:true,_cor:{7:T.res<0?_PV.verm:_PV.vm}}]),{x:12,fs:7.5});
     /* grafico: receita acumulada na ordem de abate (real+lancado x estimado) */
     var acc=0,accR=0,pR=[],pT=[];L.filter(function(x){return x.abate;}).forEach(function(x){acc+=x.receita||0;if(x.fonte!=="estimado")accR+=x.receita||0;pT.push([x.abate,acc]);pR.push([x.abate,accR]);});
     if(pT.length>1){var ss=[{nome:"Receita acumulada (real + estimada)",cor:_PV.ouro,pts:pT},{nome:"Só real e lançada",cor:_PV.vm,pts:pR}];ss.zero=true;
       if(y>140){_pdfRodapeAuto(doc);doc.addPage("a4","landscape");y=16;}
       y=_pdfGrafLinhasL(doc,y+2,"Receita acumulada no ano (R$)",ss);}
     doc.setFont("helvetica","normal");doc.setFontSize(7.5);doc.setTextColor(_PV.cinza[0],_PV.cinza[1],_PV.cinza[2]);
-    doc.text(doc.splitTextToSize(_pdfTxt("Real = acerto do frigorífico ou @ do romaneio x preço pago. Lançado = encerramento do lote. Estimado = peso projetado no abate x 56,5% de carcaça / 15 x Datagro MS (do dia do abate, se já passou; senão o último publicado). Custo @ produzida até hoje = nutrição + operacional até hoje / (@ hoje a 56,5% - @ de entrada a 50%)."),272),12,Math.min(y+2,doc.internal.pageSize.getHeight()-16));
+    doc.text(doc.splitTextToSize(_pdfTxt("Real = acerto do frigorífico ou @ do romaneio x preço pago. Lançado = encerramento do lote. Estimado = peso projetado no abate x 56,5% de carcaça / 15 x Datagro MS (do dia do abate, se já passou; senão o último publicado). Custo @ produzida até hoje = nutrição + operacional até hoje / (@ hoje a 56,5% - @ de entrada a 50%). Margem: período = resultado / receita; mensal e anual = (1 + período) elevado a 30,44 e 365 dias sobre o ciclo (entrada ao abate)."),272),12,Math.min(y+2,doc.internal.pageSize.getHeight()-16));
     _pdfRodapeAuto(doc);
     _pdfEntregar(doc,"Relatorio_Acumulado_Abates_"+ano);
   }catch(err){alert("Não consegui gerar o PDF: "+err.message);}
@@ -27041,7 +27058,7 @@ body.bia-encaixada #app-ver{display:none}
   </div>
   <div id="bia-frame-wrap" style="flex:1;position:relative;min-height:0"></div>
 </div>
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.09-arroba-prod</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.09-margens</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
