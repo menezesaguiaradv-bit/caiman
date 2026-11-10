@@ -9590,7 +9590,7 @@ async function _custoConfCarregar(){
     const h=await _hdrAuth(); delete h["Content-Type"];
     const r=await fetch(SB_URL.replace(/\/+$/,"")+"/functions/v1/Bia?custo_conf_json=1",{headers:h});
     const j=await r.json().catch(function(){return null;});
-    if(j&&j.ok&&j.custo_dia>0)_custoConf={ts:Date.now(),custo_dia:+j.custo_dia,gmd:+j.gmd||GMD_PROJ_CONF};
+    if(j&&j.ok&&j.custo_dia>0)_custoConf={ts:Date.now(),custo_dia:+j.custo_dia,gmd:+j.gmd||GMD_PROJ_CONF,por_curral:j.por_curral||{}};
   }catch(e){console.warn("custo conf:",e);}
 }
 setTimeout(function(){_custoConfCarregar();},4000);
@@ -22198,7 +22198,10 @@ function atualizarProjecao(){
     const dieta=dietas.find(d=>d.id===l.dietaId);
     /* 19/10/2026 (ele: "o preco da dieta e a mesma para todos os lotes"): no confinamento usa o custo/cab/dia unico da
        Friday (real dos ultimos 7 dias, ?custo_conf_json=1); sem ele, o custo da dieta do cadastro */
-    const custoDia=(l.tipo==="Confinamento"&&_custoConf&&_custoConf.custo_dia>0)?_custoConf.custo_dia:(dieta?dieta.custoDia:0);
+    /* 09/11 (ele: "as dietas possuem precos diferentes"): primeiro o custo do PROPRIO curral vindo da Bia (tratos reais ate
+       hoje + dieta de terminacao ate o abate, media por dia do ciclo); depois o unico; por fim o do cadastro */
+    const _pc=(l.tipo==="Confinamento"&&_custoConf&&_custoConf.por_curral)?_custoConf.por_curral[String(l.pasto||"").toUpperCase().replace(/\s+/g,"")]:null;
+    const custoDia=(_pc&&_pc.custo_dia>0)?_pc.custo_dia:(l.tipo==="Confinamento"&&_custoConf&&_custoConf.custo_dia>0)?_custoConf.custo_dia:(dieta?dieta.custoDia:0);
     
     // Peso saída projetado
     const pesoE=l.peso||l.pesoE||0;
@@ -23038,6 +23041,45 @@ function _escolherArquivo(cb){
 /* ---------------- (4) EMBARQUE ---------------- */
 function getEmbarques(){try{return JSON.parse(localStorage.getItem("caiman_embarques")||"[]");}catch(e){return [];}}
 function setEmbarques(v){localStorage.setItem("caiman_embarques",JSON.stringify(v));}
+/* 09/11 (ele: "pode fazer todos" - romaneio fecha o lote): o acerto/romaneio que ele manda para a Bia
+   (caiman_acertos_abate, ja com os currais) preenche o Embarque do lote UMA vez por documento - so os campos vazios:
+   @ do romaneio, R$/@ pago, valor do acerto (liquido; sem liquido, o bruto), data e o checklist. Assim o acumulado
+   do ano passa de "estimado" para "real" sozinho. Divide pelas cabecas quando o embarque tem mais de um curral. */
+function _embAplicaAcertos(){
+  var acs=[];try{acs=JSON.parse(localStorage.getItem("caiman_acertos_abate")||"[]")||[];}catch(e){}
+  if(!acs.length)return 0;
+  var lotes=[];try{lotes=JSON.parse(localStorage.getItem("caiman_lotes_v3")||"[]")||[];}catch(e){}
+  var ab=getAbates(),n=0;
+  acs.forEach(function(ac){
+    if(!ac||ac.pendente||!(ac.currais&&ac.currais.length))return;
+    var alvos=ac.currais.map(function(c){
+      var a=ab.filter(function(x){return abcNk(x.pasto)===abcNk(c)&&abcPerto(x,ac.data_abate);}).sort(function(x,y){return String(y.dataSaida).localeCompare(String(x.dataSaida));})[0];
+      if(a&&a.loteId!=null)return {id:a.loteId,cab:+a.qtd||0};
+      var l=lotes.filter(function(x){return x&&abcNk(x.pasto)===abcNk(c)&&/confinamento/i.test(String(x.tipo||""))&&!/semi/i.test(String(x.tipo||""));})
+        .sort(function(x,y){return String(y.dtE||"").localeCompare(String(x.dtE||""));})[0];
+      return l?{id:l.id,cab:+l.qtd||0}:null;}).filter(Boolean);
+    if(!alvos.length)return;
+    var tot=alvos.reduce(function(t,x){return t+x.cab;},0);
+    alvos.forEach(function(al){
+      var e0=_embDe(al.id);if(e0&&(e0.acertosAplicados||[]).indexOf(ac.id)>=0)return;
+      var sh=tot?al.cab/tot:1/alvos.length;
+      _embGravar(al.id,function(e){
+        var arr=+ac.arrobas_total>0?+ac.arrobas_total*sh:(+ac.arroba_cab>0&&al.cab?+ac.arroba_cab*al.cab:0);
+        if(!(+e.arrobasRomaneio>0)&&arr>0)e.arrobasRomaneio=+arr.toFixed(2);
+        if(!(+e.precoPago>0)&&+ac.preco_arroba>0)e.precoPago=+ac.preco_arroba;
+        var v=+ac.valor_liquido>0?+ac.valor_liquido:(+ac.valor_bruto>0?+ac.valor_bruto:0);
+        if(ac.tipo_doc!=="romaneio"&&!(+e.valorAcerto>0)&&v>0){e.valorAcerto=+(v*sh).toFixed(2);if(!e.dataAcerto)e.dataAcerto=String(ac.recebido||"").slice(0,10)||todayStr();}
+        if(!e.frigorifico&&ac.frigorifico)e.frigorifico=ac.frigorifico;
+        if(!e.dataAbate&&ac.data_abate)e.dataAbate=ac.data_abate;
+        e.checklist=e.checklist||{};
+        if(arr>0)e.checklist.romaneio=true;
+        if(ac.tipo_doc!=="romaneio"&&v>0)e.checklist.acerto=true;
+        e.obs=(e.obs?e.obs+"\n":"")+"Preenchido pela Bia ("+(ac.tipo_doc==="romaneio"?"romaneio":"acerto")+(ac.frigorifico?" "+ac.frigorifico:"")+", "+fmtData(String(ac.recebido||todayStr()).slice(0,10))+")";
+        e.acertosAplicados=(e.acertosAplicados||[]).concat([ac.id]);
+      });n++;});
+  });
+  return n;
+}
 function _embDe(id){return getEmbarques().find(function(x){return String(x.id)===String(id);})||null;}
 function _embGravar(id,fn){var L=getEmbarques(),e=L.find(function(x){return String(x.id)===String(id);});
   if(!e){e={id:String(id),checklist:{},anexos:[]};L.push(e);}fn(e);e.atualizado=new Date().toISOString();setEmbarques(L);return e;}
@@ -23565,15 +23607,16 @@ function _acTotais(L){
   t.cArrProd=sa?sc/sa:null;t.arrProd=sa;return t;
 }
 var _AC_COR={real:"#23432D",lancado:"#6E8B5E",estimado:"#B8944F"},_AC_TXT={real:"Real",lancado:"Lançado",estimado:"Estimado"};
-function renderAcumulado(){
+/* 09/11: era "renderAcumulado" e sobrescrevia o acumulado da pagina Cargas (mesmo nome); renomeado */
+function renderAcumAbates(){
   var el=document.getElementById("emb-acum");if(!el)return;
-  if(!_dgCache&&Date.now()-_dgEm>60000){_dgEm=Date.now();_datagroMS().then(function(){if(paginaAtual==="embarque")renderAcumulado();});}
+  if(!_dgCache&&Date.now()-_dgEm>60000){_dgEm=Date.now();_datagroMS().then(function(){if(paginaAtual==="embarque")renderAcumAbates();});}
   var anos={},hj=todayStr().slice(0,4);anos[hj]=1;getAbates().filter(_abEhConf).forEach(function(a){if(a.dataSaida)anos[a.dataSaida.slice(0,4)]=1;});
   _lotesOrdemAbate().forEach(function(o){if(o.ab)anos[o.ab.slice(0,4)]=1;});
   var ano=_acAno||hj,L=_acLinhas(ano),T=_acTotais(L),R=function(v){return v||v===0?"R$ "+Math.round(v).toLocaleString("pt-BR"):"—";};
   var dgU=(_dgCache&&_dgCache.length)?_dgCache[_dgCache.length-1]:null;
   var h='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px"><div style="display:flex;gap:6px;align-items:center">'+
-    Object.keys(anos).sort().map(function(y){return '<button onclick="_acAno=\''+y+'\';renderAcumulado()" class="fa-tab'+(y===ano?" on":"")+'" style="border:1px solid #D9D2BF;border-radius:18px;padding:5px 12px;font-size:12.5px;cursor:pointer;background:'+(y===ano?"#23432D":"#fff")+';color:'+(y===ano?"#F7F4EC":"#23432D")+'">'+y+'</button>';}).join("")+'</div>'+
+    Object.keys(anos).sort().map(function(y){return '<button onclick="_acAno=\''+y+'\';renderAcumAbates()" class="fa-tab'+(y===ano?" on":"")+'" style="border:1px solid #D9D2BF;border-radius:18px;padding:5px 12px;font-size:12.5px;cursor:pointer;background:'+(y===ano?"#23432D":"#fff")+';color:'+(y===ano?"#F7F4EC":"#23432D")+'">'+y+'</button>';}).join("")+'</div>'+
     '<div style="display:flex;gap:6px"><button onclick="gerarPDFAcumulado(\''+ano+'\')" style="background:#23432D;color:#F7F4EC;border:none;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600;cursor:pointer">PDF</button>'+
     '<button onclick="window._pdfShare=true;gerarPDFAcumulado(\''+ano+'\')" style="background:#fff;color:#23432D;border:1px solid #23432D;border-radius:8px;padding:7px 10px;font-size:12.5px;cursor:pointer">Enviar</button></div></div>';
   if(!L.length){el.innerHTML=h+'<div style="font-size:12px;color:#999">Nenhum curral do confinamento com abate em '+ano+'.</div>';return;}
@@ -23626,7 +23669,7 @@ function _acGravarReal(loteId){
   _embGravar(loteId,function(e){["valorAcerto","dataAcerto","arrobasRomaneio","precoPago","nfVenda","valorNf"].forEach(function(k){var el=document.getElementById("acr-"+k);if(el)e[k]=el.value;});});
   try{marcarPendente();}catch(_){}
   document.getElementById("modal-ac-real").style.display="none";
-  renderAcumulado();try{renderHistAbates();}catch(_){}try{_r(renderEmbarque,"renderEmbarque");}catch(_){}
+  renderAcumAbates();try{renderHistAbates();}catch(_){}try{_r(renderEmbarque,"renderEmbarque");}catch(_){}
 }
 function gerarPDFAcumulado(ano){
   if(typeof window.jspdf==="undefined"){alert("Biblioteca de PDF não carregada. Recarregue a página.");return;}
@@ -23867,8 +23910,17 @@ function _embResumoHtml(l,e,dAb,cab){
     '<div style="font-size:11px;color:#999;margin-top:6px">Depois do encerramento o curral vai para o Histórico; o acerto continua editável na ficha do lote (aba Venda e acerto).</div>'+
   '</div>';
 }
+var _embAcEm=0;
+function _embBaixarAcertos(){
+  if(!SB_URL||Date.now()-_embAcEm<600000)return; _embAcEm=Date.now();
+  (async function(){try{const h=await _hdrAuth(); delete h["Content-Type"];
+    const r=await fetch(SB_URL.replace(/\/+$/,"")+"/rest/v1/dados_v2?id=eq.EMPRESA%3A%3Acaiman_acertos_abate&select=dados",{headers:h});
+    if(r.ok){const l=await r.json();if(l&&l.length&&l[0].dados){localStorage.setItem("caiman_acertos_abate",l[0].dados);
+      if(_embAplicaAcertos()&&paginaAtual==="embarque")renderEmbarque();}}}catch(e){}})();
+}
 function renderEmbarque(){
-  try{renderAcumulado();}catch(e){console.warn("renderAcumulado",e);}
+  try{_embBaixarAcertos();_embAplicaAcertos();}catch(e){console.warn("acertos embarque",e);}
+  try{renderAcumAbates();}catch(e){console.warn("renderAcumAbates",e);}
   try{renderHistAbates();}catch(e){console.warn("renderHistAbates",e);}
   var el=document.getElementById("emb-lista");if(!el)return;
   if(!_bpCache&&Date.now()-_bpTentou>60000){_dadosBiaComercial().then(function(){if(paginaAtual==="embarque")_r(renderEmbarque,"renderEmbarque");});}
@@ -27047,18 +27099,18 @@ body.bia-encaixada #app-ver{display:none}
 @keyframes biaPulso{0%,100%{box-shadow:0 0 0 0 rgba(184,148,79,.6)}50%{box-shadow:0 0 0 7px rgba(184,148,79,0)}}
 @media (prefers-reduced-motion:reduce){#bia-painel.ao-vivo #bia-orb{animation:none}}
 </style>
-<button id="bia-fab" onclick="abrirBiaNoApp()" title="Conversar com a Bia" style="display:none;position:fixed;right:14px;bottom:30px;z-index:250;width:58px;height:58px;border-radius:50%;border:2px solid #B8944F;background:radial-gradient(circle at 35% 30%,#3A6B48,#1B3524 72%);color:#F7F4EC;font-weight:800;font-size:15px;letter-spacing:.08em;box-shadow:0 6px 18px rgba(0,0,0,.25);cursor:pointer">BIA</button>
+<button id="bia-fab" onclick="abrirBiaNoApp()" title="Bia · Beef Intelligence Assistant" style="display:none;position:fixed;right:14px;bottom:30px;z-index:250;width:58px;height:58px;border-radius:50%;border:2px solid #B8944F;background:radial-gradient(circle at 35% 30%,#3A6B48,#1B3524 72%);color:#F7F4EC;font-weight:800;font-size:15px;letter-spacing:.08em;box-shadow:0 6px 18px rgba(0,0,0,.25);cursor:pointer">BIA</button>
 <div id="bia-painel" class="mini">
   <div id="bia-barra">
     <div id="bia-orb" aria-hidden="true"></div>
-    <div style="flex:1;min-width:0"><div style="font-weight:800;font-size:16px;letter-spacing:.12em;line-height:1.1">BIA</div><div class="bia-sub" style="font-size:11px;color:#D9C9A0">Grupo Caiman Agro</div></div>
+    <div style="flex:1;min-width:0"><div style="font-weight:800;font-size:16px;letter-spacing:.12em;line-height:1.1">BIA</div><div class="bia-sub" style="font-size:11px;color:#D9C9A0">Beef Intelligence Assistant</div></div>
     <button id="bia-aovivo-bt" onclick="biaAoVivoApp()">● Ao vivo</button>
     <button class="bia-bt" id="bia-modo-bt" onclick="biaTrocarModo()" title="Tela cheia / encaixada">⤢</button>
     <button class="bia-bt" onclick="fecharBiaNoApp()" title="Fechar a Bia (encerra a conversa ao vivo)">✕</button>
   </div>
   <div id="bia-frame-wrap" style="flex:1;position:relative;min-height:0"></div>
 </div>
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.09-margens</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.09-beef</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
