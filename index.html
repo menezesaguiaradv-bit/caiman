@@ -27110,7 +27110,7 @@ body.bia-encaixada #app-ver{display:none}
 /* 09/11 22h47 (ele: "quero com o logo da empresa tambem"): a logo do Grupo Caiman Agro (creme) no lugar da bolinha,
    separada da marca BIA por um fio dourado. No celular so o touro (a logo inteira nao cabe com os botoes). */
 #bia-logo{flex:none;height:34px;overflow:hidden;display:flex;align-items:center}
-#bia-logo img{height:34px;width:auto;display:block;filter:brightness(0) invert(.96) sepia(.2)}
+#bia-logo img{height:34px;width:auto;display:block}   /* 22h52: touro em dourado fosco, nome em creme (bia-logo-dourado.png) */
 #bia-div{flex:none;width:1px;height:34px;background:linear-gradient(180deg,rgba(226,194,126,0),#E2C27E,rgba(226,194,126,0));margin:0 4px}
 #bia-logo{width:33px}#bia-logo img{max-width:none}
 @media (min-width:700px){#bia-painel.cheia #bia-logo{width:auto}}
@@ -27123,7 +27123,7 @@ body.bia-encaixada #app-ver{display:none}
 <button id="bia-fab" onclick="abrirBiaNoApp()" title="Bia · Beef Intelligence Assistant" style="display:none;position:fixed;right:14px;bottom:30px;z-index:250;width:58px;height:58px;border-radius:50%;border:2px solid #B8944F;background:radial-gradient(circle at 35% 30%,#3A6B48,#1B3524 72%);color:#F7F4EC;font-weight:800;font-size:15px;letter-spacing:.08em;box-shadow:0 6px 18px rgba(0,0,0,.25);cursor:pointer">BIA</button>
 <div id="bia-painel" class="mini">
   <div id="bia-barra">
-    <div id="bia-logo"><img src="bia-logo.png" alt="Grupo Caiman Agro"></div><div id="bia-div" aria-hidden="true"></div>
+    <div id="bia-logo"><img src="bia-logo-dourado.png" alt="Grupo Caiman Agro"></div><div id="bia-div" aria-hidden="true"></div>
     <div id="bia-marca" style="flex:1;min-width:0"><div class="bm-in"><div class="bm-bia">BIA</div><div class="bm-fio"><span></span><i>✦</i><span></span></div><div class="bm-sig"><b>B</b>eef · <b>I</b>ntelligence · <b>A</b>ssistant</div></div></div>
     <button id="bia-aovivo-bt" onclick="biaAoVivoApp()">● Ao vivo</button>
     <button class="bia-bt" id="bia-modo-bt" onclick="biaTrocarModo()" title="Tela cheia / encaixada">⤢</button>
@@ -27131,7 +27131,7 @@ body.bia-encaixada #app-ver{display:none}
   </div>
   <div id="bia-frame-wrap" style="flex:1;position:relative;min-height:0"></div>
 </div>
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.09-bia-logo</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.09-touro-dourado</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
