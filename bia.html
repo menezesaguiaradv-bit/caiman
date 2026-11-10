@@ -50,6 +50,15 @@ button{font-family:inherit;cursor:pointer}
 /* ---------- palco ---------- */
 #app{min-height:100%;display:flex;flex-direction:column;padding:env(safe-area-inset-top) 16px calc(112px + env(safe-area-inset-bottom))}
 header{display:flex;align-items:center;justify-content:space-between;height:56px}
+/* 09/11 22h28 (ele: "gostei do primeiro layout com nosso logo. Pode fazer na versao verde ... igual na segunda foto"):
+   a entrada (login e PIN) veste o verde-escuro do Caiman Gestao com dourado, como a barra da Bia no app. */
+html:not(.tema-app) #gate{--cartao:#173022;--borda:#33553D;--tx:#F7F4EC;--tx2:#E2D6B4;--tx3:#A8B79F;--dou:#D4AE62;--alerta:#F2B28C;
+  background:radial-gradient(circle at 50% 32%,#336B45 0,#23432D 34%,#142A1C 68%,#0C1A11 100%)}
+html:not(.tema-app) #gate .btg{background:linear-gradient(180deg,#DDB86C,#B8944F);color:#1B2A1F}
+html:not(.tema-app) #gate .campo{background:rgba(10,24,15,.55)}
+html:not(.tema-app) #gate .campo::placeholder{color:#8FA389}
+html:not(.tema-app) #gate .gcx img{filter:brightness(0) invert(.96) sepia(.2);opacity:.95}
+html:not(.tema-app) #gate ~ .selo{color:#7E8F78}
 /* 09/11 (ele: "faca um layout legal com esse nome na bia"): marca BIA = Beef Intelligence Assistant. As iniciais em
    dourado e o resto da palavra "abre" a partir delas na entrada; no cabecalho, a sigla em versalete embaixo do BIA. */
 .wm{margin:0 0 26px}
@@ -272,7 +281,7 @@ html.compacto #mic svg{width:24px;height:24px}
   <div class="cab"><h2 id="t-tit"></h2><button id="fechar">Fechar</button></div>
   <div id="corpo"></div>
 </div>
-<div class="selo">v2026.11.09-beef</div>
+<div class="selo">v2026.11.09-verde</div>
 
 <script>
 "use strict";
