@@ -27106,14 +27106,23 @@ body.bia-encaixada #app-ver{display:none}
 #bia-marca .bm-sig b{color:#E2C27E;font-weight:800;font-size:1.2em}
 @media (max-width:430px){#bia-aovivo-bt{padding:5px 9px;font-size:12px}#bia-barra .bia-bt{padding:5px 7px}#bia-barra{gap:6px}#bia-marca .bm-sig{font-size:7.5px;letter-spacing:.05em}#bia-marca .bm-bia{font-size:17px}}   /* 09/11: no computador (painel lateral) a sigla cabe */
 #bia-orb{width:30px;height:30px;border-radius:50%;flex:none;background:radial-gradient(circle at 40% 35%,#E9D9AE,#B8944F 45%,#23432D 75%);border:2px solid #B8944F}
-#bia-painel.ao-vivo #bia-orb{animation:biaPulso 1.4s ease-in-out infinite}
+/* 09/11 22h47 (ele: "quero com o logo da empresa tambem"): a logo do Grupo Caiman Agro (creme) no lugar da bolinha,
+   separada da marca BIA por um fio dourado. No celular so o touro (a logo inteira nao cabe com os botoes). */
+#bia-logo{flex:none;height:34px;overflow:hidden;display:flex;align-items:center}
+#bia-logo img{height:34px;width:auto;display:block;filter:brightness(0) invert(.96) sepia(.2)}
+#bia-div{flex:none;width:1px;height:34px;background:linear-gradient(180deg,rgba(226,194,126,0),#E2C27E,rgba(226,194,126,0));margin:0 4px}
+#bia-logo{width:33px}#bia-logo img{max-width:none}
+@media (min-width:700px){#bia-painel.cheia #bia-logo{width:auto}}
+@media (min-width:900px){#bia-painel.mini #bia-aovivo-bt{padding:5px 9px;font-size:12px}#bia-painel.mini .bia-bt{padding:5px 7px}#bia-painel.mini #bia-barra{gap:6px}#bia-painel.mini #bia-marca .bm-sig{font-size:7.5px;letter-spacing:.05em}#bia-painel.mini #bia-marca .bm-bia{font-size:17px}}   /* painel lateral de 400 px */   /* logo inteira so na tela cheia do computador */
+#bia-painel.ao-vivo #bia-logo{animation:biaBrilho 1.4s ease-in-out infinite}
+@keyframes biaBrilho{0%,100%{filter:none}50%{filter:drop-shadow(0 0 6px rgba(226,194,126,.9))}}
 @keyframes biaPulso{0%,100%{box-shadow:0 0 0 0 rgba(184,148,79,.6)}50%{box-shadow:0 0 0 7px rgba(184,148,79,0)}}
-@media (prefers-reduced-motion:reduce){#bia-painel.ao-vivo #bia-orb{animation:none}}
+@media (prefers-reduced-motion:reduce){#bia-painel.ao-vivo #bia-logo{animation:none}}
 </style>
 <button id="bia-fab" onclick="abrirBiaNoApp()" title="Bia · Beef Intelligence Assistant" style="display:none;position:fixed;right:14px;bottom:30px;z-index:250;width:58px;height:58px;border-radius:50%;border:2px solid #B8944F;background:radial-gradient(circle at 35% 30%,#3A6B48,#1B3524 72%);color:#F7F4EC;font-weight:800;font-size:15px;letter-spacing:.08em;box-shadow:0 6px 18px rgba(0,0,0,.25);cursor:pointer">BIA</button>
 <div id="bia-painel" class="mini">
   <div id="bia-barra">
-    <div id="bia-orb" aria-hidden="true"></div>
+    <div id="bia-logo"><img src="bia-logo.png" alt="Grupo Caiman Agro"></div><div id="bia-div" aria-hidden="true"></div>
     <div id="bia-marca" style="flex:1;min-width:0"><div class="bm-bia">BIA</div><div class="bm-fio"><span></span><i>✦</i><span></span></div><div class="bm-sig"><b>B</b>eef · <b>I</b>ntelligence · <b>A</b>ssistant</div></div>
     <button id="bia-aovivo-bt" onclick="biaAoVivoApp()">● Ao vivo</button>
     <button class="bia-bt" id="bia-modo-bt" onclick="biaTrocarModo()" title="Tela cheia / encaixada">⤢</button>
@@ -27121,7 +27130,7 @@ body.bia-encaixada #app-ver{display:none}
   </div>
   <div id="bia-frame-wrap" style="flex:1;position:relative;min-height:0"></div>
 </div>
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.09-bia-marca</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.09-bia-logo</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
