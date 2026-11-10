@@ -27093,8 +27093,18 @@ body.bia-encaixada #app-ver{display:none}
 #bia-painel.mini #bia-barra{padding:6px 8px}
 .bia-bt{border:1px solid rgba(247,244,236,.35);background:transparent;color:#F7F4EC;border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer;white-space:nowrap}
 #bia-aovivo-bt{border:2px solid #B8944F;background:#B8944F;color:#1F241F;border-radius:20px;padding:6px 13px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
-@media (max-width:899px){#bia-painel.mini .bia-sub{display:none}}
-@media (max-width:430px){#bia-aovivo-bt{padding:5px 9px;font-size:12px}#bia-barra .bia-bt{padding:5px 7px}#bia-barra{gap:6px}#bia-barra .bia-sub{font-size:7.5px!important;letter-spacing:.04em!important}}   /* 09/11: no computador (painel lateral) a sigla cabe */
+/* 09/11 22h44 (ele: "quero quando eu acessar a bia no app caiman agro esse layout. Nao a cor, mas o BIA beef inteligence
+   assistant"): a barra da Bia mostra a marca como na entrada - BIA dourado espacado, filete com estrela e a sigla com as
+   iniciais douradas - em todos os modos (encaixada, tela cheia e lateral). */
+#bia-marca{display:flex;flex-direction:column;align-items:flex-start;line-height:1}
+#bia-marca .bm-bia{font-weight:800;font-size:19px;letter-spacing:.3em;background:linear-gradient(180deg,#FFE3A1,#E8B54A 55%,#B07A1E);-webkit-background-clip:text;background-clip:text;color:transparent}
+#bia-marca .bm-fio{display:flex;align-items:center;gap:5px;width:100%;max-width:150px;margin:3px 0}
+#bia-marca .bm-fio span{flex:1;height:1px;background:linear-gradient(90deg,rgba(226,194,126,.15),#E2C27E)}
+#bia-marca .bm-fio span:last-child{background:linear-gradient(270deg,rgba(226,194,126,.15),#E2C27E)}
+#bia-marca .bm-fio i{font-style:normal;color:#E2C27E;font-size:7px}
+#bia-marca .bm-sig{font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:#E9E1C9;white-space:nowrap;font-weight:300}
+#bia-marca .bm-sig b{color:#E2C27E;font-weight:800;font-size:1.2em}
+@media (max-width:430px){#bia-aovivo-bt{padding:5px 9px;font-size:12px}#bia-barra .bia-bt{padding:5px 7px}#bia-barra{gap:6px}#bia-marca .bm-sig{font-size:7.5px;letter-spacing:.05em}#bia-marca .bm-bia{font-size:17px}}   /* 09/11: no computador (painel lateral) a sigla cabe */
 #bia-orb{width:30px;height:30px;border-radius:50%;flex:none;background:radial-gradient(circle at 40% 35%,#E9D9AE,#B8944F 45%,#23432D 75%);border:2px solid #B8944F}
 #bia-painel.ao-vivo #bia-orb{animation:biaPulso 1.4s ease-in-out infinite}
 @keyframes biaPulso{0%,100%{box-shadow:0 0 0 0 rgba(184,148,79,.6)}50%{box-shadow:0 0 0 7px rgba(184,148,79,0)}}
@@ -27104,14 +27114,14 @@ body.bia-encaixada #app-ver{display:none}
 <div id="bia-painel" class="mini">
   <div id="bia-barra">
     <div id="bia-orb" aria-hidden="true"></div>
-    <div style="flex:1;min-width:0"><div style="font-weight:800;font-size:16px;letter-spacing:.12em;line-height:1.1">BIA</div><div class="bia-sub" style="font-size:8.5px;color:#D9C9A0;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap;overflow:hidden;margin-top:3px"><b style="color:#E2C27E">B</b>eef <b style="color:#E2C27E">I</b>ntelligence <b style="color:#E2C27E">A</b>ssistant</div></div>
+    <div id="bia-marca" style="flex:1;min-width:0"><div class="bm-bia">BIA</div><div class="bm-fio"><span></span><i>✦</i><span></span></div><div class="bm-sig"><b>B</b>eef · <b>I</b>ntelligence · <b>A</b>ssistant</div></div>
     <button id="bia-aovivo-bt" onclick="biaAoVivoApp()">● Ao vivo</button>
     <button class="bia-bt" id="bia-modo-bt" onclick="biaTrocarModo()" title="Tela cheia / encaixada">⤢</button>
     <button class="bia-bt" onclick="fecharBiaNoApp()" title="Fechar a Bia (encerra a conversa ao vivo)">✕</button>
   </div>
   <div id="bia-frame-wrap" style="flex:1;position:relative;min-height:0"></div>
 </div>
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.09-bia-verde-escuro</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.09-bia-marca</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
