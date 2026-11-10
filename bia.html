@@ -160,36 +160,45 @@ header img{height:22px;filter:brightness(0) invert(.94) sepia(.15);opacity:.55}
 /* ---------- 08/11 (ele: "coloque o app da bia dentro do aplicativo ... mantenha o layout do app, mesmas cores do nosso
    app verde"): com ?tema=app a pagina veste as cores do Caiman Gestao (verde-escuro, creme e dourado). O site da Bia
    e o app Android continuam vermelho e dourado. ---------- */
-/* 09/11 22h31 (ele: "otimo. Agora quero esse layout quando utilizar no app"): dentro do app a Bia passa do creme para o
-   VERDE-ESCURO da entrada nova (verde-musgo quase preto, dourado e creme), com a logo e a marca BIA em cima do nucleo. */
-html.tema-app{--vd:#2F6B45;--dou:#D4AE62;--cre:#F7F4EC;--fundo:#0B170F;--fundo2:#10211A;--cartao:#12261A;--borda:#284A33;
-  --tx:#F7F4EC;--tx2:#DCD2B6;--tx3:#9CAE97;--linha-dia:#D4AE62;--linha-acum:#6FBF8A;--alerta:#F2B28C}
-html.tema-app,html.tema-app body{background:radial-gradient(circle at 50% 22%,#24472F 0,#183222 30%,#0D1D13 62%,#07110A 100%) fixed;background-color:#0B170F}
-html.tema-app #gate{background:radial-gradient(circle at 50% 32%,#24472F 0,#183222 34%,#0D1D13 68%,#07110A 100%)}
-html.tema-app .gcx img,html.tema-app #marca-app img{filter:brightness(0) invert(.96) sepia(.2);opacity:.95}
-html.tema-app .btg{background:linear-gradient(180deg,#DDB86C,#B8944F);color:#1B2A1F}
-html.tema-app .campo{background:rgba(6,16,10,.6)}
-html.tema-app .hbt{background:rgba(6,16,10,.5);color:var(--tx2)}
-html.tema-app #estado{color:var(--dou);font-weight:600}
-html.tema-app .tile{background:linear-gradient(160deg,#12261A,#0C1A11)}
-html.tema-app .tile.ativo{border-color:var(--dou);box-shadow:0 0 0 1px var(--dou),0 0 24px rgba(212,174,98,.25)}
-html.tema-app #barra{background:linear-gradient(0deg,#07110A 70%,rgba(7,17,10,0))}
-html.tema-app #mic{background:linear-gradient(180deg,#DDB86C,#B8944F);border-color:#B8944F;color:#1B2A1F}
-html.tema-app #mic.ouvindo{background:#2F6B45;color:#F7F4EC;box-shadow:0 0 0 8px rgba(212,174,98,.22)}
-html.tema-app .rnd{background:rgba(6,16,10,.6);color:var(--tx2)}
-html.tema-app .tab td,html.tema-app .chk li{border-bottom-color:#1E3A28}
-html.tema-app .dica{background:#0E1E14;color:var(--tx)}
-html.tema-app .graf svg line[stroke="#2E1212"]{stroke:#1E3A28}
-html.tema-app .graf svg line[stroke="#6B3A36"]{stroke:#8A7240}
-/* marca em cima do nucleo (so na tela cheia; encaixada no celular fica so o nucleo e a fala) */
+html.tema-app{--vd:#23432D;--dou:#B8944F;--cre:#F7F4EC;--fundo:#F7F4EC;--fundo2:#EFEADB;--cartao:#FFFEFA;--borda:#E3DCC8;
+  --tx:#1F241F;--tx2:#4A4F45;--tx3:#7A7668;--linha-dia:#23432D;--linha-acum:#B8944F;--alerta:#A32D2D}
+html.tema-app #gate{background:var(--fundo)}
+html.tema-app .gcx img{filter:none;opacity:1}
+html.tema-app #g-login h1,html.tema-app .hmarca b{background:none;-webkit-background-clip:initial;background-clip:initial;color:#23432D;text-shadow:none}
+html.tema-app .btg{background:#23432D;color:#F7F4EC}
+html.tema-app header img{filter:none;opacity:1;height:24px}
+html.tema-app #aovivo{border-color:#23432D;color:#23432D;background:#fff}
+html.tema-app #aovivo.on{background:#23432D;color:#F7F4EC;border-color:#23432D;box-shadow:0 0 0 4px rgba(35,67,45,.18)}
+html.tema-app .hbt{background:#fff;color:#23432D}
+html.tema-app #estado{color:#23432D;font-weight:600}
+html.tema-app .tile{background:#FFFEFA;box-shadow:0 1px 2px rgba(35,67,45,.06)}
+html.tema-app .tile::before{background:#23432D;opacity:1}
+html.tema-app .tile.ativo{border-color:#23432D;box-shadow:0 0 0 1px #23432D}
+html.tema-app #barra{background:linear-gradient(0deg,var(--fundo) 70%,rgba(247,244,236,0))}
+html.tema-app #mic{background:#23432D;border-color:#B8944F;color:#F7F4EC}
+html.tema-app #mic.ouvindo{background:#B8944F;color:#fff;box-shadow:0 0 0 8px rgba(184,148,79,.22)}
+html.tema-app .rnd{background:#fff;color:#23432D}
+html.tema-app #fechar{border-color:#23432D;color:#23432D;background:#fff}
+html.tema-app .sec{color:#23432D;font-weight:700}
+html.tema-app .card.foco{border-color:#23432D;box-shadow:0 0 0 1px #23432D}
+html.tema-app .tab td,html.tema-app .chk li{border-bottom-color:#EFE8D6}
+html.tema-app .chk li::before{border-color:#23432D}
+html.tema-app .dica{background:#fff;color:#1F241F;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+html.tema-app .graf svg text{fill:#7A7668}
+html.tema-app .graf svg line[stroke="#2E1212"]{stroke:#EDE6D3}
+html.tema-app .graf svg line[stroke="#6B3A36"]{stroke:#B8944F}
+/* 09/11 22h58 (ele: "quero o fundo creme, como estava antes"): volta o creme do app; fica so a marca em cima do nucleo -
+   logo original, BIA verde-escuro, filete e iniciais em dourado. */
 #marca-app{display:none}
 html.tema-app #marca-app{display:block;text-align:center;margin:4px 0 6px}
-html.tema-app #marca-app img{width:150px;max-width:46%;margin-bottom:8px}
-html.tema-app #marca-app .wm h1{font-weight:800;font-size:30px;margin:0;letter-spacing:.32em;padding-left:.32em;background:linear-gradient(180deg,#FFE3A1,#E8B54A 55%,#B07A1E);-webkit-background-clip:text;background-clip:text;color:transparent}
+html.tema-app #marca-app img{width:150px;max-width:46%;margin-bottom:8px;filter:none;opacity:1}
 html.tema-app #marca-app .wm{margin:0}
+html.tema-app #marca-app .wm h1{font-weight:800;font-size:30px;margin:0;letter-spacing:.32em;padding-left:.32em;color:#23432D}
 html.tema-app #marca-app .wm-linha{margin:2px auto 6px;width:min(200px,60%)}
-html.tema-app #marca-app .wm-sig{font-size:clamp(10px,3vw,12px);color:var(--tx2)}
-html.tema-app #marca-app .wm-sig b{color:var(--dou)}
+html.tema-app #marca-app .wm-sig{font-size:clamp(10px,3vw,12px);color:#23432D;font-weight:400}
+html.tema-app #marca-app .wm-sig b,html.tema-app #marca-app .wm-pt,html.tema-app .wm-linha i{color:#B8944F}
+html.tema-app .wm-linha span{background:linear-gradient(90deg,transparent,#B8944F)}
+html.tema-app .wm-linha span:last-child{background:linear-gradient(270deg,transparent,#B8944F)}
 html.compacto #marca-app{display:none!important}
 html.tema-app .selo{display:none}
 /* no app a barra verde de cima ja tem o nome e o "Falar ao vivo": tira os repetidos */
@@ -285,7 +294,7 @@ html.compacto #mic svg{width:24px;height:24px}
   <div class="cab"><h2 id="t-tit"></h2><button id="fechar">Fechar</button></div>
   <div id="corpo"></div>
 </div>
-<div class="selo">v2026.11.09-verde-app</div>
+<div class="selo">v2026.11.09-creme-marca</div>
 
 <script>
 "use strict";
@@ -588,19 +597,19 @@ function quadro(t){
   const vel=calmo?0:(ESTADO==="pensando"?3.2:ESTADO==="ouvindo"?1.6:1);
   const rot=t/6000*vel;
   const TA=document.documentElement.classList.contains("tema-app");   /* 08/11: nucleo nas cores do app (verde e dourado) */
-  const corA=TA?(ESTADO==="ouvindo"?"247,244,236":"212,174,98"):(ESTADO==="ouvindo"?"255,244,220":"232,181,74");
+  const corA=TA?(ESTADO==="ouvindo"?"35,67,45":"184,148,79"):(ESTADO==="ouvindo"?"255,244,220":"232,181,74");
   /* brilho central */
   const rb=R*(.30+.12*nivel);
   const g=ctx.createRadialGradient(cx,cy,0,cx,cy,rb*1.9);
-  g.addColorStop(0,"rgba("+corA+","+(.55+.35*nivel)+")");g.addColorStop(.35,TA?"rgba(47,107,69,.6)":"rgba(158,27,27,.6)");g.addColorStop(1,TA?"rgba(7,17,10,0)":"rgba(14,5,5,0)");
+  g.addColorStop(0,"rgba("+corA+","+(.55+.35*nivel)+")");g.addColorStop(.35,TA?"rgba(35,67,45,.35)":"rgba(158,27,27,.6)");g.addColorStop(1,TA?"rgba(247,244,236,0)":"rgba(14,5,5,0)");
   ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,rb*1.9,0,Math.PI*2);ctx.fill();
   ctx.strokeStyle="rgba("+corA+",.9)";ctx.lineWidth=R*.012;ctx.beginPath();ctx.arc(cx,cy,rb,0,Math.PI*2);ctx.stroke();
   /* aneis com segmentos */
   const aneis=[[.52,8,.08,1],[.64,3,.42,-.6],[.76,24,.025,.35],[.88,2,.62,-.25]];
   aneis.forEach(([f,n,arco,sent],k)=>{
     const r=R*f*(1+.04*nivel*(k%2?1:-1));
-    ctx.strokeStyle=k%2?(TA?"rgba(64,140,92,.95)":"rgba(176,30,30,.95)"):(TA?"rgba(212,174,98,":"rgba(232,181,74,")+(.35+.4*nivel)+")";
-    if(k===1)ctx.strokeStyle=TA?"rgba(111,191,138,.6)":"rgba(224,69,58,.6)";
+    ctx.strokeStyle=k%2?(TA?"rgba(35,67,45,.9)":"rgba(176,30,30,.95)"):(TA?"rgba(184,148,79,":"rgba(232,181,74,")+(.35+.4*nivel)+")";
+    if(k===1)ctx.strokeStyle=TA?"rgba(110,139,94,.6)":"rgba(224,69,58,.6)";
     ctx.lineWidth=R*(k===2?.02:.008);
     for(let i=0;i<n;i++){const a=rot*sent*(ESTADO==="pensando"?2:1)+i*Math.PI*2/n;ctx.beginPath();ctx.arc(cx,cy,r,a,a+arco*Math.PI*2);ctx.stroke();}
   });
@@ -611,7 +620,7 @@ function quadro(t){
     ctx.closePath();ctx.stroke();
   }
   /* marcas finas do mostrador */
-  ctx.strokeStyle=TA?"rgba(247,244,236,.18)":"rgba(255,228,180,.2)";ctx.lineWidth=1;
+  ctx.strokeStyle=TA?"rgba(35,67,45,.2)":"rgba(255,228,180,.2)";ctx.lineWidth=1;
   for(let i=0;i<72;i++){const a=i/72*Math.PI*2+rot*.2,r1=R*.95,r2=R*(i%6?.93:.9);ctx.beginPath();ctx.moveTo(cx+r1*Math.cos(a),cy+r1*Math.sin(a));ctx.lineTo(cx+r2*Math.cos(a),cy+r2*Math.sin(a));ctx.stroke();}
   requestAnimationFrame(quadro);
 }
