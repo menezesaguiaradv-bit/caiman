@@ -27096,9 +27096,10 @@ body.bia-encaixada #app-ver{display:none}
 /* 09/11 22h44 (ele: "quero quando eu acessar a bia no app caiman agro esse layout. Nao a cor, mas o BIA beef inteligence
    assistant"): a barra da Bia mostra a marca como na entrada - BIA dourado espacado, filete com estrela e a sigla com as
    iniciais douradas - em todos os modos (encaixada, tela cheia e lateral). */
-#bia-marca{display:flex;flex-direction:column;align-items:flex-start;line-height:1}
-#bia-marca .bm-bia{font-weight:800;font-size:19px;letter-spacing:.3em;background:linear-gradient(180deg,#FFE3A1,#E8B54A 55%,#B07A1E);-webkit-background-clip:text;background-clip:text;color:transparent}
-#bia-marca .bm-fio{display:flex;align-items:center;gap:5px;width:100%;max-width:150px;margin:3px 0}
+#bia-marca{display:flex;line-height:1}
+#bia-marca .bm-in{display:inline-flex;flex-direction:column;align-items:center}   /* 22h49 (ele: "bia tem que estar centralizado com o ponto") */
+#bia-marca .bm-bia{font-weight:800;font-size:19px;letter-spacing:.3em;padding-left:.3em;background:linear-gradient(180deg,#FFE3A1,#E8B54A 55%,#B07A1E);-webkit-background-clip:text;background-clip:text;color:transparent}
+#bia-marca .bm-fio{display:flex;align-items:center;gap:5px;width:100%;margin:3px 0}
 #bia-marca .bm-fio span{flex:1;height:1px;background:linear-gradient(90deg,rgba(226,194,126,.15),#E2C27E)}
 #bia-marca .bm-fio span:last-child{background:linear-gradient(270deg,rgba(226,194,126,.15),#E2C27E)}
 #bia-marca .bm-fio i{font-style:normal;color:#E2C27E;font-size:7px}
@@ -27123,7 +27124,7 @@ body.bia-encaixada #app-ver{display:none}
 <div id="bia-painel" class="mini">
   <div id="bia-barra">
     <div id="bia-logo"><img src="bia-logo.png" alt="Grupo Caiman Agro"></div><div id="bia-div" aria-hidden="true"></div>
-    <div id="bia-marca" style="flex:1;min-width:0"><div class="bm-bia">BIA</div><div class="bm-fio"><span></span><i>✦</i><span></span></div><div class="bm-sig"><b>B</b>eef · <b>I</b>ntelligence · <b>A</b>ssistant</div></div>
+    <div id="bia-marca" style="flex:1;min-width:0"><div class="bm-in"><div class="bm-bia">BIA</div><div class="bm-fio"><span></span><i>✦</i><span></span></div><div class="bm-sig"><b>B</b>eef · <b>I</b>ntelligence · <b>A</b>ssistant</div></div></div>
     <button id="bia-aovivo-bt" onclick="biaAoVivoApp()">● Ao vivo</button>
     <button class="bia-bt" id="bia-modo-bt" onclick="biaTrocarModo()" title="Tela cheia / encaixada">⤢</button>
     <button class="bia-bt" onclick="fecharBiaNoApp()" title="Fechar a Bia (encerra a conversa ao vivo)">✕</button>
