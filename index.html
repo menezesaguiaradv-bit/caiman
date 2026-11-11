@@ -10451,6 +10451,27 @@ function faseNoDia(diasCocho,cfg){
 function faseDoLote(l,dataStr,cfg){
   const d=diasEntre(l.dtE,dataStr);
   const f=faseNoDia(d,cfg);
+  /* 11/11: datas de virada confirmadas no Saicon (l.faseDatas = {cre:"AAAA-MM-DD",
+     fin:"..."}) mandam sobre o calendario - "la e o que conta". A partir da
+     ultima virada gravada, as fases seguintes andam pela duracao configurada. */
+  const fd=l&&l.faseDatas;
+  if(fd&&dataStr){
+    const ORDf=["ad1","ad2","ad3","cre","fin"];
+    let k=null,dt=null;
+    ORDf.forEach(x=>{if(fd[x]&&fd[x]<=dataStr&&(!dt||fd[x]>=dt)){k=x;dt=fd[x];}});
+    if(k){
+      let resto=diasEntre(dt,dataStr);
+      /* nao passa de uma virada gravada que ainda nao chegou: o Saicon pode ter
+         segurado a fase alem da duracao (B1-B3: crescimento 21/10 a 10/11). */
+      while(k!=="fin"&&resto>=(cfg.fases[k]||0)){const nx=ORDf[ORDf.indexOf(k)+1];if(fd[nx]&&fd[nx]>dataStr)break;resto-=(cfg.fases[k]||0);k=nx;}
+      if(k!=="fin"&&resto>=(cfg.fases[k]||0)){const fx0=faseNoDia({ad1:0,ad2:cfg.fases.ad1,ad3:cfg.fases.ad1+cfg.fases.ad2,cre:cfg.fases.ad1+cfg.fases.ad2+cfg.fases.ad3}[k],cfg);return Object.assign({},fx0,{dia:f.dia,fim:diasEntre(l.dtE,fd[ORDf[ORDf.indexOf(k)+1]]),viradaSaicon:true,segurada:true,segurarAte:fd[ORDf[ORDf.indexOf(k)+1]]});}
+      const base={ad1:0,ad2:cfg.fases.ad1,ad3:cfg.fases.ad1+cfg.fases.ad2,cre:cfg.fases.ad1+cfg.fases.ad2+cfg.fases.ad3,fin:cfg.fases.ad1+cfg.fases.ad2+cfg.fases.ad3+cfg.fases.cre}[k];
+      const fx=faseNoDia(base+resto,cfg);
+      const nxt=k==="fin"?null:fd[ORDf[ORDf.indexOf(k)+1]];
+      const fimS=(nxt&&nxt>dataStr)?diasEntre(l.dtE,nxt):(fx.fim==null?null:d+(fx.fim-(base+resto)));
+      return Object.assign({},fx,{dia:f.dia,fim:fimS,viradaSaicon:true});
+    }
+  }
   const ate=l&&l.segurarFaseAte;
   if(!ate||!dataStr)return f;
 
@@ -27131,7 +27152,7 @@ body.bia-encaixada #app-ver{display:none}
   </div>
   <div id="bia-frame-wrap" style="flex:1;position:relative;min-height:0"></div>
 </div>
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.09-bia-creme</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.11-fases-saicon</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
