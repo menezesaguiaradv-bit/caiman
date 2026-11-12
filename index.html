@@ -8101,7 +8101,7 @@ function renderLotesConf(tipoManejo,containerId){
     <div class="lcard ativo" data-lote-id="${l.id}">
       <div class="lchead">
         <div style="display:flex;align-items:flex-start;gap:8px">${_alcaLote()}<input type="checkbox" class="sel-lote sel-${tipoManejo}" data-id="${l.id}" onchange="atualizarSelecao('${tipoManejo}')" onclick="event.stopPropagation()" style="margin-top:6px;width:16px;height:16px;cursor:pointer"><div><h3><span class="sbadge sativo">● ATIVO</span><span class="tag tf">${l.fazenda}</span>&nbsp;${_loc(l)} ${l.pasto}${l.numLote?" · Lote "+l.numLote:""}${l.produtor?" — "+l.produtor:""}</h3>
-        <p>${l.qtd?l.qtd+" animais · ":""}Entrada: ${fmtData(l.dtE)}${l.dtE?" · "+diasEntre(l.dtE,todayStr())+" dias":""}${(function(){const _a=dataAbatePrevista(l);if(_a&&_a.data){const _f=diasEntre(todayStr(),_a.data);return ` · <b style="color:var(--v)">Abate previsto: ${fmtData(_a.data)}</b>${_f>0?` <span style="color:#999">(faltam ${_f} dias)</span>`:(_f<0?` <span style="color:#C62828">(passou ${-_f} dias)</span>`:"")}`;}return ` · <a href="#" onclick="event.preventDefault();event.stopPropagation();abrirEditLote(${l.id})" style="color:#E65100;font-weight:600">definir data de abate</a>`;})()}</p></div></div>
+        <p>${l.qtd?l.qtd+" animais · ":""}Entrada: ${fmtData(l.dtE)}${l.dtE?" · "+diasEntre(l.dtE,todayStr())+" dias":""}${(function(){const _a=dataAbatePrevista(l);if(_a&&_a.data){const _f=diasEntre(todayStr(),_a.data);return ` · <b style="color:var(--v)">Abate previsto: ${fmtData(_a.data)}</b>${_f>0?` <span style="color:#999">(faltam ${_f} dias)</span>`:(_f<0?` <span style="color:#C62828">(passou ${-_f} dias)</span>`:"")}${_abTratosHtml(l)}`;}return ` · <a href="#" onclick="event.preventDefault();event.stopPropagation();abrirEditLote(${l.id})" style="color:#E65100;font-weight:600">definir data de abate</a>`;})()}</p></div></div>
         <div style="display:flex;gap:6px">
           <div class="menu-acoes">
             <button class="menu-btn" onclick="toggleMenuAcoes('conf-${l.id}',event)" title="Ações">⋮</button>
@@ -9594,6 +9594,29 @@ async function _custoConfCarregar(){
   }catch(e){console.warn("custo conf:",e);}
 }
 setTimeout(function(){_custoConfCarregar();},4000);
+/* 12/11 (ele: "a previsao de abate conforme vai colocando os tratos la [planilha do Toninho], verifique e copie" /
+   "quando vai preenchendo os tratos ate o GMD muda"): a planilha com "GMD projetado = NAO" calcula o GMD pelo consumo
+   REAL de energia (Mcal/cab/dia medio desde a entrada / peso medio ate hoje) e a data de abate anda a cada trato.
+   A conta vem da Bia (?abate_json=1, a mesma do relatorio de megacaloria) e aparece no card de cada curral. */
+var _abTratos={};
+async function _abTratosCarregar(){
+  try{
+    if(!SB_URL)return;
+    const h=await _hdrAuth(); delete h["Content-Type"];
+    const r=await fetch(SB_URL.replace(/\/+$/,"")+"/functions/v1/Bia?abate_json=1",{headers:h});
+    const j=await r.json().catch(function(){return null;});
+    if(j&&j.ok){var m={};(j.lotes||[]).forEach(function(x){if(x&&x.curral)m[String(x.curral).toUpperCase()]=x;});_abTratos=m;
+      try{if(document.getElementById("lista-conf-ativos")&&document.getElementById("lista-conf-ativos").offsetParent)renderLotesConf();}catch(e){}}
+  }catch(e){console.warn("abate pelos tratos:",e);}
+}
+function _abTratosHtml(l){
+  var x=l&&_abTratos[String(l.pasto||"").toUpperCase()];
+  if(!x||!x.dataReal)return "";
+  var d=diasEntre(x.dataMeta||x.dataReal,x.dataReal), dd=(x.dataMeta&&x.dataReal<x.dataMeta)?-diasEntre(x.dataReal,x.dataMeta):d;
+  return ' · <span title="Planilha do zootecnista, GMD pelo consumo real dos tratos (Mcal '+(+x.mcalReal).toFixed(1)+'/cab/dia)" style="color:#B8944F;font-weight:600">pelos tratos: '+fmtData(x.dataReal)+' · GMD '+(+x.gmdReal).toFixed(2)+(dd?' <span style="color:#999">('+(dd>0?"+":"")+dd+' d)</span>':'')+'</span>';
+}
+setTimeout(function(){_abTratosCarregar();},5000);
+setInterval(function(){_abTratosCarregar();},30*60e3);
 setInterval(function(){_custoConfCarregar();},60*60e3);
 async function _estBiaCarregar(){
   if(_estBiaBusy)return; _estBiaBusy=true;
@@ -27152,7 +27175,7 @@ body.bia-encaixada #app-ver{display:none}
   </div>
   <div id="bia-frame-wrap" style="flex:1;position:relative;min-height:0"></div>
 </div>
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.11-fases-saicon</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.12-abate-tratos</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
