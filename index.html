@@ -9615,8 +9615,17 @@ async function _abTratosCarregar(){
       try{if(document.getElementById("lista-conf-ativos")&&document.getElementById("lista-conf-ativos").offsetParent)renderLotesConf();}catch(e){}}
   }catch(e){console.warn("abate pelos tratos:",e);}
 }
+/* 12/11 20h38 (ele: "quero que esse GMD atualizado apareca tambem em cada curral"): GMD pelos tratos (planilha do
+   Toninho) - o gravado no lote pela Bia as 20h; se ainda nao gravou, o que veio na leitura ?abate_json */
+function gmdTratosLote(l){
+  if(!l)return null;
+  if(l.dtAbateFonte==="tratos"&&parseFloat(l.gmdP)>0)return parseFloat(l.gmdP);
+  var x=_abTratos[String(l.pasto||"").toUpperCase()];
+  return x&&+x.gmdReal>0?+x.gmdReal:null;
+}
 function _abTratosHtml(l){
   var x=l&&_abTratos[String(l.pasto||"").toUpperCase()];
+  if(l&&l.dtAbateFonte==="tratos"){var g0=gmdTratosLote(l);return g0?' · <span title="GMD pelo consumo real dos tratos (planilha do zootecnista), atualizado todo dia as 20h" style="color:#B8944F;font-weight:700">GMD '+g0.toFixed(2).replace(".",",")+' kg/dia</span>':"";}
   if(!x||!x.dataReal)return "";
   var d=diasEntre(x.dataMeta||x.dataReal,x.dataReal), dd=(x.dataMeta&&x.dataReal<x.dataMeta)?-diasEntre(x.dataReal,x.dataMeta):d;
   return ' · <span title="Planilha do zootecnista, GMD pelo consumo real dos tratos (Mcal '+(+x.mcalReal).toFixed(1)+'/cab/dia)" style="color:#B8944F;font-weight:600">pelos tratos: '+fmtData(x.dataReal)+' · GMD '+(+x.gmdReal).toFixed(2)+(dd?' <span style="color:#999">('+(dd>0?"+":"")+dd+' d)</span>':'')+'</span>';
@@ -24247,7 +24256,7 @@ function _pcBlocoCurral(L,lt,parte){
   function it(r,v){return '<div style="flex:1;min-width:96px;text-align:center"><div style="font-size:10px;color:#7A7668;text-transform:uppercase">'+r+'</div><div style="font-size:14px;font-weight:700;color:#1f241f">'+v+'</div></div>';}
   h+='<div style="background:#F7F4EC;border:1px solid '+BD+';border-left:4px solid '+V+';border-radius:8px;padding:10px 12px;margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:'+V+';margin-bottom:6px">Lote · Confinamento</div><div style="display:flex;gap:12px 8px;flex-wrap:wrap;justify-content:space-around">'+
     it("Cabeças",(parseInt(lt.qtd)||0).toLocaleString("pt-BR"))+it("Entrada",(lt.dtE?fmtData(lt.dtE):"—")+((lt.pesoE||lt.peso)?" · "+(+(lt.pesoE||lt.peso)).toFixed(0)+" kg":""))+
-    it("Dias de cocho",dias!=null?dias:"—")+(function(){var pp=null;try{pp=pesoProjetadoLoteEm(lt,hoje);}catch(e){}return it("Peso projetado hoje",pp?Math.round(pp).toLocaleString("pt-BR")+" kg":"—");})()+it("Abate previsto",ab&&ab.data?fmtData(ab.data):"—")+it("Meta % PV",(lt.metaPV>0?lt.metaPV:2.26).toLocaleString("pt-BR")+"%")+'</div></div>';
+    it("Dias de cocho",dias!=null?dias:"—")+(function(){var pp=null;try{pp=pesoProjetadoLoteEm(lt,hoje);}catch(e){}return it("Peso projetado hoje",pp?Math.round(pp).toLocaleString("pt-BR")+" kg":"—");})()+(function(){var g=gmdTratosLote(lt);return it("GMD pelos tratos",g?g.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+" kg/dia":"—");})()+it("Abate previsto",ab&&ab.data?fmtData(ab.data):"—")+it("Meta % PV",(lt.metaPV>0?lt.metaPV:2.26).toLocaleString("pt-BR")+"%")+'</div></div>';
   h+=_pcAvisoAbate(lt);
   try{h+=_pcAvisoCab(lt);}catch(e){console.warn("aviso cabecas:",e);}
   /* 14 dias: MS/cab e %PV (ncxSerie) e energia (_dadosTratosDia), mais a nota de cada dia */
@@ -27181,7 +27190,7 @@ body.bia-encaixada #app-ver{display:none}
   </div>
   <div id="bia-frame-wrap" style="flex:1;position:relative;min-height:0"></div>
 </div>
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.12-abate-20h</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.12-gmd-curral</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
