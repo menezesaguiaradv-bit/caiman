@@ -7707,7 +7707,13 @@ function gmdPorTipo(tipo){
 /* 19/10/2026 (ele: "o gmd projetado e 1.4 para todos" no confinamento): igual a Friday (GMD_PROJ_CONF) */
 const GMD_PROJ_CONF=1.4;
 function gmdDoLote(l){
-  if(l&&l.tipo==="Confinamento")return GMD_PROJ_CONF;
+  /* 12/11 (ele: "no outro dia ja sabemos o peso projetado e a data prevista de abate atualizada"): no confinamento,
+     quando a Bia gravou o GMD pelos tratos (planilha do Toninho, GMD projetado = NAO; dtAbateFonte "tratos", todo dia
+     as 20h), o peso projetado usa esse GMD; sem ele, o 1,4 padrao. */
+  if(l&&l.tipo==="Confinamento"){
+    if(l.dtAbateFonte==="tratos"&&parseFloat(l.gmdP)>0)return parseFloat(l.gmdP);
+    return GMD_PROJ_CONF;
+  }
   // GMD do lote: usa o gmdP cadastrado se valido, senao o padrao do tipo
   if(l&&l.gmdP!==undefined&&l.gmdP!==null&&l.gmdP!==""&&!isNaN(parseFloat(l.gmdP))&&parseFloat(l.gmdP)>0){
     return parseFloat(l.gmdP);
@@ -27175,7 +27181,7 @@ body.bia-encaixada #app-ver{display:none}
   </div>
   <div id="bia-frame-wrap" style="flex:1;position:relative;min-height:0"></div>
 </div>
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.12-abate-tratos</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.12-abate-20h</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
