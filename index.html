@@ -3148,7 +3148,7 @@ function _weightInfo(l){
   const measured=last?Number(last.peso):Number(l.pesoE||l.peso)||null;
   const date=last?last.data:l.dtE;
   const days=date?diasEntre(date,today):NaN;
-  const gmd=l.tipo==="Confinamento"?GMD_PROJ_CONF:Number(l.gmdP??l.gmd??((_ehCochoQualquer(l.tipo))?1.2:gmdSazonal()));
+  const gmd=l.tipo==="Confinamento"?gmdDoLote(l):Number(l.gmdP??l.gmd??((_ehCochoQualquer(l.tipo))?1.2:gmdSazonal()));
   return {measured,date,source:last?"Pesagem":"Entrada",projected:measured>0&&date<=today&&Number.isFinite(days)&&days>=0&&Number.isFinite(gmd)?measured+gmd*days:null};
 }
 function _alertConfig(farm,type){
@@ -8239,7 +8239,7 @@ function confirmarEnc(){
     let pesoSaida=pvEmb||0;
     if(!pesoSaida&&at>0&&rend>0)pesoSaida=(at*15)/rend;
     // GMD real: última pesagem do lote, senão projetado
-    let gmd=l.tipo==="Confinamento"?GMD_PROJ_CONF:(l.gmdP||0),gmdReal=false;
+    let gmd=l.tipo==="Confinamento"?gmdDoLote(l):(l.gmdP||0),gmdReal=false;
     const pesagens=(typeof getPesagens==="function")?getPesagens():[];
     const pesL=pesagens.filter(function(p){return String(p.loteId)===String(l.id)&&p.peso>0;}).sort(function(a,b){return a.data.localeCompare(b.data);});
     if(pesL.length&&l.pesoE>0){
@@ -8273,7 +8273,7 @@ function confirmarEnc(){
     const varConsumo=projKg>0?((kgRealTot-projKg)/projKg)*100:0;
     fechamento={
       pesoSaida:+pesoSaida.toFixed(1),ganho:+ganho.toFixed(1),gmd:+gmd.toFixed(3),gmdReal:gmdReal,gmdFonte:gmdFonte,
-      gmdProj:(l.tipo==="Confinamento"?GMD_PROJ_CONF:(+l.gmdP||null)),gmdEner:(gmdEner!=null?+gmdEner.toFixed(3):null),
+      gmdProj:(l.tipo==="Confinamento"?gmdDoLote(l):(+l.gmdP||null)),gmdEner:(gmdEner!=null?+gmdEner.toFixed(3):null),
       rend:+(rend*100).toFixed(1),arrobasCab:+arrobas.toFixed(2),arrobasLote:+(arrobas*qtd).toFixed(1),
       msCabDia:(dias>0?+(msCab/dias).toFixed(2):0),msCabTot:+msCab.toFixed(0),
       convAlim:+ca.toFixed(2),msArroba:+msArroba.toFixed(1),
@@ -11526,7 +11526,7 @@ function renderEficienciaConf(){
       diasGmd=l.dtE?diasEntre(l.dtE,ult.data):diasCocho;
       if(diasGmd>0&&pesoE>0){gmd=(pesoAtual-pesoE)/diasGmd;gmdEhReal=true;}
     }
-    if(!gmdEhReal){gmd=l.tipo==="Confinamento"?GMD_PROJ_CONF:(l.gmdP||0);pesoAtual=pesoE+gmd*diasCocho;}
+    if(!gmdEhReal){gmd=l.tipo==="Confinamento"?gmdDoLote(l):(l.gmdP||0);pesoAtual=pesoE+gmd*diasCocho;}
 
     // consumo e custo realizados (tratos do lote)
     let msTotal=0,custoTotal=0;
@@ -18205,7 +18205,7 @@ function renderPesagensLotes(){
         }
       }
     }
-    const gmdProj=l.tipo==="Confinamento"?GMD_PROJ_CONF:(l.gmdP||l.gmd||1.2);
+    const gmdProj=l.tipo==="Confinamento"?gmdDoLote(l):(l.gmdP||l.gmd||1.2);
     const gmdCor=gmdReal>=gmdProj?"var(--v)":(gmdReal>0?"#C62828":"#888");
     const gmdIcon=gmdReal>=gmdProj?"▲":(gmdReal>0?"▼":"—");
     
@@ -22005,7 +22005,7 @@ function gerarAlertas(){
       const diasP=Math.floor((new Date(ult.data)-dtE)/86400000);
       if(diasP>0){
         const gmdReal=(ult.peso-(l.peso||l.pesoE||0))/diasP;
-        const gmdProj=l.tipo==="Confinamento"?GMD_PROJ_CONF:(l.gmdP||l.gmd||1.2);
+        const gmdProj=l.tipo==="Confinamento"?gmdDoLote(l):(l.gmdP||l.gmd||1.2);
         if(Number.isFinite(gmdReal)&&Number(ult.peso)>0&&gmdProj>0&&gmdReal<gmdProj*(1-cfg.gmd/100)){
           alertas.push({tipo:"gmd",cor:"#C62828",icone:"gmd",
             titulo:nomeL,texto:"GMD real "+gmdReal.toFixed(3)+" kg — abaixo do projetado ("+gmdProj.toFixed(3)+")"});
@@ -22262,7 +22262,7 @@ function atualizarProjecao(){
     
     // Peso saída projetado
     const pesoE=l.peso||l.pesoE||0;
-    const gmd=l.tipo==="Confinamento"?GMD_PROJ_CONF:(l.gmdP||l.gmd||1.2);
+    const gmd=l.tipo==="Confinamento"?gmdDoLote(l):(l.gmdP||l.gmd||1.2);
     const pesoSaida=pesoE+(gmd*dias);
     const arrobas=(pesoSaida*rend)/15;
     // Se o lote já foi vendido, usa o VALOR REAL recebido (já é a metade do usuário).
@@ -23205,7 +23205,7 @@ function _abateSnap(l,dataAbate){
     var ab=null;try{ab=dataAbatePrevista(l);}catch(e){}
     var prev=(ab&&ab.data)||l.dtAbate||"",rend=(+l.rendVis||+l.rend||56.5);
     var pp=null;try{pp=prev?pesoProjetadoLoteEm(l,prev):null;}catch(e){}
-    s.lote={qtd:+l.qtd||0,pesoE:+l.pesoE||0,dtE:l.dtE||"",dtAbatePrev:prev,rend:rend,gmdProj:(typeof GMD_PROJ_CONF!=="undefined"?GMD_PROJ_CONF:null),
+    s.lote={qtd:+l.qtd||0,pesoE:+l.pesoE||0,dtE:l.dtE||"",dtAbatePrev:prev,rend:rend,gmdProj:gmdDoLote(l),
       pesoSaidaProj:pp?+(+pp).toFixed(1):null,atProj:pp?+(pp*rend/100/15).toFixed(2):null,
       custoBoi:+l.custoBoi||0,cNutri:+l.cNutri||0,cOp:+l.cOp||0,precoV:+l.precoV||0,produtor:l.produtor||"",numLote:l.numLote||""};
   }catch(e){}
@@ -23595,7 +23595,7 @@ function _acCustoArrHoje(l,ab){
   var ate=(ab&&ab<hoje)?ab:hoje,dias=diasEntre(l.dtE,ate);if(dias<1)return null;
   var diasTot=(ab&&ab>l.dtE)?diasEntre(l.dtE,ab):dias;
   var ph=0;try{ph=+pesoProjetadoLoteEm(l,ate)||0;}catch(_){}
-  if(!ph)ph=+l.pesoE+(typeof GMD_PROJ_CONF!=="undefined"?GMD_PROJ_CONF:1.4)*dias;
+  if(!ph)ph=+l.pesoE+gmdDoLote(l)*dias;
   var arrProd=ph*AC_REND/15-(+l.pesoE)*0.5/15;if(!(arrProd>0.3))return null;
   var nut=0,fonteN="tratos";try{nut=(custoPlanVsReal(l).real||0)/cab;}catch(_){}
   if(!(nut>0)){nut=(+l.cNutri||0)*Math.min(1,dias/diasTot);fonteN="cadastro";}
@@ -23626,7 +23626,7 @@ function _acLinhas(ano){
     /* @ estimada = peso projetado no abate x rendimento de carcaca de 56,5% (ele: "pode colocar o rendimento de carcaca
        como 56,5%") / 15. A previsao da Bia (bia_painel) ja usa os mesmos 56,5%; sem ela, calcula aqui. */
     var atc=com&&+com.arrobas_cab?+com.arrobas_cab:null;
-    if(!atc&&ab){try{var pp=+pesoProjetadoLoteEm(l,ab)||0;if(!pp&&+l.pesoE&&l.dtE)pp=+l.pesoE+(typeof GMD_PROJ_CONF!=="undefined"?GMD_PROJ_CONF:1.4)*diasEntre(l.dtE,ab);
+    if(!atc&&ab){try{var pp=+pesoProjetadoLoteEm(l,ab)||0;if(!pp&&+l.pesoE&&l.dtE)pp=+l.pesoE+gmdDoLote(l)*diasEntre(l.dtE,ab);
       if(pp>0)atc=pp*AC_REND/15;}catch(_){}}
     var arr=(+e.arrobasRomaneio>0)?+e.arrobasRomaneio:(atc?atc*cab:0);
     var custoCab=com&&+com.custo_cab?+com.custo_cab:((+l.custoBoi||0)+(+l.cNutri||0)+(+l.cOp||0));
@@ -27188,7 +27188,7 @@ body.bia-encaixada #app-ver{display:none}
   </div>
   <div id="bia-frame-wrap" style="flex:1;position:relative;min-height:0"></div>
 </div>
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.12-megacal-toninho</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.12-gmd-tratos-geral</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
