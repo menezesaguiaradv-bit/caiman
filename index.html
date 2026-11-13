@@ -17516,25 +17516,23 @@ function renderDiaTrato(){
    Hoje todos os currais sao nelore"). Meta de energia = Cons. EM em % do PV (Nelore inteiro 6,21%; castrado/femea
    6,25%; Angus 6,23%) x PESO MEDIO DO PERIODO = peso inicial + GMD da meta x dias (entrada->abate) / 2, com
    GMD = -74,073 p2 + 36,573 p - 0,5623 (Nelore). Mesma conta na Friday e no relatorio das 7h. */
+/* 12/11/2026 21h (ele: "lembre se que a megacaloria vem da planilha do toninho"): a meta de energia volta a ser a da
+   planilha do Toninho (aba CONS.PROJETADO X REALIZADO, coluna H "CONSUMO Mcal estimativa" = peso medio do periodo
+   (PROJECAO ABATES!J) x IMS %PV da dieta final (FORMULAS DIETAS!G3, 2,26%) x EM da dieta final (G38, 2,6796) = ~6,06%
+   do PV), e o GMD pela energia sai do polinomio da planilha (PROJECAO ABATES!AC, inteiros >= 18 meses). Os nomes
+   _livio* ficaram so para nao mexer nos 8 lugares que os chamam; a conta do livro (6,21%) saiu. */
 function _livioEmPct(l){
-  const r=String((l&&l.raca)||"").toLowerCase(), s=String((l&&l.sexo)||"").toLowerCase();
-  if(r.indexOf("angus")>=0)return 0.0623;
-  if(s.indexOf("castr")>=0||s.indexOf("femea")>=0||s.indexOf("fêmea")>=0)return 0.0625;
-  return 0.0621;
+  return ((l&&l.metaPV>0)?l.metaPV:2.26)/100*_emDietaCheia();
 }
 function _livioGmd(p,l){
-  const r=String((l&&l.raca)||"").toLowerCase(), s=String((l&&l.sexo)||"").toLowerCase();
-  if(s.indexOf("femea")>=0||s.indexOf("fêmea")>=0)return -0.0000011*p*p+27.508*p-0.47;
-  if(r.indexOf("cruz")>=0)return -74.073*p*p+36.573*p-0.6323;
-  if(r.indexOf("angus")>=0)return -147.35*p*p+56.249*p-1.2206;
-  return -74.073*p*p+36.573*p-0.5623;
+  const s=String((l&&l.sexo)||"Machos").toLowerCase();
+  const sx=(s.indexOf("femea")>=0||s.indexOf("fêmea")>=0)?"Femeas":(s.indexOf("castr")>=0?"Castrados":"Inteiros");
+  return zGMD(p,(parseFloat(l&&l.idade)>0?parseFloat(l.idade):24),sx,(l&&l.raca)||"Nelore");
 }
 function _pesoMedioCiclo(lote,dataFallback){
   try{
     const pe=+lote.pesoE||0;
-    /* Livio: peso medio do periodo (precisa da data de abate) */
-    if(pe>0&&lote.dtE&&/^\d{4}-\d{2}-\d{2}$/.test(String(lote.dtAbate||""))&&lote.dtAbate>lote.dtE)
-      return pe+_livioGmd(_livioEmPct(lote),lote)*diasEntre(lote.dtE,lote.dtAbate)/2;
+    /* 12/11: planilha do Toninho (PROJECAO ABATES!J = (M + PI x 0,96)/2); a conta do livro saiu */
     /* 30/09: igual a planilha (PROJECAO ABATES!J = (M + PI x 0,96)/2), o peso
        final aqui e SEMPRE o do modelo (sexo, tamanho, acabamento do lote). O
        peso de abate digitado vale para a data de abate, nao para a meta de
@@ -27190,7 +27188,7 @@ body.bia-encaixada #app-ver{display:none}
   </div>
   <div id="bia-frame-wrap" style="flex:1;position:relative;min-height:0"></div>
 </div>
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.12-gmd-curral</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.12-megacal-toninho</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">

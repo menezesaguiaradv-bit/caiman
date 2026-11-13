@@ -265,8 +265,9 @@ function fixture() {
   verdade("confinamento: nota de cocho de hoje em % no quadrado (nota -1 = trato +5%)", /trato \+5%/.test(r.curralTxt), r.curralTxt.slice(0, 200));
   // 24/10: grafico programado x realizado (4 tratos de 700 kg = 2.800 kg contra 4 x 690 = 2.760 kg)
   verdade("pagina do curral: trato programado x realizado (2.800 de 2.760 kg, +1,4%)", /2\.800<?\/?b?>? de 2\.760 kg|2\.800 de 2\.760 kg/.test(r.paginaCurral.progReal) && /\+1,4%/.test(r.paginaCurral.progReal), r.paginaCurral.progReal);
-  // 24/10: peso estimado pela energia (126% da meta -> Livio 1,84 kg/dia; 73 dias -> 418 + 134 = 553 kg; projetado 520 kg)
-  verdade("pagina do curral: peso estimado pela energia (+32 kg a frente, GMD 1,84)", /\+32 kg/.test(r.pesoEnergia) && /1,84/.test(r.pesoEnergia), r.pesoEnergia);
+  // 12/11: megacaloria pela planilha do Toninho (meta 2,26% x EM 2,6796 x peso medio; GMD pelo polinomio da planilha, inteiros >= 18m):
+  // a mesma fixture da 129% da meta e GMD pela energia 1,98 -> +42 kg a frente do projetado
+  verdade("pagina do curral: peso estimado pela energia (+42 kg a frente, GMD 1,98)", /\+42 kg/.test(r.pesoEnergia) && /1,98/.test(r.pesoEnergia), r.pesoEnergia);
   verdade("aviso de abate: 533 kg com data de 07/12 (418 + 118 dias x 1,4 = 583 kg, chegaria em 02/11)", /583 kg/.test(r.avisoAbate) && /533 kg/.test(r.avisoAbate) && /02\/11\/2026/.test(r.avisoAbate), r.avisoAbate);
   igual("aviso de abate: some quando peso e data batem", r.avisoAbateOk, "");
   verdade("cabecas x Saicon: aviso com os dois numeros e os botoes", r.cabAviso.includes(r.cabEsperado) && /Usar \d+ do Saicon/.test(r.cabAviso) && /Manter \d+ do app/.test(r.cabAviso), r.cabAviso);
