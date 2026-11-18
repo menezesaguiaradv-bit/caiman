@@ -9710,9 +9710,21 @@ async function _eiCarregar(forcar){
   _EI.carregando=(async function(){
     try{
       if(!SB_URL)throw new Error("Configure o Supabase (Sync).");
-      const h=await _hdrAuth(),base=SB_URL.replace(/\/+$/,"")+"/rest/v1/rpc/";
-      const ler=async function(f){const r=await fetch(base+f,{method:"POST",headers:h,body:"{}"});if(!r.ok)throw new Error(f+" "+r.status);return r.json();};
-      const res=await Promise.all(["caiman_est_estoque","caiman_est_proj","caiman_est_uso","caiman_est_prog","caiman_est_currais"].map(ler));
+      const h=await _hdrAuth(),raiz=SB_URL.replace(/\/+$/,""),base=raiz+"/rest/v1/rpc/";
+      /* 18/11 (ele: "o ate quando cada insumo dura nao esta aparecendo"): as 5 funcoes em paralelo com o login
+         do usuario estouravam o limite de 8 s do Postgres (statement timeout, HTTP 500). Agora le primeiro o
+         que o robo-saicon calcula a cada rodada (EMPRESA::caiman_est_cache, ate 45 min); se estiver velho,
+         chama as funcoes UMA DE CADA VEZ. */
+      let res=null;
+      try{
+        const rc=await fetch(raiz+"/rest/v1/dados_v2?id=eq."+encodeURIComponent("EMPRESA::caiman_est_cache")+"&select=dados",{headers:h});
+        if(rc.ok){const l=await rc.json();const c=l&&l[0]?JSON.parse(l[0].dados):null;
+          if(c&&c.ts&&Date.now()-Date.parse(c.ts)<45*60*1000&&c.estoque&&c.estoque.length)res=[c.estoque,c.proj,c.uso,c.prog,c.currais];}
+      }catch(e){console.warn("cache do estoque:",e);}
+      if(!res){
+        const ler=async function(f){const r=await fetch(base+f,{method:"POST",headers:h,body:"{}"});if(!r.ok)throw new Error(f+" "+r.status);return r.json();};
+        res=[];for(const f of ["caiman_est_estoque","caiman_est_proj","caiman_est_uso","caiman_est_prog","caiman_est_currais"])res.push(await ler(f));
+      }
       _EI.dados={estoque:res[0]||[],proj:res[1]||[],uso:res[2]||[],prog:res[3]||[],currais:res[4]||[]};_EI.ts=Date.now();_EI.erro=null;
       return _EI.dados;
     }catch(e){_EI.erro=String(e&&e.message||e);console.warn("estoque pelas dietas:",e);return _EI.dados;}
@@ -27196,7 +27208,7 @@ body.bia-encaixada #app-ver{display:none}
   </div>
   <div id="bia-frame-wrap" style="flex:1;position:relative;min-height:0"></div>
 </div>
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.18-perm-renato</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.18-estoque-cache</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
