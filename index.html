@@ -4159,7 +4159,9 @@ const ADMINS=['guilherme','henrique','roberto','admin','toninho'];
 // Permissões de usuários restritos: abas liberadas + fazenda travada
 const _PERM={
   "robson":{abas:["recria","semiconf","sanidade"],fazenda:"Cruz Alta"},
-  "renato":{abas:["conf","sanidade","notacocho"],fazenda:"Pinheiral"},
+  /* 18/11 (ele): "o usuario Renato pode ter acesso as abas do confinamento, exceto as areas financeiras".
+     Fora: Custo Nutricao, Projecao (fluxo de caixa), Historico de Abates (receita), Lotes, Hedge. */
+  "renato":{abas:["conf","trato","cargas","notacocho","pesagens","embarque","ocorrencias","estoque","dieta","msbagaco","lotacao","comparativo","gestaoconf","eficiencia","ponto","sanidade"],fazenda:"Pinheiral"},
   "reginaldo":{abas:["recria","sanidade"],fazenda:"Furna"}
 };
 function permUsuario(){
@@ -4178,6 +4180,12 @@ function aplicarPermissoes(){
       const aba=m[1];
       if(perm.abas.indexOf(aba)<0){card.style.display="none";}
     }
+  });
+  /* 18/11: tambem some com os botoes de atalho (ex.: Custo Nutricao e Projecao dentro do Confinamento),
+     nao so os cards do menu - antes o botao aparecia e so dava "sem acesso" no toque */
+  document.querySelectorAll("button[onclick*=\"irPara('\"]").forEach(function(b){
+    const m=(b.getAttribute("onclick")||"").match(/irPara\('(\w+)'\)/);
+    if(m&&!podeVerAba(m[1]))b.style.display="none";
   });
   // usuário restrito vai direto para a primeira aba permitida (não vê o Dashboard geral)
   if(perm.abas.length>0){
@@ -27188,7 +27196,7 @@ body.bia-encaixada #app-ver{display:none}
   </div>
   <div id="bia-frame-wrap" style="flex:1;position:relative;min-height:0"></div>
 </div>
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.12-gmd-tratos-geral</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.18-perm-renato</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
