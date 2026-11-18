@@ -3585,6 +3585,22 @@ const chavesCompartilhadas=["caiman_ingredientes","caiman_dietas","caiman_custos
     }
     linhas.push({id:"EMPRESA::"+chave,user_id:"EMPRESA",dados:conteudo});
   }
+  /* 18/11/2026: o 1o acesso do Renato (celular novo) subiu caiman_tratos VAZIO e caiman_pesagens_sisbov com 2
+     pesagens, por cima de 1,4 MB e 360 KB do servidor - o Painel e o "ate quando dura" zeraram. A guarda de
+     encolhimento so olhava lotes e dietas. Agora, chave por chave: lista que ficaria com menos de 70% dos
+     registros do servidor (e o servidor tem 20 ou mais) NAO sobe; o resto do envio segue. */
+  try{
+    const ids=linhas.map(function(l){return l.id;});
+    const rr=await fetch(SB_URL+"/rest/v1/dados_v2?select=id,dados&id=in.("+ids.map(function(i){return encodeURIComponent('"'+i+'"');}).join(",")+")",{headers:hdr});
+    if(rr.ok){
+      const rem={};(await rr.json()).forEach(function(x){rem[x.id]=x.dados;});
+      const conta=function(t){try{const v=JSON.parse(t||"null");return Array.isArray(v)?v.length:(v&&typeof v==="object"?Object.keys(v).length:0);}catch(e){return 0;}};
+      for(let i=linhas.length-1;i>=0;i--){
+        const nr=conta(rem[linhas[i].id]),nl=conta(linhas[i].dados);
+        if(nr>=20&&nl<nr*0.7){console.warn("sync: "+linhas[i].id+" nao subiu (aparelho "+nl+" x servidor "+nr+")");linhas.splice(i,1);}
+      }
+    }else throw new Error("HTTP "+rr.status);
+  }catch(e){throw new Error("Envio bloqueado: não consegui conferir o servidor antes de subir ("+String(e&&e.message||e)+").");}
   for(const chave of chavesHedge){
     const conteudo=localStorage.getItem(chave);
     if(conteudo===null)continue;
@@ -4450,6 +4466,7 @@ async function pullSupabase(allowReplace=false){
     if(_pontoMergeVisto)localStorage.setItem("_ponto_merge_v1","1");
     if(_pontoMergePend){try{marcarPendente();}catch(e){}}   // sobe a uniao no proximo envio
     try{_msDoRobo();}catch(e){console.warn("ms do robo:",e);}
+    try{_limparLotesErrados1811();}catch(e){}
     try{_aplicarFilaMovBia();}catch(e){console.warn("fila de movimentacao da Bia:",e);}
     atualizarDashboard();_r(renderAnimais,"renderAnimais");_r(renderPastos,"renderPastos");
     // re-renderizar as outras telas com os dados baixados
@@ -7474,9 +7491,27 @@ async function _enviarSeFilaAplicou(){
   try{localStorage.setItem("caiman_sync_pend","0");}catch(e){}
   return true;
 }
+/* 18/11/2026: tira do aparelho os 25 lotes criados por engano em 18/11 (ids 1795007..., obs "Formado na
+   pesagem individual"). No servidor eles foram apagados; sem isto o proximo envio os subiria de novo. */
+function _limparLotesErrados1811(){
+  try{
+    if(localStorage.getItem("_fix_lotes_1811")==="1")return;
+    const ls=getLotes(),fica=ls.filter(function(l){const id=String(l&&l.id||"");return !(/^1795007/.test(id)&&/^Formado na pesagem individual/.test(String(l.obs||"")));});
+    if(fica.length!==ls.length)setLotes(fica);
+    localStorage.setItem("_fix_lotes_1811","1");
+  }catch(e){console.warn("limpeza lotes 18/11:",e);}
+}
 function _aplicarFilaMovBia(){
   var fila=_readLocal("caiman_mov_fila",[]);
   if(!Array.isArray(fila)||!fila.length)return null;
+  /* 18/11/2026: caiman_mov_fila_feitos e do APARELHO. No celular novo do Renato a lista estava vazia e o app
+     reaplicou TODA a fila de movimentacao da Bia desde outubro: criou 25 lotes "Formado na pesagem individual"
+     (A1..B5 como Recria, pastos da Cruz Alta em dobro). Aparelho que nunca aplicou a fila so marca o que ja
+     existe como feito; daqui para frente aplica so os itens novos. */
+  if(localStorage.getItem("caiman_mov_fila_feitos")===null){
+    localStorage.setItem("caiman_mov_fila_feitos",JSON.stringify(fila.filter(function(f){return f&&f.id;}).map(function(f){return f.id;}).slice(-500)));
+    return null;
+  }
   var feitos=_readLocal("caiman_mov_fila_feitos",[]);if(!Array.isArray(feitos))feitos=[];
   var novosItens=fila.filter(function(f){return f&&f.id&&feitos.indexOf(f.id)<0;});
   if(!novosItens.length)return null;
@@ -26998,6 +27033,7 @@ try{
   }
 } catch(e){ console.log('SH erro:',e); }
 try{ atualizarDot(); } catch(e){ console.log('atualizarDot erro:',e); }
+try{ _limparLotesErrados1811(); } catch(e){}
 try{ aplicarPermissoes(); } catch(e){ console.log('aplicarPermissoes erro:',e); }
 try{ atualizarDashboard(); } catch(e){ console.log('atualizarDashboard erro:',e); }
 try{
@@ -27208,7 +27244,7 @@ body.bia-encaixada #app-ver{display:none}
   </div>
   <div id="bia-frame-wrap" style="flex:1;position:relative;min-height:0"></div>
 </div>
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.18-estoque-cache</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.18-sync-guarda</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
