@@ -380,6 +380,14 @@ Compartilhar</button></div>
   <p>Vacinas, vermífugo e tratamentos. Alertas de reaplicação.</p>
   <div class="mstats"><span class="mst msv" id="ms-sanidade">0 registros</span></div><span class="marrow">→</span>
 </div>
+<!-- 20/11/2026 (ele: "quero que coloque esse plano no painel financeiro do app, para quando for caindo o dinheiro, vc vai
+     atualizando automaticamente pelos dados do Conag"): card do Plano da divida - so o Guilherme ve (igual ao Hedge). -->
+<div class="mcard" id="card-planodiv" style="cursor:pointer;border-top:4px solid var(--v);display:none" onclick="irPara('planodiv')">
+  <div class="micon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 7l4 4 4-2 5 6"/></svg></div>
+  <h3>Plano da dívida</h3>
+  <p>Dívida líquida até 2 vezes o EBITDA. Dívida e caixa atualizados todo dia pelo CONAG.</p>
+  <div class="mstats"><span class="mst msv" id="ms-planodiv">Meta 2 vezes</span></div><span class="marrow">→</span>
+</div>
 <div class="mcard" id="card-hedge" style="cursor:pointer;border-top:4px solid var(--v)" onclick="irPara('hedge')">
   <div class="micon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 5 5-9"/></svg></div>
   <h3>Hedge / NDF</h3>
@@ -2826,6 +2834,22 @@ details.ncx-det summary{cursor:pointer;font-weight:600;color:var(--v);font-size:
 
 </div></div>
 
+<!-- 20/11/2026: Plano da divida. O plano (metas de fim de ano) e o real (divida e caixa do CONAG) vem da Bia em
+     EMPRESA::caiman_plano_divida, atualizado todo dia 7h; o botao Atualizar chama a Bia ?plano_divida=1 na hora. -->
+<div id="page-planodiv" class="page">
+<div class="ph"><button class="back" onclick="irPara('dashboard')">← Dashboard</button></div>
+<div class="main">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-wrap:wrap;gap:12px">
+  <div class="ptitle" style="display:flex;align-items:center;gap:8px">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 7l4 4 4-2 5 6"/></svg>
+    Plano da dívida
+  </div>
+  <button id="pd-btn" onclick="atualizarPlanoDivAgora()" style="background:var(--v);color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer">Atualizar pelo CONAG</button>
+</div>
+<div id="pd-sub" style="font-size:12px;color:#777;margin-bottom:14px">Carregando…</div>
+<div id="pd-corpo"></div>
+</div>
+</div>
 <div id="page-hedge" class="page">
 <div class="ph"><button class="back" onclick="irPara('dashboard')">← Dashboard</button></div>
 <div class="main">
@@ -4284,6 +4308,7 @@ function aplicarRestricoesUsuario(){
   const uid=getUserId();
   try{var _bf=document.getElementById("bia-fab");if(_bf)_bf.style.display=(uid==="guilherme")?"":"none";}catch(e){}
   // Card Hedge/NDF: visível apenas para guilherme
+  try{var _pd=document.getElementById("card-planodiv");if(_pd)_pd.style.display=(uid==="guilherme")?"":"none";}catch(e){}
   const cardHedge=document.getElementById("card-hedge");
   if(cardHedge){
     cardHedge.style.display=(uid==="guilherme")?"":"none";
@@ -5602,6 +5627,7 @@ function irPara(p){
   if(p==="sanidade"){popularSelectAlvoSan();_r(renderSanidade,"renderSanidade");}
   if(p==="embarque"){_r(renderEmbarque,"renderEmbarque");}
   if(p==="hedge"){if(getUserId()!=="guilherme"){irPara("dashboard");return;}_r(renderHedge,"renderHedge");}
+  if(p==="planodiv"){if(getUserId()!=="guilherme"){irPara("dashboard");return;}_r(renderPlanoDiv,"renderPlanoDiv");}
   if(p==="pastos") _r(renderPastos,"renderPastos");
   if(p==="lotes") _r(renderLotes,"renderLotes");
   if(p==="abates") _r(renderAbates,"renderAbates");
@@ -27255,7 +27281,89 @@ body.bia-encaixada #app-ver{display:none}
   </div>
   <div id="bia-frame-wrap" style="flex:1;position:relative;min-height:0"></div>
 </div>
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.18-so-guilherme</div>
+
+<script>
+/* ===== 20/11/2026: PLANO DA DIVIDA (ele: "coloque esse plano no painel financeiro do app ... atualizando automaticamente
+   pelos dados do Conag"). Meta: divida liquida (divida bancaria - caixa) ate 2 vezes o EBITDA; teto 2,5 vezes.
+   Le EMPRESA::caiman_plano_divida (a Bia grava todo dia 7h: capital em aberto dos financiamentos do Guilherme no CONAG
+   + saldo das contas BB 5830 e Itau BBA). O indice que vale e o de 31/12: no meio do ano o dinheiro esta no gado. */
+var _pdDados=null;
+function _pdR(v){return "R$ "+Math.round(Number(v)||0).toLocaleString("pt-BR");}
+function _pdX(v){var n=Number(v)||0,t=n.toFixed(1).replace(".",",");return t+(n>=2?" vezes":" vez");}
+function _pdCor(x,meta,teto){return x<=meta?"#2E7D32":(x<=teto?"#B8860B":"#C62828");}
+async function renderPlanoDiv(){
+  var sub=document.getElementById("pd-sub"),c=document.getElementById("pd-corpo");
+  var d=await _baixarChaveEmp("caiman_plano_divida");
+  if(!d||!d.plano){sub.textContent="O plano ainda não foi gravado pela Bia. Toque em Atualizar pelo CONAG.";c.innerHTML="";return;}
+  _pdDados=d;
+  var P=d.plano,R=d.real||{},hist=(d.hist||[]).slice();
+  var E=P.ebitda_plano,meta=P.meta_x,teto=P.teto_x;
+  var em=R.em?new Date(R.em):null;
+  sub.innerHTML="Dívida e caixa do CONAG"+(em?" em "+em.toLocaleDateString("pt-BR")+" às "+em.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"")+" · atualiza sozinho todo dia às 7h · caixa: "+(R.caixa_fonte||"-");
+  var ano=new Date().getFullYear(),fimAno=P.anos.filter(function(a){return a.ano===ano;})[0]||P.anos[0];
+  var liq=Number(R.liquida)||0,x=liq/E;
+  var falta=Math.max(0,(Number(R.divida)||0)-fimAno.divida);
+  var k=function(t,v,s,cor){return '<div style="border:1px solid #dfe8da;border-radius:10px;padding:10px 12px;background:#fff"><div style="font-size:12px;color:#777">'+t+'</div><div style="font-size:19px;font-weight:700;color:'+(cor||"#1a3a1a")+'">'+v+'</div><div style="font-size:11px;color:#888">'+(s||"")+'</div></div>';};
+  var h='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px">'+
+    k("Dívida bancária hoje (capital)",_pdR(R.divida),(R.contratos||[]).length+" contratos no CONAG")+
+    k("Caixa hoje",_pdR(R.caixa),"contas BB 5830 e Itaú BBA")+
+    k("Dívida líquida hoje",_pdR(liq),"dívida − caixa")+
+    k("Dívida líquida ÷ EBITDA",_pdX(x),"meta "+_pdX(meta)+" · teto "+_pdX(teto)+" (vale o de 31/12)",_pdCor(x,meta,teto))+
+    k("Meta do fim de "+fimAno.ano,_pdR(fimAno.divida),fimAno.marco)+
+    '</div>';
+  // grafico: plano (fim de cada ano) x real (historico diario)
+  var W=760,H=290,L=64,B=34,T=14,x0=Date.parse("2026-11-01"),x1=Date.parse("2033-01-01");
+  var pts=[{t:Date.parse("2026-11-20"),v:10783769}].concat(P.anos.map(function(a){return {t:Date.parse(a.ano+"-12-31"),v:a.divida};}));
+  var ptsH=[{t:Date.parse("2027-12-31"),v:11718987}].concat((P.anos_hoje||[]).map(function(a){return {t:Date.parse(a.ano+"-12-31"),v:a.divida};}));
+  var mx=12000000;
+  var X=function(t){return L+(t-x0)/(x1-x0)*(W-L-16);},Y=function(v){return H-B-v/mx*(H-B-T);};
+  var g='<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="display:block"><g font-size="11" fill="#666">';
+  for(var v=0;v<=mx;v+=2000000)g+='<line x1="'+L+'" x2="'+(W-16)+'" y1="'+Y(v)+'" y2="'+Y(v)+'" stroke="#eee"/><text x="'+(L-6)+'" y="'+(Y(v)+4)+'" text-anchor="end">'+(v/1e6).toFixed(0)+' mi</text>';
+  for(var a=2027;a<=2033;a++)g+='<text x="'+X(Date.parse(a+"-01-01"))+'" y="'+(H-B+18)+'" text-anchor="middle">'+a+'</text>';
+  var linha=function(ps,cor,tr){return '<polyline fill="none" stroke="'+cor+'" stroke-width="2.5"'+(tr?' stroke-dasharray="6 4"':'')+' points="'+ps.map(function(p){return X(p.t)+","+Y(p.v);}).join(" ")+'"/>'+ps.map(function(p){return '<circle cx="'+X(p.t)+'" cy="'+Y(p.v)+'" r="3.5" fill="'+cor+'" stroke="#fff" stroke-width="1.5"><title>'+new Date(p.t).toLocaleDateString("pt-BR")+': '+_pdR(p.v)+'</title></circle>';}).join("");};
+  g+=linha(ptsH,"#9e9e9e",true)+linha(pts,"#2E7D32",false);
+  if(hist.length){var hp=hist.map(function(p){return {t:Date.parse(p.d),v:p.divida};});
+    g+='<polyline fill="none" stroke="#B8944F" stroke-width="3" points="'+hp.map(function(p){return X(p.t)+","+Y(p.v);}).join(" ")+'"/>';
+    var ul=hp[hp.length-1];g+='<circle cx="'+X(ul.t)+'" cy="'+Y(ul.v)+'" r="5" fill="#B8944F" stroke="#fff" stroke-width="2"><title>CONAG '+new Date(ul.t).toLocaleDateString("pt-BR")+': '+_pdR(ul.v)+'</title></circle>';}
+  g+='</g></svg>';
+  var leg='<div style="display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:#555;margin-bottom:4px"><span><i style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#2E7D32;margin-right:5px;vertical-align:-2px"></i>Plano (pessoal R$ 40.000 + EBITDA '+_pdR(E)+')</span><span><i style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#9e9e9e;margin-right:5px;vertical-align:-2px"></i>Sem mudar nada</span><span><i style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#B8944F;margin-right:5px;vertical-align:-2px"></i>Real (CONAG, todo dia)</span></div>';
+  var sec=function(t){return '<div style="background:#e8f0e3;color:#1a3a1a;font-weight:700;font-size:14px;padding:6px 10px;border-radius:6px;margin:18px 0 10px">'+t+'</div>';};
+  h+=sec("Dívida bancária: plano × real")+leg+g;
+  // tabela por ano
+  var hoje=new Date().toISOString().slice(0,10);
+  var tb='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="background:#f6f8f5"><th style="text-align:left;padding:6px">Ano</th><th style="text-align:right;padding:6px">Dívida (meta 31/12)</th><th style="text-align:right;padding:6px">Dívida líquida</th><th style="text-align:right;padding:6px">÷ EBITDA</th><th style="text-align:right;padding:6px">Real em 31/12</th><th style="text-align:left;padding:6px">Marco</th></tr>';
+  P.anos.forEach(function(a){
+    var lq=a.divida-a.caixa,xx=lq/E,fim=a.ano+"-12-31",real="";
+    if(hoje>fim){var u=hist.filter(function(p){return p.d<=fim;}).pop();
+      if(u){var xr=(u.divida-u.caixa)/E;real='<span style="color:'+_pdCor(xr,meta,teto)+';font-weight:700">'+_pdX(xr)+(u.divida<=a.divida?" ✓":" ✗")+'</span>';}else real="sem dado";}
+    else if(a.ano===ano)real="em andamento";else real="—";
+    tb+='<tr style="border-bottom:1px solid #eee"><td style="padding:6px"><b>'+a.ano+'</b></td><td style="text-align:right;padding:6px">'+_pdR(a.divida)+'</td><td style="text-align:right;padding:6px">'+_pdR(lq)+'</td><td style="text-align:right;padding:6px;color:'+_pdCor(xx,meta,teto)+';font-weight:700">'+_pdX(xx)+'</td><td style="text-align:right;padding:6px">'+real+'</td><td style="padding:6px;font-size:12px;color:#555">'+a.marco+'</td></tr>';});
+  tb+='</table></div>';
+  h+=sec("Metas de fim de ano")+tb+'<div style="font-size:12px;color:#777;margin-top:6px">Dívida líquida = dívida bancária − caixa. EBITDA do plano: '+_pdR(E)+' (hoje '+_pdR(P.ebitda_hoje)+'). Juros de '+String(P.juros_aa).replace(".",",")+'% ao ano. '+(falta>0?'Para bater a meta de '+fimAno.ano+' faltam '+_pdR(falta)+' de dívida a menos.':'A dívida de hoje já está abaixo da meta de '+fimAno.ano+'.')+'</div>';
+  // contratos
+  var cs=(R.contratos||[]).slice().sort(function(a,b){return b.saldo-a.saldo;});
+  var tc='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="background:#f6f8f5"><th style="text-align:left;padding:6px">Banco</th><th style="text-align:left;padding:6px">Tipo</th><th style="text-align:left;padding:6px">Contrato</th><th style="text-align:right;padding:6px">Taxa a.a.</th><th style="text-align:right;padding:6px">Capital em aberto</th><th style="text-align:right;padding:6px">Próx. venc.</th></tr>';
+  cs.forEach(function(x){tc+='<tr style="border-bottom:1px solid #eee"><td style="padding:6px">'+x.banco+'</td><td style="padding:6px">'+x.tipo+'</td><td style="padding:6px">'+x.contrato+'</td><td style="text-align:right;padding:6px">'+(x.taxa_aa?String(x.taxa_aa).replace(".",",")+"%":"-")+'</td><td style="text-align:right;padding:6px">'+_pdR(x.saldo)+'</td><td style="text-align:right;padding:6px">'+(x.proximo||"-")+'</td></tr>';});
+  tc+='<tr><td colspan="4" style="padding:6px;font-weight:700">Total</td><td style="text-align:right;padding:6px;font-weight:700">'+_pdR(R.divida)+'</td><td></td></tr></table></div>';
+  h+=sec("Contratos em aberto (CONAG)")+tc;
+  h+=sec("Regras do plano")+'<ul style="margin:0;padding-left:20px;font-size:13px;line-height:1.6">'+(P.regras||[]).map(function(r){return "<li>"+r+"</li>";}).join("")+'</ul>';
+  h+='<div style="font-size:11px;color:#999;margin-top:14px">Plano de '+new Date(P.criado+"T12:00").toLocaleDateString("pt-BR")+'. É planejamento, não recomendação de investimento.</div>';
+  c.innerHTML=h;
+  try{document.getElementById("ms-planodiv").textContent=_pdX(x)+" hoje";}catch(e){}
+}
+async function atualizarPlanoDivAgora(){
+  var b=document.getElementById("pd-btn"),sub=document.getElementById("pd-sub");
+  if(b.disabled)return;b.disabled=true;var t0=b.textContent;b.textContent="Lendo o CONAG… (até 2 min)";
+  try{var h=await _hdrAuth();delete h["Content-Type"];
+    var r=await fetch(_sbBase()+"/functions/v1/Bia?plano_divida=1",{headers:h});
+    var j=await r.json().catch(function(){return null;});
+    if(!j||!j.ok)sub.textContent="Não deu para atualizar: "+((j&&j.erro)||("resposta "+r.status));
+    else await renderPlanoDiv();
+  }catch(e){sub.textContent="Não deu para atualizar: "+e;}
+  b.disabled=false;b.textContent=t0;
+}
+</script>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.20-plano-divida</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
