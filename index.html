@@ -27306,11 +27306,20 @@ async function renderPlanoDiv(){
   var k=function(t,v,s,cor){return '<div style="border:1px solid #dfe8da;border-radius:10px;padding:10px 12px;background:#fff"><div style="font-size:12px;color:#777">'+t+'</div><div style="font-size:19px;font-weight:700;color:'+(cor||"#1a3a1a")+'">'+v+'</div><div style="font-size:11px;color:#888">'+(s||"")+'</div></div>';};
   var h='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px">'+
     k("Dívida bancária hoje (capital)",_pdR(R.divida),(R.contratos||[]).length+" contratos no CONAG")+
-    k("Caixa hoje",_pdR(R.caixa),"contas BB 5830 e Itaú BBA")+
+    k("Caixa hoje",_pdR(R.caixa),R.caixa_fonte||"")+
     k("Dívida líquida hoje",_pdR(liq),"dívida − caixa")+
     k("Dívida líquida ÷ EBITDA",_pdX(x),"meta "+_pdX(meta)+" · teto "+_pdX(teto)+" (vale o de 31/12)",_pdCor(x,meta,teto))+
     k("Meta do fim de "+fimAno.ano,_pdR(fimAno.divida),fimAno.marco)+
     '</div>';
+  /* 20/11: o saldo do CONAG das contas 1 e 15 deu -R$ 4.829.201 (falta conciliar). Caixa informado aqui vale 30 dias. */
+  var cc=(R.caixa_conag!=null)?Number(R.caixa_conag):null,cm=d.caixa_manual;
+  var aviso=(cc!=null&&Math.abs(cc-(Number(R.caixa)||0))>50000)?'O saldo do CONAG (contas BB 5830 e Itaú BBA) está em <b>'+_pdR(cc)+'</b>, diferente do caixa usado. Falta conciliar no CONAG; até lá vale o caixa informado abaixo.':
+    ((cc!=null&&cc<0)?'O saldo do CONAG está negativo (<b>'+_pdR(cc)+'</b>): falta conciliar. Informe o caixa real abaixo para o índice ficar certo.':'');
+  h+='<div style="background:#FFF8E1;border:1px solid #F0E0A0;border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:14px">'+(aviso?aviso+'<br>':'')+
+    '<span style="color:#555">Caixa de hoje (informado'+(cm&&cm.dia?', último em '+new Date(cm.dia+"T12:00").toLocaleDateString("pt-BR"):'')+', vale 30 dias):</span> '+
+    '<input id="pd-caixa" type="number" step="1" placeholder="ex.: 300000" style="width:140px;padding:5px 8px;border:1px solid #ccc;border-radius:6px"> '+
+    '<button onclick="salvarCaixaPlanoDiv()" style="background:var(--v);color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer">Salvar</button>'+
+    (cm?' <button onclick="salvarCaixaPlanoDiv(true)" style="background:#fff;color:#555;border:1px solid #ccc;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer">Voltar ao CONAG</button>':'')+'</div>';
   // grafico: plano (fim de cada ano) x real (historico diario)
   var W=760,H=290,L=64,B=34,T=14,x0=Date.parse("2026-11-01"),x1=Date.parse("2033-01-01");
   var pts=[{t:Date.parse("2026-11-20"),v:10783769}].concat(P.anos.map(function(a){return {t:Date.parse(a.ano+"-12-31"),v:a.divida};}));
@@ -27350,6 +27359,19 @@ async function renderPlanoDiv(){
   h+='<div style="font-size:11px;color:#999;margin-top:14px">Plano de '+new Date(P.criado+"T12:00").toLocaleDateString("pt-BR")+'. É planejamento, não recomendação de investimento.</div>';
   c.innerHTML=h;
   try{document.getElementById("ms-planodiv").textContent=_pdX(x)+" hoje";}catch(e){}
+}
+async function salvarCaixaPlanoDiv(limpar){
+  try{
+    var d=await _lerChaveRemota("caiman_plano_divida");if(!d||!d.real){alert("O plano ainda não foi gravado pela Bia.");return;}
+    var hoje=new Date(Date.now()-3*3600e3).toISOString().slice(0,10);
+    if(limpar){d.caixa_manual=null;d.real.caixa=d.real.caixa_conag;d.real.caixa_fonte="CONAG (contas BB 5830 e Itaú BBA)";}
+    else{var v=Number(document.getElementById("pd-caixa").value);if(!isFinite(v)||document.getElementById("pd-caixa").value===""){alert("Digite o caixa de hoje em reais.");return;}
+      d.caixa_manual={valor:Math.round(v),dia:hoje};d.real.caixa=Math.round(v);d.real.caixa_fonte="informado por você em "+hoje.slice(8,10)+"/"+hoje.slice(5,7);}
+    d.real.liquida=Math.round(d.real.divida-d.real.caixa);
+    var hs=(d.hist||[]).filter(function(p){return p.d!==hoje;});hs.push({d:hoje,divida:d.real.divida,caixa:d.real.caixa});d.hist=hs;
+    await _gravarChaveRemota("caiman_plano_divida",d);
+    await renderPlanoDiv();
+  }catch(e){alert("Não deu para salvar: "+e);}
 }
 async function atualizarPlanoDivAgora(){
   var b=document.getElementById("pd-btn"),sub=document.getElementById("pd-sub");
