@@ -382,6 +382,14 @@ Compartilhar</button></div>
 </div>
 <!-- 20/11/2026 (ele: "quero que coloque esse plano no painel financeiro do app, para quando for caindo o dinheiro, vc vai
      atualizando automaticamente pelos dados do Conag"): card do Plano da divida - so o Guilherme ve (igual ao Hedge). -->
+<!-- 24/11/2026 (ele: "coloque todos os relatorios que a bia possui no nosso app, coloque em dashboard compartilhar pdf"):
+     aba Relatorios - o app pede o PDF a Bia (?pdf_app=<chave>) e compartilha pelo celular. So o Guilherme ve. -->
+<div class="mcard" id="card-relbia" style="cursor:pointer;border-top:4px solid var(--v);display:none" onclick="irPara('relbia')">
+  <div class="micon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg></div>
+  <h3>Relatórios da Bia</h3>
+  <p>Todos os PDFs da Bia: confinamento, fábrica, rebanho, mercado e financeiro. Gere e compartilhe.</p>
+  <div class="mstats"><span class="mst msv">PDF</span></div><span class="marrow">→</span>
+</div>
 <div class="mcard" id="card-planodiv" style="cursor:pointer;border-top:4px solid var(--v);display:none" onclick="irPara('planodiv')">
   <div class="micon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 7l4 4 4-2 5 6"/></svg></div>
   <h3>Plano da dívida</h3>
@@ -2834,6 +2842,18 @@ details.ncx-det summary{cursor:pointer;font-weight:600;color:var(--v);font-size:
 
 </div></div>
 
+<!-- 24/11/2026: Relatorios da Bia - lista vem da Bia (?pdf_app_lista=1); cada um gera o PDF na hora (?pdf_app=chave). -->
+<div id="page-relbia" class="page">
+<div class="ph"><button class="back" onclick="irPara('dashboard')">← Dashboard</button></div>
+<div class="main">
+  <div class="ptitle" style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+    Relatórios da Bia
+  </div>
+  <div id="rb-sub" style="font-size:13px;color:#666;margin-bottom:12px">Os mesmos PDFs que a Bia manda no WhatsApp. Os do CONAG podem levar até 2 minutos.</div>
+  <div id="rb-corpo"></div>
+</div>
+</div>
 <!-- 20/11/2026: Plano da divida. O plano (metas de fim de ano) e o real (divida e caixa do CONAG) vem da Bia em
      EMPRESA::caiman_plano_divida, atualizado todo dia 7h; o botao Atualizar chama a Bia ?plano_divida=1 na hora. -->
 <div id="page-planodiv" class="page">
@@ -4309,6 +4329,7 @@ function aplicarRestricoesUsuario(){
   try{var _bf=document.getElementById("bia-fab");if(_bf)_bf.style.display=(uid==="guilherme")?"":"none";}catch(e){}
   // Card Hedge/NDF: visível apenas para guilherme
   try{var _pd=document.getElementById("card-planodiv");if(_pd)_pd.style.display=(uid==="guilherme")?"":"none";}catch(e){}
+  try{var _rb=document.getElementById("card-relbia");if(_rb)_rb.style.display=(uid==="guilherme")?"":"none";}catch(e){}
   const cardHedge=document.getElementById("card-hedge");
   if(cardHedge){
     cardHedge.style.display=(uid==="guilherme")?"":"none";
@@ -5627,6 +5648,7 @@ function irPara(p){
   if(p==="sanidade"){popularSelectAlvoSan();_r(renderSanidade,"renderSanidade");}
   if(p==="embarque"){_r(renderEmbarque,"renderEmbarque");}
   if(p==="hedge"){if(getUserId()!=="guilherme"){irPara("dashboard");return;}_r(renderHedge,"renderHedge");}
+  if(p==="relbia"){if(getUserId()!=="guilherme"){irPara("dashboard");return;}_r(renderRelBia,"renderRelBia");}
   if(p==="planodiv"){if(getUserId()!=="guilherme"){irPara("dashboard");return;}_r(renderPlanoDiv,"renderPlanoDiv");}
   if(p==="pastos") _r(renderPastos,"renderPastos");
   if(p==="lotes") _r(renderLotes,"renderLotes");
@@ -27398,6 +27420,54 @@ async function salvarCaixaPlanoDiv(limpar){
     await renderPlanoDiv();
   }catch(e){alert("Não deu para salvar: "+e);}
 }
+
+/* 24/11/2026: Relatorios da Bia. Lista vem da Bia; cada botao gera o PDF na hora (a Bia roda a mesma ferramenta do
+   WhatsApp, mas captura o arquivo em vez de mandar). Compartilhar usa o menu do celular; sem ele, baixa. */
+var _rbLista=null,_rbOcup={};
+async function renderRelBia(){
+  var c=document.getElementById("rb-corpo"),sub=document.getElementById("rb-sub");
+  if(!_rbLista){c.innerHTML='<div style="color:#888;padding:12px">Carregando a lista…</div>';
+    try{var h=await _hdrAuth();delete h["Content-Type"];
+      var r=await fetch(_sbBase()+"/functions/v1/Bia?pdf_app_lista=1",{headers:h});var j=await r.json().catch(function(){return null;});
+      if(!j||!j.ok){c.innerHTML='<div style="color:#c62828;padding:12px">Não consegui a lista: '+((j&&j.erro)||("resposta "+r.status))+'</div>';return;}
+      _rbLista=j.relatorios||[];
+    }catch(e){c.innerHTML='<div style="color:#c62828;padding:12px">Sem conexão com a Bia: '+e+'</div>';return;}}
+  var grupos={},ordem=[];_rbLista.forEach(function(x){if(!grupos[x.grupo]){grupos[x.grupo]=[];ordem.push(x.grupo);}grupos[x.grupo].push(x);});
+  var esc=function(t){return String(t==null?"":t).replace(/[&<>"]/g,function(m){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m];});};
+  var html="";
+  ordem.forEach(function(g){
+    html+='<div style="font-weight:700;color:#1b3a1b;margin:16px 0 8px;font-size:14px;text-transform:uppercase;letter-spacing:.5px">'+esc(g)+'</div>';
+    grupos[g].forEach(function(x){
+      html+='<div style="background:#fff;border:1px solid #e3e8e0;border-radius:10px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">'+
+        '<div style="flex:1;min-width:180px"><div style="font-weight:600">'+esc(x.titulo)+'</div><div style="font-size:12px;color:#777">'+esc(x.desc)+'</div>'+
+        '<div id="rb-st-'+esc(x.chave)+'" style="font-size:12px;color:#2E7D32;margin-top:4px"></div></div>'+
+        '<div style="display:flex;gap:6px">'+
+        '<button class="btn" style="background:#2E7D32;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer" onclick="gerarRelBia(\''+esc(x.chave)+'\',true)">Compartilhar</button>'+
+        '<button class="btn" style="background:#fff;color:#2E7D32;border:1px solid #2E7D32;border-radius:8px;padding:8px 12px;cursor:pointer" onclick="gerarRelBia(\''+esc(x.chave)+'\',false)">Baixar</button>'+
+        '</div></div>';
+    });
+  });
+  c.innerHTML=html||'<div style="color:#888;padding:12px">Nenhum relatório.</div>';
+}
+async function gerarRelBia(chave,compartilhar){
+  var st=document.getElementById("rb-st-"+chave);if(_rbOcup[chave])return;_rbOcup[chave]=1;
+  var t0=Date.now(),tm=setInterval(function(){if(st)st.textContent="Gerando o PDF… "+Math.round((Date.now()-t0)/1000)+" s";},1000);
+  if(st){st.style.color="#2E7D32";st.textContent="Gerando o PDF…";}
+  try{var h=await _hdrAuth();delete h["Content-Type"];
+    var r=await fetch(_sbBase()+"/functions/v1/Bia?pdf_app="+encodeURIComponent(chave),{headers:h});
+    var tipo=r.headers.get("Content-Type")||"";
+    if(!r.ok||tipo.indexOf("application/pdf")<0){var j=await r.json().catch(function(){return null;});
+      throw new Error((j&&(j.erro+(j.detalhe?" — "+j.detalhe:"")))||("resposta "+r.status));}
+    var nome=r.headers.get("X-Arquivo")||((r.headers.get("Content-Disposition")||"").match(/filename="([^"]+)"/)||[])[1]||(chave+".pdf");
+    var blob=await r.blob();var arq=new File([blob],nome,{type:"application/pdf"});
+    clearInterval(tm);
+    if(compartilhar&&navigator.canShare&&navigator.canShare({files:[arq]})){
+      try{await navigator.share({files:[arq],title:nome.replace(/\.pdf$/i,"").replace(/_/g," ")});}catch(e){if(e&&e.name!=="AbortError")throw e;}
+    }else{var u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=nome;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u);},4000);}
+    if(st)st.textContent="Pronto: "+nome+" ("+Math.round(blob.size/1024)+" KB)";
+  }catch(e){clearInterval(tm);if(st){st.style.color="#c62828";st.textContent="Não deu: "+(e&&e.message||e);}}
+  delete _rbOcup[chave];
+}
 async function atualizarPlanoDivAgora(){
   var b=document.getElementById("pd-btn"),sub=document.getElementById("pd-sub");
   if(b.disabled)return;b.disabled=true;var t0=b.textContent;b.textContent="Lendo o CONAG… (até 2 min)";
@@ -27410,7 +27480,7 @@ async function atualizarPlanoDivAgora(){
   b.disabled=false;b.textContent=t0;
 }
 </script>
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.20-amortizacao</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.24-relatorios-bia</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
