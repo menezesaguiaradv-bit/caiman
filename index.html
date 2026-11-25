@@ -26543,6 +26543,28 @@ var _CONF_CICLO={dias:118,ins:[
   ["Casca de soja",201.0,2.0325,0.90],["Calcário",19.3,0.1693,0.20],["Ureia",10.2,0.0899,3.25],
   ["Núcleo mineral",5.1,0.0446,5.69],["Sal branco",5.1,0.0446,0.95],["Inbeef",1.3,0.0113,27.99],
   ["Bypro BX",0.8,0.0068,19.25],["Vidara",0.1,0.0008,62.5]]};
+/* 25/11 (ele): "coloque o preco da adapt 1, adapt 2, crescimento e terminacao, divida
+   pelo numero de dias de confinamento, e faca o preco da diaria". Preco de cada dieta
+   = custo por cabeca/dia do cadastro (Saicon); dias de cada fase = programacao de
+   trato (ADAPT 1 10, ADAPT 2 10, CRESCIMENTO 20); a terminacao fica com o resto do
+   ciclo. Diaria = soma (preco x dias) / dias do confinamento. */
+function _calcFasesConf(dias){
+  var cfg={},dietas=[];try{cfg=getProgTrato()||{};dietas=getDietas()||[];}catch(e){}
+  var F=cfg.fases||{}, DF=cfg.dietaFase||{};
+  var ordem=[["ad1","ADAPT 1",F.ad1||0],["ad2","ADAPT 2",F.ad2||0],["ad3","ADAPT 3",F.ad3||0],["cre","CRESCIMENTO",F.cre||0],["fin","TERMINAÇÃO",null]];
+  var resto=dias||0, linhas=[], tot=0;
+  ordem.forEach(function(p){
+    var d=dietas.find(function(x){return String(x.id)===String(DF[p[0]]);});
+    var preco=d?(parseFloat(d.custoDia)||0):0;
+    var nd=p[2]===null?resto:Math.min(p[2],resto);
+    if(!(nd>0)&&p[2]!==null)return;
+    resto-=nd;
+    var c=preco*nd; tot+=c;
+    linhas.push({fase:p[1],dieta:d?d.nome:"(sem dieta)",preco:preco,dias:nd,custo:c});
+  });
+  var ok=linhas.length&&linhas.every(function(l){return l.preco>0||l.dias===0;});
+  return {linhas:linhas,total:tot,dias:dias,diaria:dias>0?tot/dias:0,ok:ok};
+}
 function _calcCicloConf(dias){
   var ex=(dias||0)-_CONF_CICLO.dias, linhas=[], tot=0, kgTot=0;
   _CONF_CICLO.ins.forEach(function(r){var kg=Math.max(0,r[1]+ex*r[2]);var c=kg*r[3];tot+=c;kgTot+=kg;linhas.push({nome:r[0],kg:kg,preco:r[3],custo:c});});
@@ -26565,7 +26587,11 @@ function _calcNutriInfo(dias,qtd){
   } else {
     var cnd=document.getElementById("calc-nutridia");
     if(cnd&&cnd.dataset.editado==="1"&&g("calc-nutridia")>0){ r.manual=true; r.custoDia=g("calc-nutridia"); r.custoPeriodo=r.custoDia*dias; }
-    else { var cc=_calcCicloConf(dias); r.ciclo=cc; r.custoPeriodo=cc.total; r.custoDia=dias>0?cc.total/dias:0; }
+    else {
+      var fz=_calcFasesConf(dias), cc=_calcCicloConf(dias); r.conf=cc;
+      if(fz.ok){ r.fases=fz; r.custoPeriodo=fz.total; r.custoDia=fz.diaria; }
+      else { r.ciclo=cc; r.custoPeriodo=cc.total; r.custoDia=dias>0?cc.total/dias:0; }
+    }
   }
   return r;
 }
@@ -26666,10 +26692,10 @@ function calcularViabilidade(){
     if(calcTipo==="Semi-Confinamento") nutri=nutriTotal;
     else if(_ed) nutri=nutriDia*dias;
     else {
-      var _cc=_calcCicloConf(dias); nutri=_cc.total;
+      var _fz=_calcFasesConf(dias), _cc=_fz.ok?{total:_fz.total}:_calcCicloConf(dias); nutri=_cc.total;
       try{ if(_cnd)_cnd.value=(dias>0?(_cc.total/dias):0).toFixed(2);
         var hn=document.getElementById("hint-nutridia");
-        if(hn)hn.textContent="Ciclo inteiro real do confinamento: R$ "+_cc.total.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+" por cabeça em "+dias+" dias (detalhe abaixo) — se digitar o R$/dia, vale o seu";
+        if(hn)hn.textContent=(_fz.ok?"Diária pelas dietas (ADAPT 1, ADAPT 2, CRESCIMENTO e TERMINAÇÃO × dias de cada fase ÷ ":"Ciclo inteiro real do confinamento ÷ ")+dias+" dias"+(_fz.ok?")":"")+": R$ "+_cc.total.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+" por cabeça (detalhe abaixo) — se digitar o R$/dia, vale o seu";
       }catch(e){}
     }
   }
@@ -26765,7 +26791,14 @@ function calcularViabilidade(){
         lin("Consumo",_kg(_ni.msDia,2)+" kg MS/cab/dia")+lin("Preço da dieta",brl(_ni.precoMS)+" / kg MS")+
         lin("Custo por dia",brl(_ni.custoDia)+" / cab")+lin("Custo no período ("+dias+" dias)",brl(_ni.custoPeriodo)+" / cab")+
         (qtd>0?lin("Lote ("+qtd.toLocaleString("pt-BR")+" animais)",brl(_ni.custoPeriodo*qtd)):"")
-      ):(_ni.ciclo?(
+      ):(_ni.fases?(
+        '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="color:#666;text-align:right"><th style="text-align:left;padding:4px">Fase (dieta)</th><th style="padding:4px">R$/cab/dia</th><th style="padding:4px">Dias</th><th style="padding:4px">Custo/cab</th></tr></thead><tbody>'+
+        _ni.fases.linhas.map(function(l){return '<tr style="border-top:1px solid #eee;text-align:right"><td style="text-align:left;padding:4px">'+l.fase+'</td><td style="padding:4px">'+brl(l.preco)+'</td><td style="padding:4px">'+l.dias+'</td><td style="padding:4px">'+brl(l.custo)+'</td></tr>';}).join('')+
+        '<tr style="border-top:2px solid #ddd;font-weight:700;text-align:right"><td style="text-align:left;padding:4px">Ciclo</td><td></td><td style="padding:4px">'+dias+'</td><td style="padding:4px">'+brl(_ni.custoPeriodo)+'</td></tr></tbody></table></div>'+
+        lin("Diária da nutrição ("+brl(_ni.custoPeriodo)+" ÷ "+dias+" dias)",brl(_ni.custoDia)+" / cab / dia",true)+
+        (qtd>0?lin("Lote ("+qtd.toLocaleString("pt-BR")+" animais)",brl(_ni.custoPeriodo*qtd)):"")+
+        (_ni.conf?'<div style="font-size:11.5px;color:#777;margin-top:6px">Conferência pelo consumo real do Saicon (insumo a insumo): '+brl(_ni.conf.total)+' por cabeça em '+dias+' dias</div>':"")
+      ):_ni.ciclo?(
         '<div style="font-size:12px;color:#666;margin-bottom:6px">Ciclo inteiro real do confinamento (Saicon), '+dias+' dias'+(_ni.ciclo.ex?(" — "+(_ni.ciclo.ex>0?"+":"")+Math.round(_ni.ciclo.ex)+" dias de terminação em relação ao giro de 118"):"")+'</div>'+
         '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="color:#666;text-align:right"><th style="text-align:left;padding:4px">Insumo</th><th style="padding:4px">kg MN/cab</th><th style="padding:4px">R$/kg</th><th style="padding:4px">Custo/cab</th></tr></thead><tbody>'+
         _ni.ciclo.linhas.map(function(l){return '<tr style="border-top:1px solid #eee;text-align:right"><td style="text-align:left;padding:4px">'+l.nome+'</td><td style="padding:4px">'+_kg(l.kg,1)+'</td><td style="padding:4px">'+_kg(l.preco,2)+'</td><td style="padding:4px">'+brl(l.custo)+'</td></tr>';}).join('')+
@@ -26930,6 +26963,11 @@ function exportarPDFViabilidade(){
       y=_pdfLinha(doc,y,"Preço da dieta",brl(ni.precoMS)+" / kg MS");
       y=_pdfLinha(doc,y,"Custo por dia",brl(ni.custoDia)+" / cab");
       y=_pdfLinha(doc,y,"Custo no período ("+dias+" dias)",brl(ni.custoPeriodo)+" / cab");
+    } else if(ni.fases){
+      ni.fases.linhas.forEach(function(l){ y=_pdfLinha(doc,y,l.fase+" ("+brl(l.preco)+"/cab/dia × "+l.dias+" dias)",brl(l.custo)); });
+      y=_pdfLinha(doc,y,"Ciclo ("+dias+" dias)",brl(ni.custoPeriodo)+" / cab");
+      y=_pdfLinha(doc,y,"Diária da nutrição (ciclo ÷ "+dias+" dias)",brl(ni.custoDia)+" / cab / dia");
+      if(qtd>0)y=_pdfLinha(doc,y,"Lote ("+qtd.toLocaleString("pt-BR")+" animais)",brl(ni.custoPeriodo*qtd));
     } else if(ni.ciclo){
       y=_pdfLinha(doc,y,"Ciclo inteiro real do confinamento ("+dias+" dias)","kg MN/cab  ·  R$/kg  ·  custo");
       ni.ciclo.linhas.forEach(function(l){ if(y>270){doc.addPage();y=20;} y=_pdfLinha(doc,y,l.nome,k(l.kg,1)+" kg  ·  "+k(l.preco,2)+"  ·  "+brl(l.custo)); });
@@ -27601,7 +27639,7 @@ async function atualizarPlanoDivAgora(){
   b.disabled=false;b.textContent=t0;
 }
 </script>
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.25-viab-ciclo</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.25-viab-fases</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
