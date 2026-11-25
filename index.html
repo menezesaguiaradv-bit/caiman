@@ -26537,6 +26537,25 @@ function _consumoMNSemi(nd){
     return ad>0?tot/ad:0;
   }catch(e){return 0;}
 }
+/* 25/11 (ele): bloco "Custo da nutrição" na tela e no PDF da viabilidade:
+   no semi, consumo em materia natural e o preco da racao (kg MN x R$/kg MN);
+   no confinamento, o custo por dia (ou o consumo em MS, quando marcado). */
+function _calcNutriInfo(dias,qtd){
+  var g=function(id){var e=document.getElementById(id);return e?(parseFloat(e.value)||0):0;};
+  var semi=(document.getElementById("calc-tipo")||{}).value==="Semi-Confinamento";
+  var r={semi:semi,dias:dias,qtd:qtd||0};
+  if(semi){
+    var tot=_calcNutriSemi(dias); r.preco=g("calc-semipreco"); r.mnDia=g("calc-semimn");
+    r.pctPV=g("calc-semipv")||1.8; r.pvMed=g("calc-pesoe")+g("calc-gmd")*dias/2;
+    r.mnPeriodo=r.mnDia*dias; r.custoDia=r.mnDia*r.preco; r.custoPeriodo=tot;
+  } else if(_calcUsaMS()&&g("calc-consumoms")>0&&g("calc-customs")>0){
+    r.ms=true; r.msDia=g("calc-consumoms"); r.precoMS=g("calc-customs");
+    r.custoDia=r.msDia*r.precoMS; r.custoPeriodo=r.custoDia*dias;
+  } else {
+    r.custoDia=g("calc-nutridia")>0?g("calc-nutridia"):12.41; r.custoPeriodo=r.custoDia*dias;
+  }
+  return r;
+}
 function _calcUsaMS(){
   var t=document.getElementById("calc-tipo");
   if(t&&t.value==="Semi-Confinamento")return false;
@@ -26711,7 +26730,27 @@ function calcularViabilidade(){
   }
   function pct(v){return (v*100).toLocaleString("pt-BR",{maximumFractionDigits:1})+"%";}
   
-  box.innerHTML=
+  var _ni=_calcNutriInfo(dias,qtd);
+  var _kg=function(v,c){return v.toLocaleString("pt-BR",{minimumFractionDigits:c,maximumFractionDigits:c});};
+  var blocoNutri='<div style="background:#f8f8f5;border-radius:10px;padding:14px;margin-bottom:10px">'+
+      '<div style="font-size:12px;font-weight:700;color:var(--v);text-transform:uppercase;margin-bottom:8px">Custo da nutrição</div>'+
+      (_ni.semi?(
+        lin("Consumo ("+_kg(_ni.pctPV,2)+"% do PV médio de "+_kg(_ni.pvMed,0)+" kg)",_kg(_ni.mnDia,2)+" kg MN/cab/dia")+
+        lin("Preço da ração",brl(_ni.preco)+" / kg MN")+
+        lin("Custo por dia",brl(_ni.custoDia)+" / cab")+
+        lin("Consumo no período ("+dias+" dias)",_kg(_ni.mnPeriodo,0)+" kg MN/cab")+
+        lin("Custo no período",brl(_ni.custoPeriodo)+" / cab")+
+        (qtd>0?lin("Lote ("+qtd.toLocaleString("pt-BR")+" animais)",_kg(_ni.mnPeriodo*qtd/1000,1)+" t MN · "+brl(_ni.custoPeriodo*qtd)):"")
+      ):(_ni.ms?(
+        lin("Consumo",_kg(_ni.msDia,2)+" kg MS/cab/dia")+lin("Preço da dieta",brl(_ni.precoMS)+" / kg MS")+
+        lin("Custo por dia",brl(_ni.custoDia)+" / cab")+lin("Custo no período ("+dias+" dias)",brl(_ni.custoPeriodo)+" / cab")+
+        (qtd>0?lin("Lote ("+qtd.toLocaleString("pt-BR")+" animais)",brl(_ni.custoPeriodo*qtd)):"")
+      ):(
+        lin("Custo por dia",brl(_ni.custoDia)+" / cab")+lin("Custo no período ("+dias+" dias)",brl(_ni.custoPeriodo)+" / cab")+
+        (qtd>0?lin("Lote ("+qtd.toLocaleString("pt-BR")+" animais)",brl(_ni.custoPeriodo*qtd)):"")
+      )))+
+    '</div>';
+  box.innerHTML=blocoNutri+
     '<div style="background:#f8f8f5;border-radius:10px;padding:14px">'+
       '<div style="font-size:12px;font-weight:700;color:var(--v);text-transform:uppercase;margin-bottom:8px">Resultado por animal</div>'+
       lin(calcTipo==="Semi-Confinamento"?"Dias no semi":"Dias de confinamento",dias+" dias")+
@@ -26791,7 +26830,7 @@ function exportarPDFViabilidade(){
   const consumoMSdia=cv("calc-consumoms");
   const customs=cv("calc-customs");
   const _semiPdf=(document.getElementById("calc-tipo")||{}).value==="Semi-Confinamento";
-  const nutri = (usaMS&&consumoMSdia>0&&customs>0) ? (consumoMSdia*customs*dias) : (_semiPdf ? _calcNutriSemi(dias) : (nutriDia*dias));
+  const nutri = (usaMS&&consumoMSdia>0&&customs>0) ? (consumoMSdia*customs*dias) : (_semiPdf ? _calcNutriSemi(dias) : ((nutriDia>0?nutriDia:12.41)*dias));
   // diária editada (se houver)
   var elDiaria=document.getElementById("calc-diaria");
   var diariaManual=(elDiaria&&elDiaria.dataset.editado==="1")?(parseFloat(elDiaria.value)||0):0;
@@ -26848,10 +26887,33 @@ function exportarPDFViabilidade(){
   y=_pdfLinha(doc,y,"Preço de venda (R$/@)",brl(precoV));
   y=_pdfLinha(doc,y,"Rendimento de carcaça",rend.toLocaleString("pt-BR",{maximumFractionDigits:1})+"%");
 
+  // Custo da nutricao (25/11): no semi, consumo em MN e preco da racao
+  (function(){
+    var ni=_calcNutriInfo(dias,qtd), k=function(v,c){return v.toLocaleString("pt-BR",{minimumFractionDigits:c,maximumFractionDigits:c});};
+    if(y>230){doc.addPage();y=20;}
+    y=_pdfSecao(doc,y,"Custo da nutrição");
+    if(ni.semi){
+      y=_pdfLinha(doc,y,"Consumo ("+k(ni.pctPV,2)+"% do PV médio de "+k(ni.pvMed,0)+" kg)",k(ni.mnDia,2)+" kg MN/cab/dia");
+      y=_pdfLinha(doc,y,"Preço da ração",brl(ni.preco)+" / kg MN");
+      y=_pdfLinha(doc,y,"Custo por dia",brl(ni.custoDia)+" / cab");
+      y=_pdfLinha(doc,y,"Consumo no período ("+dias+" dias)",k(ni.mnPeriodo,0)+" kg MN/cab");
+      y=_pdfLinha(doc,y,"Custo no período",brl(ni.custoPeriodo)+" / cab");
+      if(qtd>0)y=_pdfLinha(doc,y,"Lote ("+qtd.toLocaleString("pt-BR")+" animais)",k(ni.mnPeriodo*qtd/1000,1)+" t MN  ·  "+brl(ni.custoPeriodo*qtd));
+    } else if(ni.ms){
+      y=_pdfLinha(doc,y,"Consumo",k(ni.msDia,2)+" kg MS/cab/dia");
+      y=_pdfLinha(doc,y,"Preço da dieta",brl(ni.precoMS)+" / kg MS");
+      y=_pdfLinha(doc,y,"Custo por dia",brl(ni.custoDia)+" / cab");
+      y=_pdfLinha(doc,y,"Custo no período ("+dias+" dias)",brl(ni.custoPeriodo)+" / cab");
+    } else {
+      y=_pdfLinha(doc,y,"Custo por dia",brl(ni.custoDia)+" / cab");
+      y=_pdfLinha(doc,y,"Custo no período ("+dias+" dias)",brl(ni.custoPeriodo)+" / cab");
+    }
+  })();
+
   // Resultado por animal
   if(y>250){doc.addPage();y=20;}
   y=_pdfSecao(doc,y,"Resultado por animal");
-  y=_pdfLinha(doc,y,"Dias de confinamento",dias+" dias");
+  y=_pdfLinha(doc,y,_semiPdf?"Dias no semi":"Dias de confinamento",dias+" dias");
   y=_pdfLinha(doc,y,"Peso vivo na venda",pesoSaida.toLocaleString("pt-BR",{maximumFractionDigits:0})+" kg");
   y=_pdfLinha(doc,y,"Peso abatido (carcaça)",arrobaSaida.toLocaleString("pt-BR",{maximumFractionDigits:1})+" @");
   y=_pdfLinha(doc,y,"Valor do animal",brl(cp.animal));
@@ -27508,7 +27570,7 @@ async function atualizarPlanoDivAgora(){
   b.disabled=false;b.textContent=t0;
 }
 </script>
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.25-viab-semi-118</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.25-viab-nutri</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
