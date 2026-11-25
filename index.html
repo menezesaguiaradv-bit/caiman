@@ -26417,7 +26417,7 @@ function abrirCalculadora(){
         '<div class="field calc-ms-box" style="display:none"><label>Consumo MS (kg/dia)</label><input type="number" id="calc-consumoms" step="0.01" value="11.1" oninput="calcularViabilidade()"><small>Média da adaptação ao fim da terminação para boi magro de 400 kg com GMD 1,4 em 120 dias (~2,3% do PV médio: ~7,8 adaptação · 9,7 crescimento · 12,3 terminação) — editável</small></div>'+
         '<div class="field calc-ms-box" style="display:none"><label>Custo por kg de MS (R$)</label><input type="number" id="calc-customs" step="0.001" value="1.20" oninput="calcularViabilidade()"><small>Coerente com bagaço a 60% e preços de set/2026 — edite se o preço variar</small></div>'+
         '<div class="field calc-ms-box" style="display:none;grid-column:1/-1"><label>% MS do bagaço — opcional</label><input type="number" id="calc-teorbagaco" step="1" value="60" oninput="calcAtualizaCustoMS()"><small>Recalcula o custo/kg MS: 1,07 (89%) a 1,25 (50%). Ciclo 2026 mediu de 44 a 63%</small></div>'+
-        '<div class="field" id="wrap-nutridia"><label>Custo nutrição (R$/cab/dia)</label><input type="number" id="calc-nutridia" step="0.01" oninput="calcNutriEditado(this)"><small id="hint-nutridia">Média das dietas cadastradas — editável</small></div><div id="wrap-nutritotal" style="display:none;grid-column:1/-1"><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="field"><label>Consumo da dieta do semi (kg MN/cab/dia)</label><input type="number" id="calc-semimn" step="0.01" oninput="calcularViabilidade()"><small id="hint-semimn">Matéria natural, como sai do vagão — editável</small></div><div class="field"><label>Preço da dieta do semi (R$/kg MN)</label><input type="number" id="calc-semipreco" step="0.01" value="1.24" oninput="calcularViabilidade()"><small>Dieta do semi a R$ 1,24/kg de matéria natural (out/2026) — editável</small></div></div><small id="hint-semitotal" style="display:block;color:#1B5E20;font-weight:600;margin-top:8px"></small></div>'+
+        '<div class="field" id="wrap-nutridia"><label>Custo nutrição (R$/cab/dia)</label><input type="number" id="calc-nutridia" step="0.01" oninput="calcNutriEditado(this)"><small id="hint-nutridia">Média das dietas cadastradas — editável</small></div><div id="wrap-nutritotal" style="display:none;grid-column:1/-1"><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="field"><label>Consumo (% do PV em MS)</label><input type="number" id="calc-semipv" step="0.01" value="1.8" oninput="calcularViabilidade()"><small>Semi de águas da Cruz Alta: 1,8% do peso vivo</small></div><div class="field"><label>Teor de MS da dieta (%)</label><input type="number" id="calc-semims" step="0.1" value="89.1" oninput="calcularViabilidade()"><small>Dieta Semi Águas Cruz Alta (nov/2026): 89,1%</small></div><div class="field"><label>Consumo da dieta do semi (kg MN/cab/dia)</label><input type="number" id="calc-semimn" step="0.01" oninput="this.dataset.editado=this.value?\'1\':\'\';calcularViabilidade()"><small id="hint-semimn">Calculado pelo peso, % do PV e teor de MS — se digitar, vale o seu número</small></div><div class="field"><label>Preço da dieta do semi (R$/kg MN)</label><input type="number" id="calc-semipreco" step="0.01" value="1.09" oninput="calcularViabilidade()"><small>Dieta Semi Águas Cruz Alta a R$ 1,09/kg de matéria natural (nov/2026) — editável</small></div></div><small id="hint-semitotal" style="display:block;color:#1B5E20;font-weight:600;margin-top:8px"></small></div>'+
         '<div class="field"><label>Custo operacional (R$)</label><input type="number" id="calc-op" step="0.01" value="300" oninput="calcularViabilidade()"></div>'+
         '<div class="field" style="background:#E8F5E9;padding:8px;border-radius:8px"><label style="color:#1B5E20">Diária do animal (R$/dia)</label><input type="number" id="calc-diaria" step="0.01" oninput="calcDiariaManual()"><small>Automática (nutrição/dia + operacional/dia) — editável</small></div><div class="field"><label>Juros custeio (% a.a.)</label><input type="number" id="calc-juros" step="0.01" value="12.5" oninput="calcularViabilidade()"></div>'+
       '</div>'+
@@ -26458,10 +26458,13 @@ function abrirCalculadora(){
   try{
     const sm=document.getElementById("calc-semimn");
     if(sm&&!sm.value){
+      /* 25/11 (ele): o consumo do semi vinha da media dos tratos dos ultimos 30 dias;
+         com a Cruz Alta sem trato no Saicon desde 10/10 saia 0 e a nutricao ficava
+         R$ 0,00 (lucro falso). Agora e sempre calculado pela conta inteira em MN
+         (_calcNutriSemi); a media real dos tratos fica so como referencia. */
+      sm.dataset.editado="";
       const m=_consumoMNSemi(30);
-      const h=document.getElementById("hint-semimn");
-      if(m>0){sm.value=m.toFixed(2);if(h)h.textContent="Média real dos tratos do semi nos últimos 30 dias (matéria natural) — editável";}
-      else if(h)h.textContent="Sem trato do semi lançado nos últimos 30 dias — digite o consumo em matéria natural";
+      sm.dataset.realTratos=m>0?m.toFixed(2):"";
     }
   }catch(e){}
   modal.style.display="flex";
@@ -26491,7 +26494,27 @@ function toggleCalcTipo(){
    lancamentos de trato dos lotes de semi nos ultimos 30 dias. */
 function _calcNutriSemi(dias){
   var g=function(id){var e=document.getElementById(id);return e?(parseFloat(e.value)||0):0;};
-  return g("calc-semimn")*g("calc-semipreco")*(dias||0);
+  var sm=document.getElementById("calc-semimn"), h=document.getElementById("hint-semimn");
+  var preco=g("calc-semipreco"); dias=dias||0;
+  /* 25/11 (ele): no semi, por ser em materia natural, a conta inteira:
+     PV medio (entrada + GMD x dias / 2) x % do PV = kg MS/dia; / teor de MS = kg MN/dia;
+     x R$/kg MN x dias. Se ele digitar o consumo, vale o numero dele. */
+  var pe=g("calc-pesoe"), gmd=g("calc-gmd"), pv=g("calc-semipv")||1.8, ms=g("calc-semims")||89.1;
+  var pvMed=pe+gmd*dias/2, kgMS=pvMed*pv/100, kgMN=ms>0?kgMS/(ms/100):0;
+  var manual=sm&&sm.dataset.editado==="1"&&g("calc-semimn")>0;
+  var f=function(v,c){return (+v).toLocaleString("pt-BR",{minimumFractionDigits:c,maximumFractionDigits:c});};
+  if(!manual){
+    if(sm)sm.value=kgMN>0?kgMN.toFixed(2):"";
+    if(h){
+      var t="PV médio "+f(pvMed,0)+" kg ("+f(pe,0)+" → "+f(pe+gmd*dias,0)+" kg) × "+f(pv,2)+"% = "+f(kgMS,2)+" kg MS ÷ "+f(ms,1)+"% de MS = "+f(kgMN,2)+" kg MN/cab/dia";
+      if(sm&&sm.dataset.realTratos)t+=" · média real dos tratos (30 dias): "+sm.dataset.realTratos.replace(".",",")+" kg MN";
+      h.textContent=t;
+    }
+  } else if(h){ h.textContent="Consumo digitado por você ("+f(g("calc-semimn"),2)+" kg MN/cab/dia) — apague para voltar à conta pelo peso"; }
+  var mn=manual?g("calc-semimn"):kgMN;
+  var tot=mn*preco*dias;
+  try{ var hs=document.getElementById("hint-semitotal"); if(hs)hs.dataset.conta=f(mn,2)+" kg MN × R$ "+f(preco,2)+" × "+dias+" dias = R$ "+f(tot,2)+" por animal"; }catch(e){}
+  return tot;
 }
 function _consumoMNSemi(nd){
   try{
@@ -26595,7 +26618,7 @@ function calcularViabilidade(){
     return;
   }
   const nutriTotal=_calcNutriSemi(dias);   // semi: kg MN x R$/kg MN x dias
-  try{const hs=document.getElementById("hint-semitotal");if(hs)hs.textContent=nutriTotal>0?("Nutrição no período: R$ "+nutriTotal.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+" por animal ("+dias+" dias)"):"";}catch(e){}
+  try{const hs=document.getElementById("hint-semitotal");if(hs)hs.textContent=nutriTotal>0?("Nutrição no período: "+(hs.dataset.conta||("R$ "+nutriTotal.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+" por animal ("+dias+" dias)"))):"Sem nutrição: confira o peso de entrada, o GMD e o preço da dieta";}catch(e){}
   // matéria seca: se marcado, calcula nutrição por consumo MS × custo/kg MS
   const usaMS=_calcUsaMS();
   const consumoMSdia=cv("calc-consumoms");
@@ -26604,10 +26627,14 @@ function calcularViabilidade(){
   if(usaMS&&consumoMSdia>0&&customs>0){
     nutri=consumoMSdia*customs*dias; // custo nutrição do ciclo por MS
   } else {
-    nutri=(calcTipo==="Semi-Confinamento")?nutriTotal:(nutriDia*dias);
+    /* 25/11 (ele: "para todos"): no confinamento, se o custo/dia estiver vazio, usa
+       R$ 12,41/cab/dia (insumos do giro inteiro, Plano de Insumos 25/11) em vez de 0 */
+    var nd=nutriDia;
+    if(calcTipo!=="Semi-Confinamento"&&!(nd>0)){nd=12.41;try{var hn=document.getElementById("hint-nutridia");if(hn)hn.textContent="Sem custo de dieta: usando R$ 12,41/cab/dia (insumos do giro inteiro, nov/2026) — editável";}catch(e){}}
+    nutri=(calcTipo==="Semi-Confinamento")?nutriTotal:(nd*dias);
   }
   // diária do animal = nutrição/dia + operacional/dia (automática, editável)
-  var nutriDiaCalc = usaMS ? (consumoMSdia*customs) : ((calcTipo==="Semi-Confinamento")?(nutriTotal/dias):nutriDia);
+  var nutriDiaCalc = usaMS ? (consumoMSdia*customs) : ((calcTipo==="Semi-Confinamento")?(nutriTotal/dias):(nutriDia>0?nutriDia:12.41));
   var opDiaCalc = dias>0 ? (op/dias) : 0;
   var diariaAuto = +(nutriDiaCalc + opDiaCalc).toFixed(2);
   var elDiaria = document.getElementById("calc-diaria");
@@ -27480,7 +27507,7 @@ async function atualizarPlanoDivAgora(){
   b.disabled=false;b.textContent=t0;
 }
 </script>
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.24-relatorios-bia</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.25-viab-semi-mn</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
