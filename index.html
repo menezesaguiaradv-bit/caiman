@@ -26413,7 +26413,7 @@ function abrirCalculadora(){
       '</div>'+
       '<div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;margin:12px 0 8px 0">Custos (por animal)</div>'+
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
-        '<div class="field" id="wrap-usems" style="grid-column:1/-1;background:#FFF8E1;padding:8px;border-radius:8px"><label style="color:#E65100"><input type="checkbox" id="calc-usems" checked onchange="calcularViabilidade()" style="width:auto;margin-right:6px">Calcular nutrição por matéria seca (MS)</label><small>Recomendado — protege contra a variação de umidade do bagaço</small></div>'+
+        '<div class="field" id="wrap-usems" style="grid-column:1/-1;background:#FFF8E1;padding:8px;border-radius:8px"><label style="color:#E65100"><input type="checkbox" id="calc-usems" onchange="calcularViabilidade()" style="width:auto;margin-right:6px">Calcular nutrição por matéria seca (MS)</label><small>Desmarcado = ciclo inteiro real do confinamento (padrão desde 25/11)</small></div>'+
         '<div class="field calc-ms-box" style="display:none"><label>Consumo MS (kg/dia)</label><input type="number" id="calc-consumoms" step="0.01" value="11.1" oninput="calcularViabilidade()"><small>Média da adaptação ao fim da terminação para boi magro de 400 kg com GMD 1,4 em 120 dias (~2,3% do PV médio: ~7,8 adaptação · 9,7 crescimento · 12,3 terminação) — editável</small></div>'+
         '<div class="field calc-ms-box" style="display:none"><label>Custo por kg de MS (R$)</label><input type="number" id="calc-customs" step="0.001" value="1.20" oninput="calcularViabilidade()"><small>Coerente com bagaço a 60% e preços de set/2026 — edite se o preço variar</small></div>'+
         '<div class="field calc-ms-box" style="display:none;grid-column:1/-1"><label>% MS do bagaço — opcional</label><input type="number" id="calc-teorbagaco" step="1" value="60" oninput="calcAtualizaCustoMS()"><small>Recalcula o custo/kg MS: 1,07 (89%) a 1,25 (50%). Ciclo 2026 mediu de 44 a 63%</small></div>'+
@@ -26447,12 +26447,8 @@ function abrirCalculadora(){
   try{
     const cn=document.getElementById("calc-nutridia");
     if(cn&&cn.dataset.editado!=="1"){
-      const m=_custoMedioDieta();
-      if(m>0){
-        cn.value=m.toFixed(2);
-        const hint=document.getElementById("hint-nutridia");
-        if(hint)hint.textContent="Média das dietas cadastradas, ponderada pelos dias de cada fase — editável";
-      }
+      /* 25/11 (ele): sem media das dietas - o custo vem do ciclo inteiro real (_calcCicloConf) */
+      cn.value="";
     }
   }catch(e){}
   try{
@@ -26537,6 +26533,21 @@ function _consumoMNSemi(nd){
     return ad>0?tot/ad:0;
   }catch(e){return 0;}
 }
+/* 25/11 (ele: "coloque o ciclo inteiro do confinamento, nao precisa colocar media"):
+   custo real do CICLO INTEIRO por cabeca, insumo a insumo (Saicon Pinheiral, lote atual:
+   o que ja comeu de 11/08 a 22/11 + a terminacao das linhas A e B ate o abate =
+   155.792 cab-dia / 1.323 cab = 118 dias), precos do Plano de Insumos 25/11.
+   Ciclo diferente de 118 dias: soma ou tira dias de terminacao (kg/dia da terminacao). */
+var _CONF_CICLO={dias:118,ins:[
+  ["Milho úmido",707.1,7.2207,0.75],["Bagaço de cana",635.4,5.4407,0.28],["DDG",350.6,2.6311,1.266],
+  ["Casca de soja",201.0,2.0325,0.90],["Calcário",19.3,0.1693,0.20],["Ureia",10.2,0.0899,3.25],
+  ["Núcleo mineral",5.1,0.0446,5.69],["Sal branco",5.1,0.0446,0.95],["Inbeef",1.3,0.0113,27.99],
+  ["Bypro BX",0.8,0.0068,19.25],["Vidara",0.1,0.0008,62.5]]};
+function _calcCicloConf(dias){
+  var ex=(dias||0)-_CONF_CICLO.dias, linhas=[], tot=0, kgTot=0;
+  _CONF_CICLO.ins.forEach(function(r){var kg=Math.max(0,r[1]+ex*r[2]);var c=kg*r[3];tot+=c;kgTot+=kg;linhas.push({nome:r[0],kg:kg,preco:r[3],custo:c});});
+  return {linhas:linhas,total:tot,kg:kgTot,dias:dias,ex:ex};
+}
 /* 25/11 (ele): bloco "Custo da nutrição" na tela e no PDF da viabilidade:
    no semi, consumo em materia natural e o preco da racao (kg MN x R$/kg MN);
    no confinamento, o custo por dia (ou o consumo em MS, quando marcado). */
@@ -26552,7 +26563,9 @@ function _calcNutriInfo(dias,qtd){
     r.ms=true; r.msDia=g("calc-consumoms"); r.precoMS=g("calc-customs");
     r.custoDia=r.msDia*r.precoMS; r.custoPeriodo=r.custoDia*dias;
   } else {
-    r.custoDia=g("calc-nutridia")>0?g("calc-nutridia"):12.41; r.custoPeriodo=r.custoDia*dias;
+    var cnd=document.getElementById("calc-nutridia");
+    if(cnd&&cnd.dataset.editado==="1"&&g("calc-nutridia")>0){ r.manual=true; r.custoDia=g("calc-nutridia"); r.custoPeriodo=r.custoDia*dias; }
+    else { var cc=_calcCicloConf(dias); r.ciclo=cc; r.custoPeriodo=cc.total; r.custoDia=dias>0?cc.total/dias:0; }
   }
   return r;
 }
@@ -26649,12 +26662,19 @@ function calcularViabilidade(){
   } else {
     /* 25/11 (ele: "para todos"): no confinamento, se o custo/dia estiver vazio, usa
        R$ 12,41/cab/dia (insumos do giro inteiro, Plano de Insumos 25/11) em vez de 0 */
-    var nd=nutriDia;
-    if(calcTipo!=="Semi-Confinamento"&&!(nd>0)){nd=12.41;try{var hn=document.getElementById("hint-nutridia");if(hn)hn.textContent="Sem custo de dieta: usando R$ 12,41/cab/dia (insumos do giro inteiro, nov/2026) — editável";}catch(e){}}
-    nutri=(calcTipo==="Semi-Confinamento")?nutriTotal:(nd*dias);
+    var _cnd=document.getElementById("calc-nutridia"), _ed=_cnd&&_cnd.dataset.editado==="1"&&nutriDia>0;
+    if(calcTipo==="Semi-Confinamento") nutri=nutriTotal;
+    else if(_ed) nutri=nutriDia*dias;
+    else {
+      var _cc=_calcCicloConf(dias); nutri=_cc.total;
+      try{ if(_cnd)_cnd.value=(dias>0?(_cc.total/dias):0).toFixed(2);
+        var hn=document.getElementById("hint-nutridia");
+        if(hn)hn.textContent="Ciclo inteiro real do confinamento: R$ "+_cc.total.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+" por cabeça em "+dias+" dias (detalhe abaixo) — se digitar o R$/dia, vale o seu";
+      }catch(e){}
+    }
   }
   // diária do animal = nutrição/dia + operacional/dia (automática, editável)
-  var nutriDiaCalc = usaMS ? (consumoMSdia*customs) : ((calcTipo==="Semi-Confinamento")?(nutriTotal/dias):(nutriDia>0?nutriDia:12.41));
+  var nutriDiaCalc = usaMS ? (consumoMSdia*customs) : (dias>0?nutri/dias:0);
   var opDiaCalc = dias>0 ? (op/dias) : 0;
   var diariaAuto = +(nutriDiaCalc + opDiaCalc).toFixed(2);
   var elDiaria = document.getElementById("calc-diaria");
@@ -26745,10 +26765,16 @@ function calcularViabilidade(){
         lin("Consumo",_kg(_ni.msDia,2)+" kg MS/cab/dia")+lin("Preço da dieta",brl(_ni.precoMS)+" / kg MS")+
         lin("Custo por dia",brl(_ni.custoDia)+" / cab")+lin("Custo no período ("+dias+" dias)",brl(_ni.custoPeriodo)+" / cab")+
         (qtd>0?lin("Lote ("+qtd.toLocaleString("pt-BR")+" animais)",brl(_ni.custoPeriodo*qtd)):"")
+      ):(_ni.ciclo?(
+        '<div style="font-size:12px;color:#666;margin-bottom:6px">Ciclo inteiro real do confinamento (Saicon), '+dias+' dias'+(_ni.ciclo.ex?(" — "+(_ni.ciclo.ex>0?"+":"")+Math.round(_ni.ciclo.ex)+" dias de terminação em relação ao giro de 118"):"")+'</div>'+
+        '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="color:#666;text-align:right"><th style="text-align:left;padding:4px">Insumo</th><th style="padding:4px">kg MN/cab</th><th style="padding:4px">R$/kg</th><th style="padding:4px">Custo/cab</th></tr></thead><tbody>'+
+        _ni.ciclo.linhas.map(function(l){return '<tr style="border-top:1px solid #eee;text-align:right"><td style="text-align:left;padding:4px">'+l.nome+'</td><td style="padding:4px">'+_kg(l.kg,1)+'</td><td style="padding:4px">'+_kg(l.preco,2)+'</td><td style="padding:4px">'+brl(l.custo)+'</td></tr>';}).join('')+
+        '<tr style="border-top:2px solid #ddd;font-weight:700;text-align:right"><td style="text-align:left;padding:4px">Ciclo inteiro</td><td style="padding:4px">'+_kg(_ni.ciclo.kg,0)+'</td><td></td><td style="padding:4px">'+brl(_ni.custoPeriodo)+'</td></tr></tbody></table></div>'+
+        (qtd>0?lin("Lote ("+qtd.toLocaleString("pt-BR")+" animais)",_kg(_ni.ciclo.kg*qtd/1000,1)+" t MN · "+brl(_ni.custoPeriodo*qtd)):"")
       ):(
-        lin("Custo por dia",brl(_ni.custoDia)+" / cab")+lin("Custo no período ("+dias+" dias)",brl(_ni.custoPeriodo)+" / cab")+
+        lin("Custo por dia (digitado)",brl(_ni.custoDia)+" / cab")+lin("Custo no período ("+dias+" dias)",brl(_ni.custoPeriodo)+" / cab")+
         (qtd>0?lin("Lote ("+qtd.toLocaleString("pt-BR")+" animais)",brl(_ni.custoPeriodo*qtd)):"")
-      )))+
+      ))))+
     '</div>';
   box.innerHTML=blocoNutri+
     '<div style="background:#f8f8f5;border-radius:10px;padding:14px">'+
@@ -26830,7 +26856,7 @@ function exportarPDFViabilidade(){
   const consumoMSdia=cv("calc-consumoms");
   const customs=cv("calc-customs");
   const _semiPdf=(document.getElementById("calc-tipo")||{}).value==="Semi-Confinamento";
-  const nutri = (usaMS&&consumoMSdia>0&&customs>0) ? (consumoMSdia*customs*dias) : (_semiPdf ? _calcNutriSemi(dias) : ((nutriDia>0?nutriDia:12.41)*dias));
+  const nutri = (usaMS&&consumoMSdia>0&&customs>0) ? (consumoMSdia*customs*dias) : (_semiPdf ? _calcNutriSemi(dias) : _calcNutriInfo(dias,qtd).custoPeriodo);
   // diária editada (se houver)
   var elDiaria=document.getElementById("calc-diaria");
   var diariaManual=(elDiaria&&elDiaria.dataset.editado==="1")?(parseFloat(elDiaria.value)||0):0;
@@ -26904,8 +26930,13 @@ function exportarPDFViabilidade(){
       y=_pdfLinha(doc,y,"Preço da dieta",brl(ni.precoMS)+" / kg MS");
       y=_pdfLinha(doc,y,"Custo por dia",brl(ni.custoDia)+" / cab");
       y=_pdfLinha(doc,y,"Custo no período ("+dias+" dias)",brl(ni.custoPeriodo)+" / cab");
+    } else if(ni.ciclo){
+      y=_pdfLinha(doc,y,"Ciclo inteiro real do confinamento ("+dias+" dias)","kg MN/cab  ·  R$/kg  ·  custo");
+      ni.ciclo.linhas.forEach(function(l){ if(y>270){doc.addPage();y=20;} y=_pdfLinha(doc,y,l.nome,k(l.kg,1)+" kg  ·  "+k(l.preco,2)+"  ·  "+brl(l.custo)); });
+      y=_pdfLinha(doc,y,"Ciclo inteiro por animal",k(ni.ciclo.kg,0)+" kg MN  ·  "+brl(ni.custoPeriodo));
+      if(qtd>0)y=_pdfLinha(doc,y,"Lote ("+qtd.toLocaleString("pt-BR")+" animais)",k(ni.ciclo.kg*qtd/1000,1)+" t MN  ·  "+brl(ni.custoPeriodo*qtd));
     } else {
-      y=_pdfLinha(doc,y,"Custo por dia",brl(ni.custoDia)+" / cab");
+      y=_pdfLinha(doc,y,"Custo por dia (digitado)",brl(ni.custoDia)+" / cab");
       y=_pdfLinha(doc,y,"Custo no período ("+dias+" dias)",brl(ni.custoPeriodo)+" / cab");
     }
   })();
@@ -27570,7 +27601,7 @@ async function atualizarPlanoDivAgora(){
   b.disabled=false;b.textContent=t0;
 }
 </script>
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.25-viab-nutri</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.25-viab-ciclo</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
