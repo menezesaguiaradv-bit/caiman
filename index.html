@@ -27475,7 +27475,7 @@ function _pdCor(x,meta,teto){return x<=meta?"#2E7D32":(x<=teto?"#B8860B":"#C6282
 async function renderPlanoDiv(){
   var sub=document.getElementById("pd-sub"),c=document.getElementById("pd-corpo");
   var d=await _baixarChaveEmp("caiman_plano_divida");
-  if(!d||!d.plano){sub.textContent="O plano ainda não foi gravado pela Bia. Toque em Atualizar pelo CONAG.";c.innerHTML="";return;}
+  if(!d||!d.plano){sub.textContent="O plano ainda não foi gravado pela Bia. Toque em Atualizar pelo CONAG.";c.innerHTML="";await _pdDre(c);return;}
   _pdDados=d;
   var P=d.plano,R=d.real||{},hist=(d.hist||[]).slice();
   var E=P.ebitda_plano,meta=P.meta_x,teto=P.teto_x;
@@ -27565,6 +27565,83 @@ async function renderPlanoDiv(){
   h+='<div style="font-size:11px;color:#999;margin-top:14px">Plano de '+new Date(P.criado+"T12:00").toLocaleDateString("pt-BR")+'. É planejamento, não recomendação de investimento.</div>';
   c.innerHTML=h;
   try{document.getElementById("ms-planodiv").textContent=_pdX(x)+" hoje";}catch(e){}
+  await _pdDre(c);
+}
+/* 27/11/2026 (ele: "quero que no painel financeiro apareca meu relatorio de resultados, somente de meu nome"):
+   DRE do CONAG (Painel de Resultado, Realizado + A Vencer) so da unidade 1 - GUILHERME MENEZES AGUIAR - PECUARIA.
+   Le EMPRESA::caiman_conag_dre (gravada pela leitura da DRE no CONAG). Guarda: se a unidade gravada nao for so a
+   dele, NAO mostra - aqui nunca aparece DRE do Henrique nem do Roberto. Valores inteiros por extenso (regra dele). */
+function _dreNum(t){var v=String(t==null?"":t).replace(/[%\s]/g,"").replace(/\./g,"").replace(",",".");var n=parseFloat(v);return isNaN(n)?0:n;}
+async function _pdDre(c){
+  var box=document.createElement("div");
+  var sec=function(t){return '<div style="background:#e8f0e3;color:#1a3a1a;font-weight:700;font-size:14px;padding:6px 10px;border-radius:6px;margin:18px 0 10px">'+t+'</div>';};
+  var d=await _baixarChaveEmp("caiman_conag_dre");
+  var un=(d&&Array.isArray(d.unidade)?d.unidade:[]).join(", ");
+  if(!d||!Array.isArray(d.linhas)||d.linhas.length<2||!/GUILHERME/i.test(un)||/ROBERTO|HENRIQUE/i.test(un)){
+    box.innerHTML=sec("Resultado (DRE) — Guilherme")+'<div style="font-size:13px;color:#777">A DRE da sua unidade ainda não foi gravada. Peça à Bia: "DRE do Guilherme".</div>';
+    c.appendChild(box);return;
+  }
+  var L=d.linhas,cab=L[0],nCol=cab.length-1; /* colunas 1..12 = meses, ultima = Total */
+  var norm=function(t){return String(t||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase().replace(/^\(.\)\s*/,"").trim();};
+  var acha=function(re){for(var i=1;i<L.length;i++)if(re.test(norm(L[i][0])))return L[i];return null;};
+  var R=function(v){return (v<0?"−":"")+"R$ "+Math.round(Math.abs(v)).toLocaleString("pt-BR");};
+  var ano=Number(d.ano)||new Date().getFullYear(),hoje=new Date();
+  var ultMes=12; /* "Realizado + a vencer": o total ja inclui o que vence nos proximos meses, entao mostra os 12 */
+  var em=d.atualizado?new Date(d.atualizado):null;
+  var rb=acha(/^RECEITA BRUTA$/),cob=acha(/^CUSTO OPERACIONAL BRUTO$/),rob=acha(/^RESULTADO OPERACIONAL BRUTO$/),
+      col=acha(/^CAIXA OPERACIONAL LIQUIDO$/),df=acha(/^DESPESAS FINANCEIRAS$/),rl=acha(/^RESULTADO LIQUIDO DO PERIODO$/),ml=acha(/^MARGEM LIQUIDA$/);
+  var tot=function(l){return l?_dreNum(l[nCol]):0;};
+  var k=function(t,v,s,cor){return '<div style="border:1px solid #dfe8da;border-radius:10px;padding:10px 12px;background:#fff"><div style="font-size:12px;color:#777">'+t+'</div><div style="font-size:19px;font-weight:700;color:'+(cor||"#1a3a1a")+'">'+v+'</div>'+(s?'<div style="font-size:11px;color:#999">'+s+'</div>':'')+'</div>';};
+  var corV=function(v){return v<0?"#C62828":"#2E7D32";};
+  var h=sec("Resultado (DRE) — Guilherme Menezes Aguiar · Pecuária · "+ano)+
+    '<div style="font-size:12px;color:#777;margin-bottom:10px">CONAG, Painel de Resultado · '+(d.tipo_analise||"Realizado + à vencer")+' · só a sua unidade ('+un+')'+(em?' · lido em '+em.toLocaleDateString("pt-BR"):'')+'</div>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px">'+
+    k("Receita bruta",R(tot(rb)))+
+    k("Custo operacional bruto",R(Math.abs(tot(cob))),"gado, nutrição, sanidade, fretes")+
+    k("Resultado operacional bruto",R(tot(rob)),"",corV(tot(rob)))+
+    k("Caixa operacional líquido",R(tot(col)),"",corV(tot(col)))+
+    k("Despesas financeiras",R(tot(df)),"juros e encargos")+
+    k("Resultado líquido do período",R(tot(rl)),ml?"margem "+String(ml[nCol]).trim():"",corV(tot(rl)))+
+    '</div>';
+  /* grafico mensal: receita bruta x custo operacional bruto (barras) e resultado liquido (linha) */
+  if(rb&&cob){
+    var W=760,H=260,Lx=64,B=30,T=12,n=ultMes,gw=(W-Lx-16)/n,rec=[],cus=[],res=[];
+    for(var m=1;m<=n;m++){rec.push(_dreNum(rb[m]));cus.push(Math.abs(_dreNum(cob[m])));res.push(rl?_dreNum(rl[m]):0);}
+    var mx=Math.max.apply(null,rec.concat(cus).concat(res.map(Math.abs)).concat([1])),mn=Math.min.apply(null,res.concat([0]));
+    var passo=Math.pow(10,Math.floor(Math.log10(mx)));mx=Math.ceil(mx/passo)*passo;mn=mn<0?-Math.ceil(-mn/passo)*passo:0;
+    var Y=function(v){return T+(mx-v)/(mx-mn)*(H-B-T);};
+    var g='<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="display:block"><g font-size="11" fill="#666">';
+    for(var v=mn;v<=mx+1;v+=passo)g+='<line x1="'+Lx+'" x2="'+(W-16)+'" y1="'+Y(v)+'" y2="'+Y(v)+'" stroke="'+(v===0?"#bbb":"#eee")+'"/><text x="'+(Lx-6)+'" y="'+(Y(v)+4)+'" text-anchor="end">'+(v/1e6).toLocaleString("pt-BR",{maximumFractionDigits:1})+' mi</text>';
+    var ms=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"],bw=Math.min(18,gw/2-3);
+    for(var i=0;i<n;i++){var cx=Lx+gw*i+gw/2;
+      g+='<rect x="'+(cx-bw-1)+'" y="'+Y(rec[i])+'" width="'+bw+'" height="'+Math.max(0,Y(0)-Y(rec[i]))+'" rx="3" fill="#2E7D32"><title>'+ms[i]+': receita '+R(rec[i])+'</title></rect>'+
+         '<rect x="'+(cx+1)+'" y="'+Y(cus[i])+'" width="'+bw+'" height="'+Math.max(0,Y(0)-Y(cus[i]))+'" rx="3" fill="#B8944F"><title>'+ms[i]+': custo operacional bruto '+R(cus[i])+'</title></rect>'+
+         '<text x="'+cx+'" y="'+(H-B+16)+'" text-anchor="middle">'+ms[i]+'</text>';}
+    if(rl){g+='<polyline fill="none" stroke="#1a3a1a" stroke-width="2" points="'+res.map(function(v,i){return (Lx+gw*i+gw/2)+","+Y(v);}).join(" ")+'"/>'+
+      res.map(function(v,i){return '<circle cx="'+(Lx+gw*i+gw/2)+'" cy="'+Y(v)+'" r="4" fill="'+(v<0?"#C62828":"#1a3a1a")+'" stroke="#fff" stroke-width="1.5"><title>'+ms[i]+': resultado líquido '+R(v)+'</title></circle>';}).join("");}
+    g+='</g></svg>';
+    h+='<div style="display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:#555;margin-bottom:4px">'+
+      '<span><i style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#2E7D32;margin-right:5px;vertical-align:-2px"></i>Receita bruta</span>'+
+      '<span><i style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#B8944F;margin-right:5px;vertical-align:-2px"></i>Custo operacional bruto</span>'+
+      (rl?'<span><i style="display:inline-block;width:14px;height:3px;background:#1a3a1a;margin-right:5px;vertical-align:3px"></i>Resultado líquido do mês</span>':'')+'</div>'+g;
+  }
+  /* tabela: todas as linhas da DRE com o total do ano; mes a mes num quadro que rola para o lado */
+  var tb='<div style="overflow-x:auto;margin-top:10px"><table style="width:100%;border-collapse:collapse;font-size:12.5px;white-space:nowrap">'+
+    '<tr style="background:#f6f8f5"><th style="text-align:left;padding:6px;position:sticky;left:0;background:#f6f8f5">Conta</th><th style="text-align:right;padding:6px">Total '+ano+'</th>';
+  for(var m2=1;m2<=ultMes;m2++)tb+='<th style="text-align:right;padding:6px">'+cab[m2]+'</th>';
+  tb+='</tr>';
+  for(var j=1;j<L.length;j++){
+    var l=L[j],nm=String(l[0]||""),forte=/^\(=\)/.test(nm),pct=/^\(%\)/.test(nm);
+    if(!forte&&!pct&&_dreNum(l[nCol])===0)continue; /* conta zerada no ano: fora, para a tabela caber no celular */
+    var bg=forte?"#fafcf9":"#fff";
+    tb+='<tr style="border-bottom:1px solid #eee;background:'+bg+'"><td style="padding:5px 6px;position:sticky;left:0;background:'+bg+';'+(forte?'font-weight:700':'')+'">'+nm.replace(/^\(.\)/,function(x){return '<span style="color:#999">'+x+'</span> ';})+'</td>';
+    var vt=_dreNum(l[nCol]);
+    tb+='<td style="text-align:right;padding:5px 6px;font-weight:700;color:'+(vt<0?"#C62828":"#1a3a1a")+'">'+(pct?String(l[nCol]).trim():Math.round(vt).toLocaleString("pt-BR"))+'</td>';
+    for(var m3=1;m3<=ultMes;m3++){var vv=_dreNum(l[m3]);tb+='<td style="text-align:right;padding:5px 6px;color:'+(vv<0?"#C62828":"#333")+'">'+(pct?String(l[m3]).trim():(vv?Math.round(vv).toLocaleString("pt-BR"):"–"))+'</td>';}
+    tb+='</tr>';
+  }
+  tb+='</table></div><div style="font-size:11px;color:#999;margin-top:6px">Valores em R$. A DRE é de caixa: a compra de gado entra como custo no mês em que é paga, e o boi ainda em estoque não aparece como receita.</div>';
+  box.innerHTML=h+tb;c.appendChild(box);
 }
 async function salvarCaixaPlanoDiv(limpar){
   try{
@@ -27639,7 +27716,7 @@ async function atualizarPlanoDivAgora(){
   b.disabled=false;b.textContent=t0;
 }
 </script>
-<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.25-viab-fases</div>
+<div id="app-ver" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:#999;background:rgba(255,255,255,0.7);padding:2px 6px;border-radius:4px;z-index:9999;pointer-events:none">v2026.11.27-painel-dre</div>
 <!-- ===== MEDIÇÃO DE MATÉRIA SECA DO BAGAÇO ===== -->
 <div id="page-msbagaco" class="page">
 <div class="main">
